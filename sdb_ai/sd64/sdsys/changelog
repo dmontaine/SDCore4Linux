@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+13 Nov 26  A REFUSED SIGN-ON ENDS WITH EXIT STATUS 1.
+
+             What        - when SD refuses a session at sign-on (an account that is not registered, a suspended one, a login that may
+                           not enter it, and the other refusals of the LOGIN program), sd now ends with exit status 1; it ended with 0,
+                           the same as a session that signed on and was left with OFF.
+             Why         - a script, a scheduled job or an ssh command could not tell a refused session from one that worked.  Taken
+                           from SD Core for Windows, which made the change for its own session window.
+             Does NOT    - Change what is printed, or the exit status of a session that signed on: OFF and LOGOUT still end with 0.
+
 11 Nov 26  THE INSTALLER NO LONGER NAMES VERSIONS IN ITS "TESTED ON" LINE.
 
              What        - the line the installer prints before it asks to continue now reads "Tested on current versions

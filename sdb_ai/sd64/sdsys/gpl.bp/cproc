@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done.  Carried from the Windows port (its RELEASE_1.1
+*           245, 12 Nov); owner, 13 Nov 2026: "Yes, carry it".
 * 11 Nov 26 dm S.213: RUN.IN no longer runs an account's own code as the administrator.  (A) the command word and every option word must be SD's own entry in
 *              the account's VOC (the shipped NEWVOC record's type and dispatch fields), or the verb refuses before anything changes (message 14070);
 *              (B) the command runs with the administrator flag OFF, SH and OS.EXECUTE forced OFF and only the edit gate it needs ON, and revert.account
@@ -581,7 +583,12 @@ $endif
       
       i = '$LOGIN'
       call @i(j,0)
-      if not(j) then goto abort.cproc
+*  13 Nov 26 dm - a refused login ends the process with status 1, not 0, so a script, a job or ssh can tell refused from done (carried from the
+*  Windows port, its RELEASE_1.1 245; owner, 13 Nov 2026: "Yes, carry it").
+      if not(j) then
+         i = kernel(K$EXIT.STATUS, 1)
+         goto abort.cproc
+      end
 
 * 09 Sep 26 dm - HERE, not up in the privilege block, because $LOGIN has just
 *   drawn the sign-on banner.  See display.admin.notice for the owner's shape
