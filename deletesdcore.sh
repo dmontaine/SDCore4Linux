@@ -186,6 +186,30 @@ case $yn in
 esac
 printf "%b\n" "$NC"
 
+# 14 Nov 26  THE API ACROSS AN UPGRADE (owner, 14 Nov 2026: "those questions should not be asked during an upgrade if the config file has been saved.  If
+#            closed they stay closed, if open they stay open").  This script takes the API's firewall rule out and the installer writes the socket unit
+#            fresh, local only.  So, when the configuration is kept, an API that listens for other computers (systemd's own answer for the socket, which
+#            sees REMOTE.API's drop-in too) is noted in /home/sd/api-access.saved - the word open, root's, mode 600 - and the installer opens it again.
+#            When the configuration is deleted, REMOTE.API's drop-in goes as well: it outlived every uninstall before, so a fresh install that said
+#            "local" could listen for other computers.  ssh needs nothing: this script leaves sshd and port 22 alone.  test-install-keepaccess.sh runs it.
+# API-SAVE-BEGIN
+sudo rm -f "$acct_path/api-access.saved"
+if [ "$conf_deleted" = no ]; then
+    case " $(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ' || true) " in
+        *" 0.0.0.0:4247 "*|*" [::]:4247 "*|*" *:4247 "*)
+            if echo open | sudo tee "$acct_path/api-access.saved" > /dev/null && sudo chmod 600 "$acct_path/api-access.saved"; then
+                echo "Saved: API access from other computers is open, and the next install keeps it open."
+            else
+                echo "WARNING: could not note that API access is open; after the next install open it with:  remote.api on"
+            fi ;;
+    esac
+elif sudo test -e /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf; then
+    sudo rm -f /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf
+    sudo rmdir /etc/systemd/system/sdclient.socket.d 2>/dev/null || true
+    echo "Removed the API listener setting REMOTE.API wrote (/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf)."
+fi
+# API-SAVE-END
+
 # 19 Oct 26 dm - THE STORED SDNET LOGINS (SDNet audit K8e; owner, 19 Oct 2026: "if accounts OR config is deleted then sdnet credentials are deleted,
 #            only if both are retained should the sdnet info be retained").  /var/lib/sd-net/<user> holds, for every user who ran set.netlogin, the
 #            ClientKey and ServerKey of a remote server: as good as that server's password, and outside the account directory on purpose, so no

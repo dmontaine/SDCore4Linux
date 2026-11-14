@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  AN UPGRADE KEEPS ACCESS FROM OTHER COMPUTERS AS IT WAS, AND DOES NOT ASK ABOUT IT.
+
+             What        - when the uninstaller kept the configuration, the installer no longer asks "Allow ssh access from other
+                           computers?" or "Allow API access from other computers?".  ssh is left exactly as the machine has it, and
+                           the API is put back as it was: open to other computers (its listener and firewall rule) if it was open,
+                           local if it was local.  The uninstaller notes an open API in /home/sd/api-access.saved, root's alone.
+             Why         - the owner (14 Nov 2026): "those questions should not be asked during an upgrade if the config file has
+                           been saved.  If closed they stay closed, if open they stay open".  Before, pressing Enter at an upgrade
+                           quietly closed an API that had been open to other computers.
+             Also        - an uninstall that deletes the configuration now removes the listener setting remote.api writes
+                           (/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf).  It outlived every uninstall before, so
+                           a fresh install that said "local" could still listen for other computers.
+             Does NOT    - Change a fresh install, which asks both questions as before, or remote.ssh and remote.api.
+
 14 Nov 26  THE INSTALLER NO LONGER ASKS WHETHER SDSYS MAY SIGN IN OVER SSH.
 
              What        - the question "Let sdsys sign in over ssh with its password? (y/N)" is gone.  SDSYS over ssh is installed

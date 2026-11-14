@@ -794,13 +794,26 @@ esac
 # stays as the box has it and the API listens on 127.0.0.1:$sd_api_port (local only).
 # "Allow ssh access"  y -> enable sshd at boot + ufw allow 22/tcp.
 # "Allow API access"  y -> rebind the API listener to 0.0.0.0:$sd_api_port + ufw allow $sd_api_port/tcp.
+# 14 Nov 26  NOT ASKED ON AN UPGRADE (owner, 14 Nov 2026: "those questions should not be asked during an upgrade if the config file has been saved.  If
+#            closed they stay closed, if open they stay open").  deletesdcore.sh moved the saved configuration to /home/sd/sd.conf; when it is there the
+#            two questions are skipped (keep_access=y).  ssh is then left exactly as the machine has it (allow_ssh=n changes nothing, and the uninstaller
+#            does not touch sshd or port 22).  The API is put back as it was in the API-KEEP block below, from the note the uninstaller left.
+#            test-install-keepaccess.sh runs this block.
+# ACCESS-ASK-BEGIN
 allow_ssh=n
 allow_api=n
+keep_access=n
 printf "%b\n" "$YELLOW"
-read -r -p "Allow ssh access from other computers? enables sshd at boot, opens port 22 (y/N) " yn_ssh
-case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
-read -r -p "Allow API access from other computers? opens TCP port $sd_api_port (y/N) " yn_api
-case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
+if [ -f /home/sd/sd.conf ]; then
+    keep_access=y
+    echo "Access from other computers (ssh and the API) is kept as it was: the configuration was saved."
+else
+    read -r -p "Allow ssh access from other computers? enables sshd at boot, opens port 22 (y/N) " yn_ssh || yn_ssh=""
+    case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
+    read -r -p "Allow API access from other computers? opens TCP port $sd_api_port (y/N) " yn_api || yn_api=""
+    case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
+fi
+# ACCESS-ASK-END
 # 1 Nov 26   THE QUESTION ABOUT THE INSTALLING USER'S ACCESS GATES, BACK (owner, 1 Nov 2026: "we need to add that back", then "Every gate", confirmed after the
 #            warning).  Asked here, up front with the others, so the rest of the install runs unattended.  The answer is NO unless y or yes is typed.  It is not
 #            asked when the account already exists: an upgrade keeps what it has and nothing below touches an existing account.  open_installer_gates and
@@ -1726,6 +1739,18 @@ fi
 # (local only).  If API access was requested, rebind the TCP listener to all
 # interfaces and open the firewall; otherwise leave it local and add no rule.
 # daemon-reload so the started socket below picks up the deployed/edited unit.
+# 14 Nov 26  AN UPGRADE KEEPS THE API AS IT WAS (see ACCESS-ASK): deletesdcore.sh, keeping the configuration, left /home/sd/api-access.saved saying open when
+#            the API listened for other computers.  A root-owned plain file saying open turns allow_api on, which re-opens the listener and the firewall rule
+#            the uninstaller took out; anything else leaves it local.  The note is removed whatever it said.  test-install-keepaccess.sh runs this block.
+# API-KEEP-BEGIN
+if [ "$keep_access" = y ] && sudo test -f /home/sd/api-access.saved && ! sudo test -L /home/sd/api-access.saved \
+   && [ "$(sudo stat -c %u /home/sd/api-access.saved 2>/dev/null || true)" = 0 ] \
+   && [ "$(sudo head -1 /home/sd/api-access.saved 2>/dev/null | tr -d '[:space:]' || true)" = open ]; then
+    allow_api=y
+    echo "API access from other computers was open before the upgrade, and is kept open."
+fi
+sudo rm -f /home/sd/api-access.saved
+# API-KEEP-END
 if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
     if [ "$allow_api" = "y" ]; then
         echo "Allowing API access from other computers (TCP $sd_api_port)."
@@ -3234,6 +3259,8 @@ if [ "$allow_ssh" = "y" ]; then
         echo "ssh access: ENABLED - sshd runs at boot on port 22 (no ufw or firewalld found;"
         echo "  open port 22 with this distribution's own firewall tool if it has one)."
     fi
+elif [ "$keep_access" = y ]; then
+    echo "ssh access: kept as it was before the upgrade - sshd and port 22 left as the box had them."
 else
     echo "ssh access: not enabled - sshd left as the box had it."
 fi
