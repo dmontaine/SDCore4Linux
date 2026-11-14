@@ -79,6 +79,14 @@ const unsigned char* sd_tls_client_binding(SD_TLS_CLIENT* c);
 int sd_tls_client_peer_sha256(SD_TLS_CLIENT* c, unsigned char* out);
 int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);   /* 17 Oct 26 S.65: the key, not the certificate */
 const char* sd_tls_client_version(SD_TLS_CLIENT* c);
+
+/* LSOLO 19: pin the server's certificate on first use; see sd_tls.c.  The store
+   is $SD_KNOWN_SERVERS, else $HOME/.sdcore/known_servers. */
+#define SD_TLS_PIN_FAILED 0
+#define SD_TLS_PIN_MATCH  1
+#define SD_TLS_PIN_NEW    2
+int sd_tls_client_pin(SD_TLS_CLIENT* c, const char* host, int port,
+                      char* errmsg, size_t errlen);
 void sd_tls_client_end(SD_TLS_CLIENT* c);
 
 /* ---- server (sd_tlssrv.c) --------------------------------------------- */

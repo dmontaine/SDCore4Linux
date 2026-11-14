@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE CLIENT LIBRARY PINS THE SERVER'S CERTIFICATE, AND THE API'S TLS RELAY CAN DO NOTHING BUT COPY BYTES.
+
+             What        - (1) The client library now remembers each server's TLS certificate the first time it connects (in
+                           ~/.sdcore/known_servers, or the file named by SD_KNOWN_SERVERS, one line "host:port sha256") and refuses,
+                           before a single byte of the login is sent, a later connection to the same address and port that presents
+                           a different one.  The message names both fingerprints and the line to remove.  A server that has been
+                           reinstalled has a new certificate: remove its line and connect again.  A store that cannot be read or
+                           written refuses the connection instead of connecting unchecked; a program with no home directory (a web
+                           server, a service) sets SD_KNOWN_SERVERS.  (2) The process that relays the network's bytes to SD is
+                           confined, after it has dropped its privileges, by no_new_privs and a system-call filter: it may copy bytes
+                           between two descriptors it already holds and nothing else, and is killed if it tries to open a file, make a
+                           connection or run a program.  On a processor other than x86-64 and aarch64 it runs as before and says so in
+                           the system log.  SD Core Solo for Linux has had both since 30 Sep 2026.
+             Why         - a person in the middle who posed as the server could collect the login's proof and try to crack the
+                           password from it at leisure; the pin stops that after the first connection.  The relay is the one process
+                           that parses bytes from the network, so it is the one worth taking everything else away from.
+             Does NOT    - Protect the very first connection to a server (as with ssh, someone in the middle at that moment is
+                           remembered in the server's place), change the login, or filter sd itself, only the relay.  A program that
+                           connects with the BASIC !sdclient class or SDNet does not go through the client library and is not pinned.
+
 14 Nov 26  AN API SIGN-IN IS ON THE AUDIT TRAIL, BY USER AND ACCOUNT.
 
              What        - a program that signed in over the API (SDConnect and the client libraries) left nothing on the audit trail

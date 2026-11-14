@@ -67,7 +67,8 @@ def main():
     try:
         exe = os.path.join(tmp, "verify-tls")
         identity = os.path.join(tmp, "identity")
-        cmd = ([cc, "-std=gnu17", "-Wall", "-Wextra", "-O2", "-o", exe] +
+        cmd = ([cc, "-std=gnu17", "-Wall", "-Wextra", "-O2",
+                "-DSD_RELAY_PROBE_BUILD", "-o", exe] +
                SOURCES + ["-I" + INC] + inc_flags + lib_flags)
         print("test-tls-relay: command  %s" % " ".join(cmd))
         build = subprocess.run(cmd, capture_output=True, text=True)

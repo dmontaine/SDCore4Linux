@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 30 Sep 26 SD Core for Linux Solo (LSOLO 19): sd_tls_client_pin() - the
+ *           server's certificate is pinned on first use (below).
  * 15 Sep 26 dm S.19: created.  See sd_tls.h.
  * 17 Oct 26 dm S.65: sd_tls_client_peer_spki_sha256() (the key, not the certificate); sd_tls_client_end() holds SIGPIPE off around the
  *               close_notify (it ended the process when the peer had already closed the connection).
@@ -32,8 +34,10 @@
  *
  * WHAT THAT DOES NOT COVER, recorded in PROJECT_STATUS S.19: a man in the
  * middle who poses as the server can collect a client proof and try to crack
- * the password offline.  Pinning the server's key on first use would close
- * that, which is why the server's identity is persistent (sd_tlssrv.c).
+ * the password offline.  Pinning the server's key on first use closes
+ * that, which is why the server's identity is persistent (sd_tlssrv.c):
+ * sd_tls_client_pin() does it (LSOLO 19) - called by SDConnect after the
+ * handshake and before the login.
  *
  * END-DESCRIPTION
  */
@@ -49,7 +53,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -423,6 +429,150 @@ int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out) {
   OPENSSL_free(der);
   X509_free(cert);
   return ok;
+}
+
+/* ======================================================================
+   sd_tls_client_pin()  -  PIN THE SERVER'S CERTIFICATE ON FIRST USE
+
+   30 Sep 26 SD Core for Linux Solo (LSOLO 19), agreed with SD Core Solo for
+   Windows.  The first time a client connects to host:port it records the
+   SHA-256 of the server's certificate (the whole DER certificate, as
+   sd_tls_client_peer_sha256() computes it) in a store of its own; every later
+   connection to host:port must present the same certificate or is refused
+   BEFORE the SCRAM login starts, so a man in the middle who poses as the
+   server collects no client proof to crack offline (the gap this file's
+   description records).  The server's certificate is persistent
+   (sd_tlssrv.c), which is what makes this workable.
+
+   THE STORE: $SD_KNOWN_SERVERS when set, else $HOME/.sdcore/known_servers
+   (directory 0700, file 0600, created here).  One line per server:
+       <host>:<port> <64 hex digits>
+   A host is compared in lower case.  THE LIMIT, STATED: the first connection
+   is trusted - a man in the middle present at the very first use is pinned
+   instead of the server (the same as ssh's known_hosts).  If a server is
+   reinstalled its certificate changes and the refusal says which line to
+   remove.  A store that cannot be read or written REFUSES the connection:
+   a pin that fails open is decoration.
+
+   Returns SD_TLS_PIN_MATCH (already pinned, the same), SD_TLS_PIN_NEW (first
+   use, now recorded) or SD_TLS_PIN_FAILED (refused; errmsg says why).     */
+
+static int pin_store_path(char* path, size_t len) {
+  const char* env = getenv("SD_KNOWN_SERVERS");
+  const char* home;
+
+  if (env != NULL && env[0] != '\0')
+    return snprintf(path, len, "%s", env) < (int)len;
+  home = getenv("HOME");
+  if (home == NULL || home[0] == '\0')
+    return false;
+  if (snprintf(path, len, "%s/.sdcore", home) >= (int)len)
+    return false;
+  if (mkdir(path, 0700) != 0 && errno != EEXIST)
+    return false;
+  return snprintf(path, len, "%s/.sdcore/known_servers", home) < (int)len;
+}
+
+int sd_tls_client_pin(SD_TLS_CLIENT* c, const char* host, int port,
+                      char* errmsg, size_t errlen) {
+  unsigned char digest[32];
+  char hex[65];
+  char key[300];
+  char path[1100];
+  char line[600];
+  char want[sizeof(key) + 1];
+  FILE* fp;
+  int fd;
+  int i;
+  int found = false;
+  char stored[65];
+
+  if (host == NULL || host[0] == '\0') {
+    snprintf(errmsg, errlen, "cannot pin the server: no host name");
+    return SD_TLS_PIN_FAILED;
+  }
+  if (!sd_tls_client_peer_sha256(c, digest)) {
+    snprintf(errmsg, errlen, "cannot pin the server: it presented no certificate");
+    return SD_TLS_PIN_FAILED;
+  }
+  for (i = 0; i < 32; i++)
+    snprintf(hex + 2 * i, 3, "%02x", digest[i]);
+
+  if (snprintf(key, sizeof(key), "%s:%d", host, port) >= (int)sizeof(key)) {
+    snprintf(errmsg, errlen, "cannot pin the server: the host name is too long");
+    return SD_TLS_PIN_FAILED;
+  }
+  for (i = 0; key[i] != '\0'; i++)
+    if (key[i] >= 'A' && key[i] <= 'Z')
+      key[i] = (char)(key[i] - 'A' + 'a');
+  if (strpbrk(key, " \t\r\n") != NULL) {
+    snprintf(errmsg, errlen, "cannot pin the server: the host name has a space in it");
+    return SD_TLS_PIN_FAILED;
+  }
+
+  if (!pin_store_path(path, sizeof(path))) {
+    snprintf(errmsg, errlen,
+             "cannot pin the server: no place to keep the pin (set HOME or SD_KNOWN_SERVERS)");
+    return SD_TLS_PIN_FAILED;
+  }
+
+  /* O_APPEND|O_CREAT first, so the file exists with mode 0600 whatever its
+     state; then read it from the start. */
+  fd = open(path, O_RDWR | O_APPEND | O_CREAT, 0600);
+  if (fd < 0) {
+    snprintf(errmsg, errlen, "cannot pin the server: cannot open %s: %s", path,
+             strerror(errno));
+    return SD_TLS_PIN_FAILED;
+  }
+  fp = fdopen(fd, "r+");
+  if (fp == NULL) {
+    close(fd);
+    snprintf(errmsg, errlen, "cannot pin the server: cannot read %s", path);
+    return SD_TLS_PIN_FAILED;
+  }
+  rewind(fp);
+
+  snprintf(want, sizeof(want), "%s ", key);
+  stored[0] = '\0';
+  while (fgets(line, sizeof(line), fp) != NULL) {
+    if (strncmp(line, want, strlen(want)) == 0) {
+      found = true;
+      snprintf(stored, sizeof(stored), "%s", line + strlen(want));
+      stored[strcspn(stored, "\r\n ")] = '\0';
+      break;
+    }
+  }
+
+  if (found) {
+    fclose(fp);
+    if (strcmp(stored, hex) != 0) {
+      snprintf(errmsg, errlen,
+               "THE SERVER'S CERTIFICATE HAS CHANGED since this client first connected to %s "
+               "(pinned %s, now %s). The connection was refused before any password was sent. "
+               "If the server was reinstalled, remove the line for %s from %s and connect again",
+               key, stored, hex, key, path);
+      return SD_TLS_PIN_FAILED;
+    }
+    return SD_TLS_PIN_MATCH;
+  }
+
+  /* An unterminated last line would glue the new one to it. */
+  fseek(fp, 0, SEEK_END);
+  if (ftell(fp) > 0) {
+    char last = '\n';
+    if (fseek(fp, -1, SEEK_END) == 0)
+      last = (char)fgetc(fp);
+    fseek(fp, 0, SEEK_END);
+    if (last != '\n')
+      fputc('\n', fp);
+  }
+  if (fprintf(fp, "%s %s\n", key, hex) < 0 || fflush(fp) != 0) {
+    fclose(fp);
+    snprintf(errmsg, errlen, "cannot pin the server: cannot write %s", path);
+    return SD_TLS_PIN_FAILED;
+  }
+  fclose(fp);
+  return SD_TLS_PIN_NEW;
 }
 
 const char* sd_tls_client_version(SD_TLS_CLIENT* c) {

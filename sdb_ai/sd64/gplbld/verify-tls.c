@@ -14,6 +14,7 @@
  */
 
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,6 +37,7 @@
 #include "sd_tls.h"
 
 #define STAND_IN_REFUSED 10
+#define STAND_IN_KILLED 31            /* the relay died of SIGSYS */
 
 static int checks = 0;
 static int failures = 0;
@@ -110,8 +112,13 @@ static pid_t start_server(const char* dir, int timeout_ms, int* client_fd) {
     if (dup2(sv[1], 0) < 0 || dup2(sv[1], 1) < 0 || dup2(sv[1], 2) < 0)
       _exit(20);
     close(sv[1]);
-    if (!sd_tls_relay_start(dir, timeout_ms, err, sizeof(err)))
+    if (!sd_tls_relay_start(dir, timeout_ms, err, sizeof(err))) {
+      /* A relay killed by the seccomp filter ends with SIGSYS: say so. */
+      int ws;
+      if (wait(&ws) > 0 && WIFSIGNALED(ws) && WTERMSIG(ws) == SIGSYS)
+        _exit(STAND_IN_KILLED);
       _exit(STAND_IN_REFUSED);
+    }
     /* Plaintext on stderr after the relay starts.  If descriptor 2 were still
        the connection, these bytes would land in the TLS stream ahead of the
        ACK and A3/B3 would fail. */
@@ -381,6 +388,278 @@ int main(int argc, char* argv[]) {
   else
     printf("  [SKIP] G1 run as root, but this test does not inspect the relay's "
            "uid - UNMEASURED, the install witness's\n");
+
+  /* ---- H ------------------------------------------------------------ */
+  printf("\nH  the relay is confined (LSOLO 18)\n");
+  {
+    unsigned char hb[SD_TLS_BINDING_BYTES];
+    unsigned char hf[32];
+    SD_TLS_CLIENT* hc = open_session("Hs", dir, &fd, &pid, hb, hf);
+    pid_t relay_pid = 0;
+    int seccomp = -1;
+    int nnp = -1;
+
+    if (hc != NULL) {
+      DIR* pd = opendir("/proc");
+      struct dirent* de;
+
+      while (pd != NULL && (de = readdir(pd)) != NULL) {
+        char p[300];
+        FILE* f;
+        int ppid = 0;
+        char line[256];
+
+        if (de->d_name[0] < '0' || de->d_name[0] > '9')
+          continue;
+        snprintf(p, sizeof(p), "/proc/%s/status", de->d_name);
+        f = fopen(p, "r");
+        if (f == NULL)
+          continue;
+        while (fgets(line, sizeof(line), f) != NULL)
+          if (sscanf(line, "PPid: %d", &ppid) == 1)
+            break;
+        fclose(f);
+        if (ppid == (int)pid)
+          relay_pid = (pid_t)atoi(de->d_name);
+      }
+      if (pd != NULL)
+        closedir(pd);
+      if (relay_pid > 0) {
+        char p[64];
+        FILE* f;
+        char line[256];
+
+        snprintf(p, sizeof(p), "/proc/%d/status", (int)relay_pid);
+        f = fopen(p, "r");
+        while (f != NULL && fgets(line, sizeof(line), f) != NULL) {
+          if (sscanf(line, "Seccomp: %d", &seccomp) == 1)
+            continue;
+          (void)sscanf(line, "NoNewPrivs: %d", &nnp);
+        }
+        if (f != NULL)
+          fclose(f);
+      }
+      snprintf(detail, sizeof(detail), "relay pid %d, Seccomp %d, NoNewPrivs %d",
+               (int)relay_pid, seccomp, nnp);
+      check("H1 the relay runs with seccomp filter mode 2", relay_pid > 0 && seccomp == 2, detail);
+      check("H2 and with no_new_privs", nnp == 1, detail);
+      sd_tls_client_end(hc);
+      close(fd);
+      (void)wait_exit(pid, 5000);
+    } else {
+      check("H1 the relay runs with seccomp filter mode 2", false, "no session");
+      check("H2 and with no_new_privs", false, "no session");
+    }
+  }
+  {
+    static const char* const probes[] = {"open", "socket", "exec"};
+    int pi;
+
+    for (pi = 0; pi < 3; pi++) {
+      char what[96];
+
+      (void)setenv("SD_RELAY_PROBE", probes[pi], 1);
+      pid = start_server(dir, 3000, &fd);
+      c = sd_tls_client_start(fd, 3000, err, sizeof(err));
+      if (c != NULL)
+        sd_tls_client_end(c);
+      close(fd);
+      code = wait_exit(pid, 10000);
+      snprintf(what, sizeof(what), "H%d a relay that tries %s is killed (SIGSYS)", 3 + pi, probes[pi]);
+      snprintf(detail, sizeof(detail), "exit %d", code);
+      check(what, c == NULL && code == STAND_IN_KILLED, detail);
+    }
+    /* The control: a call the filter allows must not stop the relay, or the
+       three kills above prove only that the probe hook kills. */
+    (void)setenv("SD_RELAY_PROBE", "getpid", 1);
+    {
+      unsigned char hb[SD_TLS_BINDING_BYTES];
+      unsigned char hf[32];
+
+      c = open_session("Hc", dir, &fd, &pid, hb, hf);
+      check("H6 a relay that tries an allowed call carries on", c != NULL, "");
+      if (c != NULL)
+        sd_tls_client_end(c);
+      close(fd);
+      (void)wait_exit(pid, 5000);
+    }
+    (void)unsetenv("SD_RELAY_PROBE");
+  }
+
+  /* ---- P: pin the server's certificate on first use (LSOLO 19) -------- */
+  printf("\nP  pinning: the certificate is recorded on first use and must then match\n");
+  {
+    char store[4096];
+    char hex_a[65];
+    char buf[4096];
+    char perr[512];
+    char want_line[200];
+    FILE* sf;
+    struct stat pst;
+    SD_TLS_CLIENT* pc;
+    int rc;
+    int pfd;
+    pid_t ppid;
+    int i;
+    size_t nread;
+
+    snprintf(store, sizeof(store), "%s/known_servers", dir);
+    (void)unlink(store);
+    (void)setenv("SD_KNOWN_SERVERS", store, 1);
+    for (i = 0; i < 32; i++)
+      snprintf(hex_a + 2 * i, 3, "%02x", fp_a[i]);
+
+    /* P1: first use. */
+    ppid = start_server(dir, 3000, &pfd);
+    pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+    rc = pc != NULL ? sd_tls_client_pin(pc, "Server.Example", 4249, perr, sizeof(perr)) : -1;
+    snprintf(detail, sizeof(detail), "returned %d", rc);
+    check("P1 first use is recorded (SD_TLS_PIN_NEW)", rc == SD_TLS_PIN_NEW, detail);
+    if (pc != NULL)
+      sd_tls_client_end(pc);
+    close(pfd);
+    (void)wait_exit(ppid, 5000);
+
+    /* P2: what was written is the host in lower case and the SAME fingerprint the
+       earlier sessions computed independently, in a file only the owner can use. */
+    snprintf(want_line, sizeof(want_line), "server.example:4249 %s\n", hex_a);
+    nread = 0;
+    buf[0] = '\0';
+    sf = fopen(store, "r");
+    if (sf != NULL) {
+      nread = fread(buf, 1, sizeof(buf) - 1, sf);
+      buf[nread] = '\0';
+      fclose(sf);
+    }
+    check("P2 the store holds 'server.example:4249 <the certificate's SHA-256>'",
+          strcmp(buf, want_line) == 0, buf);
+    check("P3 the store is mode 0600",
+          stat(store, &pst) == 0 && (pst.st_mode & 0777) == 0600, "");
+
+    /* P4: second use of the same certificate, written in another case. */
+    ppid = start_server(dir, 3000, &pfd);
+    pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+    rc = pc != NULL ? sd_tls_client_pin(pc, "SERVER.example", 4249, perr, sizeof(perr)) : -1;
+    snprintf(detail, sizeof(detail), "returned %d", rc);
+    check("P4 the same certificate matches (SD_TLS_PIN_MATCH), host case ignored",
+          rc == SD_TLS_PIN_MATCH, detail);
+    if (pc != NULL)
+      sd_tls_client_end(pc);
+    close(pfd);
+    (void)wait_exit(ppid, 5000);
+
+    /* P5: another port is another server: pinned afresh, the first line kept.  The two ports
+       are the two SD Core API ports - a Solo's 4249 (P1-P4) and the full products' 4247 - so
+       one host that runs both keeps two pins (LSOLO 23; owner, 2 Oct 2026: "certificate pin
+       keyed by host and port"). */
+    ppid = start_server(dir, 3000, &pfd);
+    pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+    rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4247, perr, sizeof(perr)) : -1;
+    snprintf(detail, sizeof(detail), "returned %d", rc);
+    check("P5 another port is pinned separately (SD_TLS_PIN_NEW)", rc == SD_TLS_PIN_NEW, detail);
+    if (pc != NULL)
+      sd_tls_client_end(pc);
+    close(pfd);
+    (void)wait_exit(ppid, 5000);
+
+    /* P5b: the store holds ONE LINE PER host:port - the 4249 line P1 wrote, untouched, and a
+       4247 line after it - not one line for the host. */
+    snprintf(want_line, sizeof(want_line), "server.example:4249 %s\nserver.example:4247 %s\n", hex_a, hex_a);
+    nread = 0;
+    buf[0] = '\0';
+    sf = fopen(store, "r");
+    if (sf != NULL) {
+      nread = fread(buf, 1, sizeof(buf) - 1, sf);
+      buf[nread] = '\0';
+      fclose(sf);
+    }
+    check("P5b one host, ports 4249 and 4247: two lines, two pins", strcmp(buf, want_line) == 0, buf);
+
+    /* P6: THE CONTROL.  The server's identity is replaced - what a man in the
+       middle, or a reinstall, looks like to the client.  The connection to the
+       pinned name is refused, the message names the old and the new fingerprint
+       and the pin to remove, and the store is NOT changed. */
+    {
+      char before[4096];
+      char after[4096];
+      unsigned char new_fp[32];
+      char hex_new[65];
+      int j;
+
+      sf = fopen(store, "r");
+      nread = sf != NULL ? fread(before, 1, sizeof(before) - 1, sf) : 0;
+      before[nread] = '\0';
+      if (sf != NULL)
+        fclose(sf);
+      (void)unlink(path);
+      ppid = start_server(dir, 3000, &pfd);
+      pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+      memset(new_fp, 0, sizeof(new_fp));
+      if (pc != NULL)
+        (void)sd_tls_client_peer_sha256(pc, new_fp);
+      for (j = 0; j < 32; j++)
+        snprintf(hex_new + 2 * j, 3, "%02x", new_fp[j]);
+      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4249, perr, sizeof(perr)) : -1;
+      snprintf(detail, sizeof(detail), "returned %d: %.120s", rc, perr);
+      check("P6 a replaced certificate is REFUSED (SD_TLS_PIN_FAILED)",
+            pc != NULL && rc == SD_TLS_PIN_FAILED && strcmp(hex_new, hex_a) != 0, detail);
+      check("P7 the refusal says it has changed, names old and new, and the line to remove",
+            strstr(perr, "HAS CHANGED") != NULL && strstr(perr, hex_a) != NULL &&
+                strstr(perr, hex_new) != NULL && strstr(perr, "remove the line for server.example:4249") != NULL,
+            perr);
+      sf = fopen(store, "r");
+      nread = sf != NULL ? fread(after, 1, sizeof(after) - 1, sf) : 0;
+      after[nread] = '\0';
+      if (sf != NULL)
+        fclose(sf);
+      check("P8 the refusal left the store exactly as it was", strcmp(before, after) == 0, "");
+      if (pc != NULL)
+        sd_tls_client_end(pc);
+      close(pfd);
+      (void)wait_exit(ppid, 5000);
+    }
+
+    /* P9: a store whose last line has no newline keeps both lines. */
+    sf = fopen(store, "w");
+    if (sf != NULL) {
+      fputs("old.example:1 00", sf);
+      fclose(sf);
+    }
+    ppid = start_server(dir, 3000, &pfd);
+    pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+    rc = pc != NULL ? sd_tls_client_pin(pc, "new.example", 4249, perr, sizeof(perr)) : -1;
+    sf = fopen(store, "r");
+    nread = sf != NULL ? fread(buf, 1, sizeof(buf) - 1, sf) : 0;
+    buf[nread] = '\0';
+    if (sf != NULL)
+      fclose(sf);
+    check("P9 an unterminated last line is kept and the new pin starts on its own line",
+          rc == SD_TLS_PIN_NEW && strncmp(buf, "old.example:1 00\nnew.example:4249 ", 33) == 0, buf);
+    if (pc != NULL)
+      sd_tls_client_end(pc);
+    close(pfd);
+    (void)wait_exit(ppid, 5000);
+
+    /* P10: a store that cannot be used REFUSES; it does not fail open. */
+    {
+      char bad[4200];
+
+      snprintf(bad, sizeof(bad), "%s/no-such-directory/known_servers", dir);
+      (void)setenv("SD_KNOWN_SERVERS", bad, 1);
+      ppid = start_server(dir, 3000, &pfd);
+      pc = sd_tls_client_start(pfd, 3000, perr, sizeof(perr));
+      rc = pc != NULL ? sd_tls_client_pin(pc, "server.example", 4249, perr, sizeof(perr)) : -1;
+      snprintf(detail, sizeof(detail), "returned %d: %.100s", rc, perr);
+      check("P10 an unusable store refuses (SD_TLS_PIN_FAILED), it does not connect unpinned",
+            rc == SD_TLS_PIN_FAILED && strstr(perr, "cannot open") != NULL, detail);
+      if (pc != NULL)
+        sd_tls_client_end(pc);
+      close(pfd);
+      (void)wait_exit(ppid, 5000);
+    }
+    (void)unsetenv("SD_KNOWN_SERVERS");
+    (void)unlink(store);
+  }
 
   printf("\n%d checks, %d failed\n", checks, failures);
   return failures ? 1 : 0;

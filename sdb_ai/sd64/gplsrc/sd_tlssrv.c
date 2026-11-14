@@ -12,6 +12,9 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 30 Sep 26 dm LSOLO 18: confine() - no_new_privs and a seccomp whitelist in
+ *              the relay, since Solo is never root and drop_privilege()
+ *              therefore drops nothing.
  * 26 Oct 26 dm sd waits for the relay when it ends (sd_tls_relay_finish): sdclient@.service has the default KillMode, so systemd killed the relay the
  *              moment sd exited, and a reply sd had just written (a refused SCRAM login) reached the client as a close with no close_notify -
  *              9 of 60 refusals on the Debian 13 VM, 0 of 60 with KillMode=process.
@@ -58,7 +61,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <linux/audit.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -319,6 +327,103 @@ static bool drop_privilege(char* errmsg, size_t errlen) {
 }
 
 /* ======================================================================
+   confine()  -  no_new_privs and a seccomp filter, for good
+
+   LSOLO 18 (30 Sep 26).  Solo is never root, so drop_privilege() has nothing
+   to give up and the relay would run with every right the user has over
+   their home.  The filter takes away what a relay does not need: it copies
+   bytes between two descriptors it already holds and does nothing else, so
+   it may not open a file, make a socket, connect, run a program or fork.
+   Anything off the list kills the process.
+
+   The list is what the relay measurably uses after this point (strace -f,
+   a full handshake and traffic both ways), plus the allocator's and the
+   signal and exit calls any C program needs.  It is a whitelist on one
+   architecture at a time; on an architecture not listed the relay runs
+   unconfined and says so in the log, because a filter built from another
+   architecture's numbers would kill it.                                   */
+
+#if defined(__x86_64__)
+#define RELAY_AUDIT_ARCH AUDIT_ARCH_X86_64
+#elif defined(__aarch64__)
+#define RELAY_AUDIT_ARCH AUDIT_ARCH_AARCH64
+#endif
+
+#ifdef RELAY_AUDIT_ARCH
+#ifndef SECCOMP_RET_KILL_PROCESS
+#define SECCOMP_RET_KILL_PROCESS 0x80000000U
+#endif
+
+static const int relay_allowed[] = {
+  SYS_read, SYS_write, SYS_close, SYS_recvfrom, SYS_sendto, SYS_recvmsg,
+  SYS_sendmsg, SYS_shutdown, SYS_ppoll,
+#ifdef SYS_poll
+  SYS_poll,
+#endif
+#ifdef SYS_select
+  SYS_select,
+#endif
+  SYS_pselect6,
+  SYS_brk, SYS_mmap, SYS_munmap, SYS_mremap, SYS_mprotect, SYS_madvise,
+  SYS_futex, SYS_getrandom,
+  SYS_clock_gettime, SYS_clock_nanosleep, SYS_gettimeofday,
+#ifdef SYS_nanosleep
+  SYS_nanosleep,
+#endif
+  SYS_getpid, SYS_gettid,
+  SYS_rt_sigaction, SYS_rt_sigprocmask, SYS_rt_sigreturn, SYS_sigaltstack,
+  SYS_restart_syscall, SYS_fcntl, SYS_exit, SYS_exit_group
+};
+#define RELAY_ALLOWED_COUNT ((int)(sizeof(relay_allowed) / sizeof(relay_allowed[0])))
+
+static bool confine(char* errmsg, size_t errlen) {
+  struct sock_filter f[RELAY_ALLOWED_COUNT + 7];
+  struct sock_fprog prog;
+  int n = 0;
+  int i;
+
+  /* What the log and the clock need, done while open() and friends are still
+     allowed: the log socket, and the time zone file syslog() reads once. */
+  openlog("sd", LOG_NDELAY | LOG_PID, LOG_DAEMON);
+  tzset();
+
+  f[n++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+                                        offsetof(struct seccomp_data, arch));
+  f[n++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+                                        RELAY_AUDIT_ARCH, 1, 0);
+  f[n++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K,
+                                        SECCOMP_RET_KILL_PROCESS);
+  f[n++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+                                        offsetof(struct seccomp_data, nr));
+  for (i = 0; i < RELAY_ALLOWED_COUNT; i++)
+    f[n++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
+                                          (unsigned)relay_allowed[i],
+                                          (unsigned char)(RELAY_ALLOWED_COUNT - i), 0);
+  f[n++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K,
+                                        SECCOMP_RET_KILL_PROCESS);
+  f[n++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW);
+
+  prog.len = (unsigned short)n;
+  prog.filter = f;
+  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 ||
+      prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) != 0) {
+    snprintf(errmsg, errlen, "cannot confine the TLS relay: %s",
+             strerror(errno));
+    return false;
+  }
+  return true;
+}
+#else
+static bool confine(char* errmsg, size_t errlen) {
+  (void)errmsg;
+  (void)errlen;
+  syslog(LOG_WARNING, "SD API TLS: this architecture has no relay filter; "
+                      "the relay runs unconfined");
+  return true;
+}
+#endif
+
+/* ======================================================================
    relay()  -  copy both ways until either side ends                      */
 
 static bool ssl_write_all(SSL* ssl, const char* p, int len) {
@@ -420,6 +525,29 @@ static void relay_process(const char* dir, int timeout_ms, int app_fd) {
     syslog(LOG_ERR, "SD API TLS: %s", err);
     _exit(RELAY_EXIT_PRIVILEGE);
   }
+  if (!confine(err, sizeof(err))) {
+    syslog(LOG_ERR, "SD API TLS: %s", err);
+    _exit(RELAY_EXIT_PRIVILEGE);
+  }
+#ifdef SD_RELAY_PROBE_BUILD
+  /* Compiled only by gplbld/test-tls-relay.py, never by the Makefile: lets
+     the test make the confined relay attempt one forbidden call and see it
+     killed.  "getpid" is the control - allowed, so the relay must go on. */
+  {
+    const char* probe = getenv("SD_RELAY_PROBE");
+
+    if (probe != NULL) {
+      if (strcmp(probe, "open") == 0)
+        (void)open("/etc/passwd", O_RDONLY);
+      else if (strcmp(probe, "socket") == 0)
+        (void)socket(AF_INET, SOCK_STREAM, 0);
+      else if (strcmp(probe, "exec") == 0)
+        (void)execl("/bin/true", "true", (char*)NULL);
+      else if (strcmp(probe, "getpid") == 0)
+        (void)getpid();
+    }
+  }
+#endif
 
   ssl = SSL_new(ctx);
   if (ssl == NULL || SSL_set_fd(ssl, net_fd) != 1) {

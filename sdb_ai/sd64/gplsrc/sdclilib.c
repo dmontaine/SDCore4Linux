@@ -4340,7 +4340,7 @@ Private bool OpenSocket(char* host, int16_t port) {
      TLS.  Its channel binding is what scram_login() binds the login to.  A
      failure here leaves the socket for SDConnect's CloseSocket().          */
   {
-    char tls_err[256];
+    char tls_err[512];
 
     session[session_idx].tls = sd_tls_client_start(
         session[session_idx].sock, SD_TLS_HANDSHAKE_MS + 5000, tls_err,
@@ -4348,7 +4348,17 @@ Private bool OpenSocket(char* host, int16_t port) {
     if (session[session_idx].tls == NULL) {
       snprintf(session[session_idx].sderror,
                sizeof(session[session_idx].sderror),
-               "Secure connection to server failed: %s", tls_err);
+               "Secure connection to server failed: %.400s", tls_err);   /* 14 Nov 26: tls_err grew to 512 with the pin (LSOLO 19); the compiler (-Wformat-truncation) wanted the bound */
+      goto exit_opensocket;
+    }
+
+    /* 30 Sep 26 LSOLO 19 - PIN THE SERVER'S CERTIFICATE ON FIRST USE, before
+       a single byte of the login is sent.  A changed certificate refuses the
+       connection and says which pin to remove if the server was reinstalled. */
+    if (sd_tls_client_pin(session[session_idx].tls, host, port, tls_err,
+                          sizeof(tls_err)) == SD_TLS_PIN_FAILED) {
+      snprintf(session[session_idx].sderror,
+               sizeof(session[session_idx].sderror), "%s", tls_err);
       goto exit_opensocket;
     }
   }
