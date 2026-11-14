@@ -59,7 +59,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant content-without-shared     '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/ s/^if sudo test -f "\$shared_reg" \&\& sudo test -d "\$shared_dir"; then$/if true; then/'
   mutant viewers-kept               '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/{/sudo rm -f "\${sdsysdir}\/viewers"/d}'
   mutant viewers-rm-fails-on-absent '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/ s/sudo rm -f "\${sdsysdir}\/viewers"/sudo rm "${sdsysdir}\/viewers"/'
-  mutant viewer-question-back       's/^# SDSYS-SSH-ASK-END$/# SDSYS-SSH-ASK-END\n# VIEWER-ASK-BEGIN\n# VIEWER-ASK-END/'
+  mutant viewer-question-back       's/^# GATES-ASK-END$/# GATES-ASK-END\n# VIEWER-ASK-BEGIN\n# VIEWER-ASK-END/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?

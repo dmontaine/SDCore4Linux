@@ -821,17 +821,11 @@ fi
 # GATES-ASK-END
 # 02 Nov 26  S.106: the question about the authenticator code for SDSYS over ssh (S.95) is gone with the code (owner: password only for this release).  SDSYS over ssh stays
 #            shut as delivered.
-# 07 Nov 26  S.155: THE QUESTION WHETHER TO OPEN SDSYS OVER SSH (owner, 7 Nov 2026, after an install on a headless container: "If sd is being installed on a headless
-#            server there is no way to give the remote access without these additional steps which are not documented"; he chose "Summary + question").  The answer is
-#            NO unless y or yes is typed, so a plain install is still delivered shut; a y runs ssh-forcecommand --open-sdsys in the SDSYS-SSH-OPEN block, after the
-#            sdsys password, and the closing summary reports the state read back from the helper.  test-install-sdsysssh.sh runs both blocks.
-# SDSYS-SSH-ASK-BEGIN
-open_sdsys_ssh=n
-echo
-echo "sdsys, the administrator, cannot sign in over ssh unless that is opened.  On a server with no screen it is how SD is administered."
-read -r -p "Let sdsys sign in over ssh with its password? (y/N) " yn_sdsys_ssh || yn_sdsys_ssh=""
-case $yn_sdsys_ssh in [yY]|[yY][eE][sS] ) open_sdsys_ssh=y;; esac
-# SDSYS-SSH-ASK-END
+# 14 Nov 26  S.155: NO QUESTION ABOUT SDSYS OVER SSH (owner, 13 Nov 2026, Windows chat: "should we always install remote ssh admin off and then the admin has to turn it
+#            on, preventing the need to enter that password during install or even ask about remote ssh admin.  It's just an available feature that can be turned on";
+#            then "i like the design better and would prefer it in both versions").  It is delivered shut and opened with  sudo sd-elevate sdsys-ssh on  or
+#            remote.sdsys on.  The closing summary (SDSYS-SSH-SUMMARY) still reports the state and says how to open it from an ordinary login, which is what a server
+#            with no screen needs (the reason for the 7 Nov question).  test-install-sdsysssh.sh holds that the installer opens nothing.
 # 03 Nov 26 dm  WHERE A SESSION STARTS (owner, 3 Nov 2026: "Can that be a question asked during the install?", then "the home/prompt question").  The
 #            home screen as delivered; the command prompt on p.  An upgrade that kept the accounts offers what the site had (deletesdcore.sh kept
 #            start.default as /home/sd/start.default.saved), so it does not quietly go back to the home screen.  The answer is applied by the
@@ -3089,21 +3083,12 @@ else
     sdsys_p1=""; sdsys_p2=""
 fi
 #
-# 07 Nov 26  S.155: SDSYS OVER SSH, OPENED ONLY ON A y TO THE SDSYS-SSH-ASK QUESTION.  After the sdsys password, so the door is not opened before there is a password
-#            behind it (with none, sshd refuses the locked account anyway).  Only when the ssh boundary went in (--open-sdsys needs its block).  A failure warns: SD is
-#            installed and working, and the door stays shut.  The state for the closing summary is read back from the helper whatever the answer was.
-# SDSYS-SSH-OPEN-BEGIN
-if [ "$open_sdsys_ssh" = y ]; then
-    if [ "$ssh_boundary_ok" = 1 ] && sudo /usr/local/sbin/ssh-forcecommand --open-sdsys; then
-        echo "sdsys can now sign in over ssh with its password."
-    else
-        printf "%b\n" "$RED"
-        echo "WARNING: sdsys over ssh could not be opened.  Once the cause is resolved:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
-        printf "%b\n" "$NC"
-    fi
-fi
+# 14 Nov 26  S.155: the installer no longer opens SDSYS over ssh (see the note after GATES-ASK); it only reads the state back for the closing summary.  After an
+#            upgrade the door is SHUT: deletesdcore.sh always runs ssh-forcecommand --remove (the block is system configuration), so --install above writes it fresh,
+#            closed, and the summary says how to open it again.
+# SDSYS-SSH-STATE-BEGIN
 sdsys_ssh_state=$(sudo /usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null || true)
-# SDSYS-SSH-OPEN-END
+# SDSYS-SSH-STATE-END
 #
 # 19 Sep 26 dm - AND SDSYS'S SD PASSWORD, WHICH THIS INSTALLER USED TO WITHHOLD.
 #            REVERSES THE 15 Sep RULING ABOVE, on the owner's decision of 19 Sep
@@ -3287,7 +3272,7 @@ echo "su route into it.  sdsys signs in over ssh only while that door is open (i
 echo "password alone is then enough), and the API admits sdsys only from a process"
 echo "running as sdsys on this machine, never from another computer.  A desktop-"
 echo "sharing view of the console (VNC, TeamViewer) is a local login and works."
-# 07 Nov 26  S.155: the state read back in SDSYS-SSH-OPEN, and how to change it from an ordinary ssh login (a server with no screen has no local sdsys login).
+# 07 Nov 26  S.155: the state read back in SDSYS-SSH-STATE, and how to change it from an ordinary ssh login (a server with no screen has no local sdsys login).
 # SDSYS-SSH-SUMMARY-BEGIN
 case "$sdsys_ssh_state" in
     *sdsys-arm=open*)

@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE INSTALLER NO LONGER ASKS WHETHER SDSYS MAY SIGN IN OVER SSH.
+
+             What        - the question "Let sdsys sign in over ssh with its password? (y/N)" is gone.  SDSYS over ssh is installed
+                           shut, every time, and the administrator opens it afterwards with  sudo /usr/local/sbin/sd-elevate sdsys-ssh on
+                           (from any login with sudo, which is how a server with no screen does it) or  remote.sdsys on  at the SD prompt.
+                           The installer's closing summary still says whether it is open and gives that command.
+             Why         - it is an available feature, not part of installing SD, and opening it needed the sdsys password during the
+                           install.  The owner chose this design for SD Core for Linux and SD Core for Windows alike (13 Nov 2026).
+             Does NOT    - Change remote.sdsys or sd-elevate sdsys-ssh, or what an open door allows.  An upgrade shuts the door, as it
+                           did before (the uninstaller always takes SD's ssh block out); open it again after the upgrade.
+
 13 Nov 26  A REFUSED SIGN-ON ENDS WITH EXIT STATUS 1.
 
              What        - when SD refuses a session at sign-on (an account that is not registered, a suspended one, a login that may
