@@ -825,7 +825,8 @@ fi
 #            on, preventing the need to enter that password during install or even ask about remote ssh admin.  It's just an available feature that can be turned on";
 #            then "i like the design better and would prefer it in both versions").  It is delivered shut and opened with  sudo sd-elevate sdsys-ssh on  or
 #            remote.sdsys on.  The closing summary (SDSYS-SSH-SUMMARY) still reports the state and says how to open it from an ordinary login, which is what a server
-#            with no screen needs (the reason for the 7 Nov question).  test-install-sdsysssh.sh holds that the installer opens nothing.
+#            with no screen needs (the reason for the 7 Nov question).  The installer opens it only to keep an upgrade as it was (SDSYS-SSH-STATE);
+#            test-install-sdsysssh.sh holds both.
 # 03 Nov 26 dm  WHERE A SESSION STARTS (owner, 3 Nov 2026: "Can that be a question asked during the install?", then "the home/prompt question").  The
 #            home screen as delivered; the command prompt on p.  An upgrade that kept the accounts offers what the site had (deletesdcore.sh kept
 #            start.default as /home/sd/start.default.saved), so it does not quietly go back to the home screen.  The answer is applied by the
@@ -3083,10 +3084,27 @@ else
     sdsys_p1=""; sdsys_p2=""
 fi
 #
-# 14 Nov 26  S.155: the installer no longer opens SDSYS over ssh (see the note after GATES-ASK); it only reads the state back for the closing summary.  After an
-#            upgrade the door is SHUT: deletesdcore.sh always runs ssh-forcecommand --remove (the block is system configuration), so --install above writes it fresh,
-#            closed, and the summary says how to open it again.
+# 14 Nov 26  S.155: the installer asks nothing about SDSYS over ssh (see the note after GATES-ASK).  AN UPGRADE KEEPS IT AS IT WAS (owner, 13 Nov 2026, Windows
+#            chat: "I don't believe an upgrade should shut something that is already open"): deletesdcore.sh takes SD's ssh block out every time, so when it found
+#            the door open with the configuration kept it left /home/sd/sdsys-ssh.saved, and here, after --install wrote the block closed, the door is opened
+#            again.  The note counts only if root owns it, it is a plain file and it says open; it is removed whatever it said.  A failure warns: SD is installed
+#            and working, and the door stays shut.  Then the state is read back for the closing summary.  test-install-sdsysssh.sh runs this block.
 # SDSYS-SSH-STATE-BEGIN
+sdsys_ssh_saved=""
+if sudo test -f /home/sd/sdsys-ssh.saved && ! sudo test -L /home/sd/sdsys-ssh.saved \
+   && [ "$(sudo stat -c %u /home/sd/sdsys-ssh.saved 2>/dev/null || true)" = 0 ]; then
+    sdsys_ssh_saved=$(sudo head -1 /home/sd/sdsys-ssh.saved 2>/dev/null | tr -d '[:space:]' || true)
+fi
+sudo rm -f /home/sd/sdsys-ssh.saved
+if [ "$sdsys_ssh_saved" = open ]; then
+    if [ "$ssh_boundary_ok" = 1 ] && sudo /usr/local/sbin/ssh-forcecommand --open-sdsys; then
+        echo "sdsys over ssh was open before the upgrade, and is open again."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: sdsys over ssh was open before the upgrade and could not be opened again.  Once the cause is resolved:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
+        printf "%b\n" "$NC"
+    fi
+fi
 sdsys_ssh_state=$(sudo /usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null || true)
 # SDSYS-SSH-STATE-END
 #

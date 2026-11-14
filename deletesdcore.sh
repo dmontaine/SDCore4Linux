@@ -449,6 +449,23 @@ echo "Removed /usr/local/sbin/sd-reconcile-accounts."
 #            no SD block is present.  Non-fatal: a stale block matching a group
 #            that is about to be removed is harmless (it just never matches), so
 #            a removal hiccup must not abort the uninstall.
+# 14 Nov 26  AN UPGRADE KEEPS SDSYS OVER SSH AS IT WAS (owner, 13 Nov 2026, Windows chat: "I don't believe an upgrade should shut something that is already
+#            open").  Before the block goes, an OPEN sdsys arm is noted in /home/sd/sdsys-ssh.saved when the configuration is kept (the keep cycle an upgrade
+#            is); the installer opens it again after its own --install and removes the note.  Root-owned, mode 600, holding the word open: the installer
+#            believes nothing else.  A deleted configuration leaves no note, so a full uninstall still removes it.  test-delete-sdsysssh.sh runs this block.
+# SDSYS-SSH-SAVE-BEGIN
+sudo rm -f "$acct_path/sdsys-ssh.saved"
+if [ "$conf_deleted" = no ] && [ -x /usr/local/sbin/ssh-forcecommand ]; then
+    case "$(sudo /usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null || true)" in
+        *sdsys-arm=open*)
+            if echo open | sudo tee "$acct_path/sdsys-ssh.saved" > /dev/null && sudo chmod 600 "$acct_path/sdsys-ssh.saved"; then
+                echo "Saved: sdsys over ssh is open, and the next install opens it again."
+            else
+                echo "WARNING: could not note that sdsys over ssh is open; after the next install open it with:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
+            fi ;;
+    esac
+fi
+# SDSYS-SSH-SAVE-END
 ssh_fences_out=1
 if [ -x /usr/local/sbin/ssh-forcecommand ]; then
     if ! sudo /usr/local/sbin/ssh-forcecommand --remove; then

@@ -9,8 +9,12 @@ Next release - in progress
                            The installer's closing summary still says whether it is open and gives that command.
              Why         - it is an available feature, not part of installing SD, and opening it needed the sdsys password during the
                            install.  The owner chose this design for SD Core for Linux and SD Core for Windows alike (13 Nov 2026).
-             Does NOT    - Change remote.sdsys or sd-elevate sdsys-ssh, or what an open door allows.  An upgrade shuts the door, as it
-                           did before (the uninstaller always takes SD's ssh block out); open it again after the upgrade.
+             Also        - AN UPGRADE NOW KEEPS IT AS IT WAS.  Before, an upgrade shut an open door (the uninstaller takes SD's ssh
+                           block out every time).  Now, when the configuration is kept, the uninstaller notes that the door was open
+                           (/home/sd/sdsys-ssh.saved, root's alone) and the next install opens it again and says so.  The owner
+                           (13 Nov 2026): "I don't believe an upgrade should shut something that is already open".
+             Does NOT    - Change remote.sdsys or sd-elevate sdsys-ssh, or what an open door allows.  A full uninstall, or one that
+                           deletes the configuration, still removes it.
 
 13 Nov 26  A REFUSED SIGN-ON ENDS WITH EXIT STATUS 1.
 

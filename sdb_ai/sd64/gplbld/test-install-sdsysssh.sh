@@ -14,9 +14,14 @@
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 #   N1  the installer asks no question about sdsys over ssh (no prompt naming sdsys and ssh, no open_sdsys_ssh variable)
-#   N2  no command line of the installer opens it: no ssh-forcecommand --open-sdsys, no sd-elevate sdsys-ssh on (an echo telling a person the command is allowed)
-#   R1  SDSYS-SSH-STATE calls the helper once, with --sdsys-state only, sets sdsys_ssh_state from it and reaches its end under the installer's set and IFS,
-#       also when the helper fails
+#   N2  the installer opens it in SDSYS-SSH-STATE only (one --open-sdsys line, inside that block), never with sd-elevate sdsys-ssh on (an echo telling a person
+#       the command is allowed)
+#   R1  with no note, SDSYS-SSH-STATE calls the helper once, with --sdsys-state only, sets sdsys_ssh_state from it and reaches its end under the installer's set
+#       and IFS, also when the helper fails
+#   U1  AN UPGRADE KEEPS IT OPEN (owner, 13 Nov 2026: "I don't believe an upgrade should shut something that is already open"): a root-owned plain note
+#       saying open, with the boundary in place, runs --open-sdsys then --sdsys-state and says so; the note is removed
+#   U2  a note that is not root's, a link, or says anything but open opens nothing; every note is removed
+#   U3  a note saying open without the boundary, or with --open-sdsys failing, warns with the sudo command and reaches the end with status 0
 #   S1  sdsys-arm=open -> "SDSYS over ssh: open." and the off command; S2 closed -> "shut." and the sudo ... sdsys-ssh on command; S3 anything else -> "not known" and
 #       the status command; none of them claims a state it was not given
 #   S4  open with no sdsys Linux password (skipped, or no terminal) adds that ssh cannot let sdsys in until sudo passwd sdsys; with one set or kept it does not
@@ -52,8 +57,15 @@ if [ "${1:-}" = "--selftest" ]; then
   S='/^# SDSYS-SSH-SUMMARY-BEGIN/,/^# SDSYS-SSH-SUMMARY-END/'
   inst_mutant question-back      "/^# GATES-ASK-END/a read -r -p \"Let sdsys sign in over ssh with its password? (y/N) \" yn_sdsys_ssh || yn_sdsys_ssh=\"\""
   inst_mutant variable-back      "/^# GATES-ASK-END/a open_sdsys_ssh=n"
-  inst_mutant open-back          "/^# SDSYS-SSH-STATE-BEGIN/a sudo /usr/local/sbin/ssh-forcecommand --open-sdsys || true"
+  inst_mutant open-elsewhere     "/^# GATES-ASK-END/a sudo /usr/local/sbin/ssh-forcecommand --open-sdsys || true"
   inst_mutant elevate-open-back  "/^# SDSYS-SSH-STATE-BEGIN/a sudo /usr/local/sbin/sd-elevate sdsys-ssh on || true"
+  inst_mutant open-always        "$R s/^if \[ \"\$sdsys_ssh_saved\" = open \]; then/if true; then/"
+  inst_mutant note-any-owner     "$R s/ = 0 \]; then$/ = \"\$(sudo stat -c %u \/home\/sd\/sdsys-ssh.saved 2>\/dev\/null || true)\" ]; then/"
+  inst_mutant note-link-ok       "$R s/ \&\& ! sudo test -L \/home\/sd\/sdsys-ssh.saved / /"
+  inst_mutant note-kept          "$R{/^sudo rm -f \/home\/sd\/sdsys-ssh.saved/d}"
+  inst_mutant reopen-no-boundary "$R s/\[ \"\$ssh_boundary_ok\" = 1 \] \&\& //"
+  inst_mutant reopen-fatal       "$R{/could not be opened again/a\\        exit 1
+}"
   inst_mutant no-readback        "$R s/^sdsys_ssh_state=.*/sdsys_ssh_state=\"sdsys-arm=closed\"/"
   inst_mutant readback-fatal     "$R s/ || true)/)/"
   inst_mutant summary-open-wrong "$S s/SDSYS over ssh: open\./SDSYS over ssh: shut./"
@@ -85,20 +97,27 @@ row() {
   if [ "$2" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1"; else fail=$((fail+1)); echo "  [FAIL] $1   <- $3"; fi
 }
 
-# run BLOCK; prints the output, then VAR=<sdsys_ssh_state> and REACHED-END; the helper's calls go to LOG
+# run BLOCK; prints the output, then VAR=<sdsys_ssh_state> and REACHED-END; the helper's calls go to LOG.  /home/sd/ in the block is the scratch directory
+# $T/home; NOTE_OWNER is what stat -c %u says of the note (0 = root); BOK the boundary flag; ORC the --open-sdsys exit status.
 runblock() {   # block-text log state helper-rc
-  OPTS="$OPTS" IFSL="$IFSL" BLOCK="$1" LOG="$2" STATE="$3" HRC="${4:-0}" bash -c '
+  local b="$1"; b="${b//\/home\/sd\//$T/home/}"
+  OPTS="$OPTS" IFSL="$IFSL" BLOCK="$b" LOG="$2" STATE="$3" HRC="${4:-0}" BOK="${BOK:-1}" ORC="${ORC:-0}" NOTE_OWNER="${NOTE_OWNER:-0}" bash -c '
       eval "$OPTS"; eval "$IFSL"
       RED=""; NC=""; YELLOW=""
-      sdsys_ssh_state=$STATE; sdsys_pw_state=${PWS:-set}
+      sdsys_ssh_state=$STATE; sdsys_pw_state=${PWS:-set}; ssh_boundary_ok=$BOK
       fc() {
         { printf "fc"; printf " %s" "$@"; echo; } >> "$LOG"
         case "$1" in
           --sdsys-state) printf "%s\n" "$STATE"; return "$HRC" ;;
+          --open-sdsys) return "$ORC" ;;
           *) return 0 ;;
         esac
       }
-      sudo() { if [ "$1" = /usr/local/sbin/ssh-forcecommand ]; then shift; fc "$@"; else "$@"; fi; }
+      sudo() {
+        if [ "$1" = /usr/local/sbin/ssh-forcecommand ]; then shift; fc "$@"
+        elif [ "$1" = stat ]; then echo "$NOTE_OWNER"
+        else "$@"; fi
+      }
       eval "$BLOCK"
       echo "VAR=$sdsys_ssh_state"
       echo REACHED-END' < /dev/null 2>&1
@@ -110,17 +129,46 @@ asks=$(printf '%s\n' "$code" | grep -E 'read [^#]*-p' | grep -i -E 'sdsys' | gre
 var=$(printf '%s\n' "$code" | grep -E 'open_sdsys_ssh' || true)
 row "N1 no question about sdsys over ssh, no open_sdsys_ssh variable" "$([ -z "$asks$var" ] && echo 0 || echo 1)" "asks: $asks var: $var"
 opens=$(printf '%s\n' "$code" | grep -E 'ssh-forcecommand[^#]*--open-sdsys|sd-elevate[^#]*sdsys-ssh on' | grep -v -E ':\s*echo ' || true)
-row "N2 no installer command opens sdsys over ssh" "$([ -z "$opens" ] && echo 0 || echo 1)" "lines: $opens"
+n_open=$(printf '%s\n' "$opens" | grep -c . || true)
+in_block=$(printf '%s\n' "$STATE" | grep -c -E 'ssh-forcecommand --open-sdsys' || true)
+elev=$(printf '%s\n' "$opens" | grep -E 'sd-elevate' || true)
+row "N2 the installer opens it in SDSYS-SSH-STATE only, and never with sd-elevate" "$([ "$n_open" = 1 ] && [ "$in_block" = 1 ] && [ -z "$elev" ] && echo 0 || echo 1)" "lines: $opens"
+mkdir -p "$T/home"
+NOTE="$T/home/sdsys-ssh.saved"
 
-# R1: the read-back
+# R1: the read-back with no note
 rbad=""
 for st in "sdsys-arm=open" "sdsys-arm=closed" "absent"; do
-  : > "$T/r"; out=$(runblock "$STATE" "$T/r" "$st" 0); rc=$?
+  rm -f "$NOTE"; : > "$T/r"; out=$(runblock "$STATE" "$T/r" "$st" 0); rc=$?
   [ "$(tr '\n' '|' < "$T/r")" = "fc --sdsys-state|" ] && [[ "$out" == *"VAR=$st"* && "$out" == *REACHED-END* && $rc = 0 ]] || rbad="$rbad '$st'"
 done
-: > "$T/r"; out=$(runblock "$STATE" "$T/r" "" 1); rc=$?
+rm -f "$NOTE"; : > "$T/r"; out=$(runblock "$STATE" "$T/r" "" 1); rc=$?
 [[ "$out" == *REACHED-END* && $rc = 0 ]] || rbad="$rbad helper-fails"
-row "R1 SDSYS-SSH-STATE asks --sdsys-state once, keeps what it says and reaches its end (also when the helper fails)" "$([ -z "$rbad" ] && echo 0 || echo 1)" "wrong for:$rbad out: $out"
+row "R1 with no note, SDSYS-SSH-STATE asks --sdsys-state once, keeps what it says and reaches its end (also when the helper fails)" "$([ -z "$rbad" ] && echo 0 || echo 1)" "wrong for:$rbad out: $out"
+
+# U1-U3: an upgrade's note
+echo open > "$NOTE"; : > "$T/u1"; out=$(runblock "$STATE" "$T/u1" "sdsys-arm=open" 0); rc=$?
+row "U1 a root-owned note saying open, with the boundary, reopens it (--open-sdsys then --sdsys-state), says so, and the note is gone" \
+    "$([ "$(tr '\n' '|' < "$T/u1")" = "fc --open-sdsys|fc --sdsys-state|" ] && [[ "$out" == *"open again"* && "$out" == *REACHED-END* ]] && [ ! -e "$NOTE" ] && [ $rc = 0 ] && echo 0 || echo 1)" "calls: $(tr '\n' '|' < "$T/u1") out: $out"
+ubad=""
+for case in other-owner link other-word empty; do
+  rm -f "$NOTE" "$T/target"; own=0
+  case $case in
+    other-owner) echo open > "$NOTE"; own=1000 ;;
+    link)        echo open > "$T/target"; ln -s "$T/target" "$NOTE" ;;
+    other-word)  echo opened > "$NOTE" ;;
+    empty)       : > "$NOTE" ;;
+  esac
+  : > "$T/u2"; out=$(NOTE_OWNER=$own runblock "$STATE" "$T/u2" "sdsys-arm=closed" 0); rc=$?
+  { [ "$(tr '\n' '|' < "$T/u2")" = "fc --sdsys-state|" ] && [ ! -e "$NOTE" ] && [ ! -L "$NOTE" ] && [[ "$out" == *REACHED-END* ]] && [ $rc = 0 ]; } || ubad="$ubad $case"
+done
+row "U2 a note not root's, a link, another word or empty opens nothing, and is removed" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad"
+ubad=""
+echo open > "$NOTE"; : > "$T/u3"; out=$(BOK=0 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
+{ ! grep -q -- --open-sdsys "$T/u3" && [[ "$out" == *"could not be opened again"* && "$out" == *"sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* ]] && [ $rc = 0 ]; } || ubad="$ubad no-boundary"
+echo open > "$NOTE"; : > "$T/u3"; out=$(ORC=1 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
+{ [[ "$out" == *"could not be opened again"* && "$out" != *"open again."* && "$out" == *REACHED-END* ]] && [ $rc = 0 ] && [ ! -e "$NOTE" ]; } || ubad="$ubad open-fails"
+row "U3 a note saying open without the boundary, or with --open-sdsys failing, warns with the sudo command and goes on with status 0" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad out: $out"
 
 # S1-S4: the summary line
 out=$(runblock "$SUMM" /dev/null "sdsys-arm=open")
