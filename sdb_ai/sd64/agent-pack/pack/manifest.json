@@ -88,7 +88,7 @@
   },
   "sys.param": {
    "chunks": 50,
-   "sha256": "47962f75060fed0f041b9e4208c26171e7ae53a8170b0585e8f65497c05dbc04"
+   "sha256": "24d7f98a2226ce083656781ed3153c404430bc474614d170c9a87f271164db62"
   },
   "sys.releases": {
    "chunks": 1,
@@ -124,7 +124,7 @@
   },
   "voc.type": {
    "chunks": 9,
-   "sha256": "b718d9a4b2c3687fc98d604fea58fba51e493fd473f12f13db831e4b2a3d2cad"
+   "sha256": "660dc9389b7e09caeb78eb1ba275e6d93d9556075b4878138ce950ed3bd1fa5a"
   },
   "voc.types": {
    "chunks": 1,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "76da6975333de4bf0402acf12caaf1786be8a18b80df81bac8dae335787fb349"
+   "sha256": "594309c972822ecc34ac6be282ebca62515e534a0cbf99f81c53959b45207a75"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -184,7 +184,7 @@
   },
   "reference/system.md": {
    "chunks": 95,
-   "sha256": "fd9bdd05c1b13c39e9a9732a687b9369705c6d10e6da0dbc055e6ce7675dced7",
+   "sha256": "685f3f68099c66fe5d4a314cdc71677d9954d817ebfb699898f28c9a6454699e",
    "words": 3007
   },
   "reference/tcl-keywords.md": {
@@ -199,8 +199,8 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "efcdfa25d988b18e3bf62bffac4bb478c7791c3dd9a9521c30491ff2fed5dd9c",
-   "words": 1920
+   "sha256": "29ee89a8f1613e7d8ee5326a901b3af03c5222662771cfe91cfdc295edccbf77",
+   "words": 1927
   }
  },
  "product": "SD Core for Linux",
