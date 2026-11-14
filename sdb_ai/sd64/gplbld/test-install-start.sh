@@ -10,8 +10,8 @@
 # folder.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a block or the installer's set / IFS line missing).
 #
 #   A1  a fresh install (nothing saved), Enter: the home screen, the question offers (H/p);  A2  p: the prompt;  A3  "prompt": the prompt
-#   A4  an upgrade that saved terminal, Enter: the prompt, the question offers (h/P);  A5  the same, h: the home screen
-#   A6  a saved file that says something else: the home screen (only the word terminal counts)
+#   A0  a fresh install asks once;  A4  an upgrade that saved terminal: the prompt, NOT ASKED (owner, 14 Nov 2026);  A5  an upgrade with the accounts
+#       kept and nothing saved: the home screen, not asked;  A6  a saved file that says something else: the home screen, not asked
 #   S1  terminal: set.start.default terminal is run by the installer's own sd, and the line says the prompt;  S2  the verb writes nothing: WARNING, ends 0
 #   S3  menu: the verb is not run, the line says the home screen;  S4  the saved file is removed either way
 #   D1  the deleter, keeping the accounts, saves start.default as start.default.saved, mode 644;  D2  DELETE (accounts removed): nothing saved
@@ -44,6 +44,8 @@ if [ "${1:-}" = "--selftest" ]; then
   echo "  [ok] the real scripts pass"
   mutant default-prompt   inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/^start_choice=menu$/start_choice=terminal/'
   mutant ignores-saved    inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/ = terminal \]; then start_choice=terminal; fi/ = never ]; then start_choice=terminal; fi/'
+  mutant upgrade-asks     inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/^if \[ -n "\$start_saved" \] || \[ -d \/home\/sd\/user_accounts \]; then$/if false; then/'
+  mutant kept-accounts-ask inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/ || \[ -d \/home\/sd\/user_accounts \]; then$/; then/'
   mutant judged-by-nothing inst '/^# START-SET-BEGIN/,/^# START-SET-END/ s/if sudo grep -qsx .terminal. "\$sdsysdir\/start.default"; then/if true; then/'
   mutant keeps-saved      inst '/^# START-SET-BEGIN/,/^# START-SET-END/{/rm -f \/home\/sd\/start.default.saved/d}'
   mutant saves-on-delete  del  '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/^if \[ "\$keep_accts" != "DELETE" \]; then/if true; then/'
@@ -85,6 +87,7 @@ run() {
   local blk="$1" input="${2:-}"
   : > "$T/sudo.log"
   { printf '%s\n' "$OPTS"; echo "RED=''; NC=''"; echo "sdsysdir='$T/sys'; acct_path='$T/home'"; printf '%s\n' "$STUB"
+    echo 'read() { [ "${2:-}" = -p ] && echo "PROMPT: $3"; builtin read "$@"; }   # read -p shows no prompt off a terminal'
     printf '%s\n' "${blk//\/home\/sd\//$T/home/}"; echo 'echo "CHOICE=${start_choice:-}"'; } > "$T/run.sh"
   printf '%s\n' "$input" | LOGF="$T/sudo.log" SDSYSDIR="$T/sys" bash "$T/run.sh" 2>&1; echo "RC=$?"
 }
@@ -93,18 +96,18 @@ fresh() { rm -rf "$T/home" "$T/sys"; mkdir -p "$T/home" "$T/sys"; }
 # ---- A: the question --------------------------------------------------------------------------------------------------------
 fresh; out=$(run "$ASK" "")
 row "A1 fresh, Enter: the home screen" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && echo yes)")" "$out"
-# read -p shows its prompt only on a terminal, so the wording is checked in the block: the capital letter is the answer Enter gives
-row "A0 the question offers (h/P) when the saved answer is the prompt and (H/p) otherwise" "$(ok "$(printf '%s\n' "$ASK" | awk '/start_choice" = terminal \]; then$/{t=1} t&&/\(h\/P\)/{a=1} /^else$/{e=1} e&&/\(H\/p\)/{b=1} END{exit !(a&&b)}' && echo yes)")" "$(printf '%s\n' "$ASK" | grep -n 'read -r -p')"
+row "A0 a fresh install asks once, offering (H/p): Enter is the home screen" "$(ok "$([ "$(printf '%s\n' "$out" | grep -c '^PROMPT: ')" = 1 ] && printf '%s\n' "$out" | grep -q '^PROMPT: .*(H/p) ' && echo yes)")" "$out"
 fresh; out=$(run "$ASK" "p")
 row "A2 fresh, p: the prompt" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && echo yes)")" "$out"
 fresh; out=$(run "$ASK" "prompt")
 row "A3 fresh, prompt: the prompt" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && echo yes)")" "$out"
-fresh; echo terminal > "$T/home/start.default.saved"; out=$(run "$ASK" "")
-row "A4 upgrade that saved terminal, Enter: the prompt" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && echo yes)")" "$out"
+# 14 Nov 26 (owner: "it is still asking the home screen or command prompt question, that should just take the existing situation")
 fresh; echo terminal > "$T/home/start.default.saved"; out=$(run "$ASK" "h")
-row "A5 upgrade that saved terminal, h: the home screen" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && echo yes)")" "$out"
-fresh; echo 'rm -rf /' > "$T/home/start.default.saved"; out=$(run "$ASK" "")
-row "A6 a saved file with another word: the home screen" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && echo yes)")" "$out"
+row "A4 upgrade that saved terminal: the prompt, not asked (a typed h changes nothing), and it says so" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the command prompt' && echo yes)")" "$out"
+fresh; mkdir -p "$T/home/user_accounts"; out=$(run "$ASK" "p")
+row "A5 upgrade with the accounts kept and nothing saved: the home screen, not asked (a typed p changes nothing)" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the home screen' && echo yes)")" "$out"
+fresh; echo 'rm -rf /' > "$T/home/start.default.saved"; out=$(run "$ASK" "p")
+row "A6 a saved file with another word: the home screen, not asked" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && echo yes)")" "$out"
 # ---- S: applying it ---------------------------------------------------------------------------------------------------------
 fresh; echo terminal > "$T/home/start.default.saved"; out=$(run "start_choice=terminal
 $SET")

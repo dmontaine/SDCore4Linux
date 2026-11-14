@@ -844,15 +844,23 @@ fi
 #            home screen as delivered; the command prompt on p.  An upgrade that kept the accounts offers what the site had (deletesdcore.sh kept
 #            start.default as /home/sd/start.default.saved), so it does not quietly go back to the home screen.  The answer is applied by the
 #            START-SET block below with set.start.default; an account with a start word of its own (modify.account) keeps it.  test-install-start.sh.
+# 14 Nov 26 dm  NOT ASKED ON AN UPGRADE (owner, 14 Nov 2026: "it is still asking the home screen or command prompt question, that should just take the
+#            existing situation").  An upgrade - the accounts kept (/home/sd/user_accounts is there) or a saved start.default - keeps where sessions
+#            started: the prompt when the saved word is terminal (also an install from before the home screen, which the deleter saves as terminal),
+#            the home screen otherwise.  Only a fresh install asks.
 # START-ASK-BEGIN
 start_choice=menu
-if [ "$(head -1 /home/sd/start.default.saved 2>/dev/null | tr -d '[:space:]' | tr 'A-Z' 'a-z' || true)" = terminal ]; then start_choice=terminal; fi
+start_saved=$(head -1 /home/sd/start.default.saved 2>/dev/null | tr -d '[:space:]' | tr 'A-Z' 'a-z' || true)
 echo
-if [ "$start_choice" = terminal ]; then
-    read -r -p "Start new sessions at the home screen or at the command prompt? (h/P) " yn_start
-    case $yn_start in [hH]|[hH][oO][mM][eE] ) start_choice=menu;; esac
+if [ -n "$start_saved" ] || [ -d /home/sd/user_accounts ]; then
+    if [ "$start_saved" = terminal ]; then start_choice=terminal; fi
+    if [ "$start_choice" = terminal ]; then
+        echo "New sessions start where they did before: at the command prompt."
+    else
+        echo "New sessions start where they did before: at the home screen."
+    fi
 else
-    read -r -p "Start new sessions at the home screen or at the command prompt? (H/p) " yn_start
+    read -r -p "Start new sessions at the home screen or at the command prompt? (H/p) " yn_start || yn_start=""
     case $yn_start in [pP]|[pP][rR][oO][mM][pP][tT] ) start_choice=terminal;; esac
 fi
 # START-ASK-END
