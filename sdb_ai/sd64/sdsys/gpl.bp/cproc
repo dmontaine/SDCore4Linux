@@ -1330,6 +1330,15 @@ get.string:
    loop
       c = keycode(0)
 
+*     30 Sep 26 LSOLO 15 (Windows Solo SOLO 16, ruling 28), carried to Core 14 Nov 26
+*     (S.237): end of input cancels the string.  '' is never a key (the command
+*     editor above takes it as OFF); the caller then returns to the command editor,
+*     which ends the session on the same end of input.
+      if c = '' then
+         string = ''
+         exit
+      end
+
       n = seq(c)
       if first and n >= 32 and n < 128 then
          string = ''
@@ -4164,7 +4173,15 @@ int.pause:
 
    loop
       c = keycode(0)
+*     30 Sep 26 LSOLO 15 (Windows Solo SOLO 16, ruling 28), carried to Core 14 Nov 26
+*     (S.237): end of input ('') is Q.  It spun here at 100% CPU because no case
+*     matched ''.  Q unwinds to the command editor, which ends the session on the
+*     same end of input.
       begin case
+         case c = ''
+            display
+            unwinding = 1
+            exit
          case seq(c) = K$RETURN
             display
             exit

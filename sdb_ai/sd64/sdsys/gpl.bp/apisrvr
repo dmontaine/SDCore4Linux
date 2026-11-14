@@ -811,6 +811,12 @@ end
 *   paragraph unless the administrator wrote one.  It runs in the account just entered, under that account's switches.
 if not(master.login.done) then
    master.login.done = @true
+*  14 Nov 26 dm - S.235 (owner: "S.237 and S.235", build; Windows row 247): THE API SIGN-IN IS ON THE AUDIT TRAIL BY USER AND ACCOUNT.  A terminal sign-in
+*    writes `login account=` from LOGIN; an API caller reaches an account through neither, and the only success line was the files-only
+*    route's (`api login route=sdfiles`), so an ordinary API sign-in left nothing that named the user.  One line, at the first entry to an
+*    account (an SDLogto is not another sign-in), after every refusal of this routine has passed and before MASTER.LOGIN or the account's
+*    LOGIN runs.  @logname, not logname: a plain variable does not survive an abort (as the other lines of this program).
+   void kernel(K$AUDIT, 'api login user=' : @logname : ' account=' : who)
    openpath @sdsys:@ds:'voc' to master.f on error null
    then
       read master.rec from master.f, 'MASTER.LOGIN' on error null

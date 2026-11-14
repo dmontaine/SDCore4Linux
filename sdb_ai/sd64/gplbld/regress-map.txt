@@ -830,7 +830,7 @@ sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9   gates sdaccts resetall classinit net netfile shared home tool-sessions ipc runin
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 eofkeys   gates sdaccts resetall classinit net netfile shared home tool-sessions ipc runin
 # 3 Nov 26 (S.96): RUN.IN, the administrator's account-scoped run - its suite, its VOC record (SDSYS's VOC only) and its eight messages (before the coarse rules below)
 gplbld/sandbox-runin.py      : @self
 sdsys/voc_template/run.in    : runin

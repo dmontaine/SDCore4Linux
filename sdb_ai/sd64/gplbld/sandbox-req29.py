@@ -1006,6 +1006,10 @@ MUTANTS.update({
     "os-audit": ("'api refused request=29 reason=os gate off user=' : @logname", "'api refused request=29 reason=changed user=' : @logname", ("X2a", "X7a")),
     "os-status": ("set.status ER$PERM", "set.status ER$XREMOTE", ("X2", "X3", "X4", "X5", "X6", "X7", "X19")),
 })
+# 14 Nov 26, S.235: the audit line of an ordinary API sign-in.  Rows that must fail, written before the first run: B0b (the line is not written).  C1a passes (it asks for no line).
+MUTANTS.update({
+    "login-audit": ("void kernel(K$AUDIT, 'api login user=' : @logname : ' account=' : who)", "null", ("B0b",)),
+})
 X_MUTANTS = ("os-path", "os-free", "os-audit", "os-status")    # the mutants judged by section X (20 Oct 26), which runs for them after A to E
 TREE_APISRVR = os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", "apisrvr")
 
@@ -1256,8 +1260,13 @@ def main():
         if not q3.restart("NETFILES=2"):
             q3.bail("SD does not start with NETFILES=2 in sd.conf")
         w = Wire("B")
+        off0 = audit_off()
         e, t = w.login("zzad")
         row("B0 a member signs on to zzad (OK)", e == 0, repr((e, t)))
+        new0 = audit_new(off0)
+        # 14 Nov 26, S.235: an ordinary API sign-in names the user and the account on the audit trail, once (the files-only route had the only success line)
+        row("B0b S.235: the sign-in wrote exactly one 'api login user=%s account=zzad' line (found %d)" % (me, len(re.findall(r"api login user=%s account=zzad$" % re.escape(me), new0 or "", re.M))),
+            new0 is not None and len(re.findall(r"api login user=%s account=zzad$" % re.escape(me), new0, re.M)) == 1, repr(new0))
         off = audit_off()
         row("B0a the audit file can be read (a row that needs a line from it fails, it does not pass for want of one)", off is not None, repr(off))
         fno, r = w.open29("zzad;zzsec")
@@ -1276,9 +1285,13 @@ def main():
         row("C0 a member signs on to zzad (OK)", e == 0, repr((e, t)))
         # the account the user may not enter: request 3 is the rule 29 must be held to
         w2 = Wire("C3")
+        offz = audit_off()
         a = w2.req(25)
         r = w2.req(3, "zzab")
         txt = w2.errtext() if r and r[0] == 3 else None
+        newz = audit_new(offz)
+        row("C1a S.235 CONTROL: the refused sign-in to zzab wrote NO 'api login' line (only the refusal), so the line above is not written for every attempt",
+            newz is not None and "api login user=" not in newz and "account refused" in newz, repr(newz))
         row("C1 CONTROL (the rule): request 3 'zzab' - an account whose register group (%s) the user is not in - is refused, error ERROR with the text of 10003 (%r)" % (NOT_MEMBER_GROUP, msg(10003)),
             a is not None and a[0] == 0 and r is not None and r[0] == 3 and txt == msg(10003), repr((a, r, txt)))
         w2.close()

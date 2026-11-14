@@ -1,6 +1,29 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  AN API SIGN-IN IS ON THE AUDIT TRAIL, BY USER AND ACCOUNT.
+
+             What        - a program that signed in over the API (SDConnect and the client libraries) left nothing on the audit trail
+                           that named the user: only a refusal was recorded, and the one success line was for a sign-in on the
+                           files-only route.  The first time a session enters its account the trail now gains
+                           "api login user=<name> account=<account>", before the account's own LOGIN runs.  A terminal sign-in
+                           already wrote "login account=".
+             Why         - an administrator reading the trail to see who used the system could not see an ordinary API user at all.
+             Does NOT    - Write a second line for an SDLogto to another account (that is not another sign-in), write one for a
+                           refused sign-in (those are "api refused" as before), or record anything else about the session.
+
+14 Nov 26  A SESSION WHOSE INPUT HAS ENDED NO LONGER SPINS AT PAUSE OR AT THE CTRL-R SEARCH PROMPT.
+
+             What        - a piped session (a script, a test, a login that is not a terminal) whose input ended while it was at the
+                           PAUSE verb, or at the command editor's Ctrl-R "RSearch:" prompt, used all of a CPU for as long as it was
+                           left and never ended.  The end of input now ends it: PAUSE acts as Q (the command is left), and the
+                           search prompt is cancelled, after which the command editor ends the session on the same end of input as
+                           it always did.  Solo had this since 30 Sep 2026; Core now has it too.
+             Why         - a session that spins holds a user slot, its record locks and a CPU until somebody kills it, and nothing
+                           on the screen says so.
+             Does NOT    - Change anything at a terminal: Return, A and Q at PAUSE and a typed search string work as before, because
+                           a terminal's input does not end like this.
+
 14 Nov 26  AN INDEX ON A RIGHT JUSTIFIED ITEM KEEPS ITS KEYS IN ONE ORDER: THE EMPTY KEY, THEN NUMBERS BY VALUE, THEN TEXT.
 
              What        - made on 25 Oct 2026; this entry was missing until the Core-Solo parity audit of 14 Nov found it.  An

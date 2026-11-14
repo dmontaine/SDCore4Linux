@@ -89,12 +89,16 @@ def bail(msg):
     sys.exit(2)
 
 
-def pipe_session(box, label, *lines):
-    """Run the sandbox's sd with these lines on a pipe that is then closed.  Returns (ended, wall, cpu, text)."""
+def pipe_session(box, label, *lines, final_nl=True):
+    """Run the sandbox's sd with these lines on a pipe that is then closed.  Returns (ended, wall, cpu, text).
+    final_nl=False leaves the last line without its newline (14 Nov 26, S.237: a key such as Ctrl-R must be the LAST byte, or the
+    newline after it answers the prompt it opens and the end of input is never what the prompt meets)."""
     sysd = os.path.join(box, "sys")
     sd = os.path.join(sysd, "bin", "sd")
     env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
     body = "TERM 140,43\n" + "".join(l + "\n" for l in lines)           # 29 Oct 26: the IDE needs 140 by 43 since its key row (it refused 140 by 42: "this one is 140 by 42"); SED takes a bigger window
+    if not final_nl and lines:
+        body = body[:-1]
     outf = os.path.join(box, "eofkeys-%s.out" % label)
     killed = []
     wall_at_deadline = 0.0
@@ -324,6 +328,69 @@ def spview_rows(box, sysd, made):
         res[0] and "Printing item" not in res[3], "ended=%s %s" % (res[0], repr(res[3][-300:])))
 
 
+# 14 Nov 26 (S.237, carried from Solo LSOLO 15): CPROC spun at 100% CPU when its input ended inside PAUSE (no case matched '') and inside the
+# command editor's Ctrl-R search prompt (`get.string` took '' for a key).  The fix is taken out of the SANDBOX's copy of `cproc` (which
+# carries sandbox-fromtree.py's elevation patch, so the tree's file is not put in its place: the change is made on the sandbox's own file
+# and reversed afterwards).  Each old text occurs once.
+CPROC_FIX = {
+    "cprocpause": [("         case c = ''\n            display\n            unwinding = 1\n            exit\n         case seq(c) = K$RETURN\n",
+                    "         case seq(c) = K$RETURN\n")],
+    "cprocstring": [("      if c = '' then\n         string = ''\n         exit\n      end\n\n      n = seq(c)\n", "      n = seq(c)\n")],
+}
+CPROC_MUTANTS = {
+    "cprocpause": "the PAUSE rows that judge 'it ended by itself'; the Ctrl-R rows stay green",
+    "cprocstring": "the Ctrl-R rows that judge 'it ended by itself'; the PAUSE rows stay green",
+}
+
+
+def patch_cproc(box, changes):
+    """Make the sandbox's own `cproc` carry these changes (none: nothing changes) and compile it.  Returns the text it had, to put back."""
+    path = os.path.join(box, "sys", "gpl.bp", "cproc")
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        was = fh.read()
+    text = was
+    for old, new in changes:
+        if text.count(old) != 1:
+            bail("a change to cproc is in %d places in the sandbox's copy of it, not 1:\n%s" % (text.count(old), old))
+        text = text.replace(old, new)
+    if text != was:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        out = internal(box, "BASIC gpl.bp cproc")
+        if "Compiled 1 program(s) with no errors" not in out:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(was)
+            bail("cproc did not compile after the change:\n" + out[-600:])
+    return was
+
+
+def restore_cproc(box, was):
+    path = os.path.join(box, "sys", "gpl.bp", "cproc")
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        if fh.read() == was:
+            return
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(was)
+    out = internal(box, "BASIC gpl.bp cproc")
+    if "Compiled 1 program(s) with no errors" not in out:
+        bail("cproc did not compile when it was put back:\n" + out[-600:])
+
+
+def cproc_rows(box):
+    """PAUSE and the Ctrl-R search prompt of the command editor, each with the input then ended (S.237)."""
+    say("\n  CPROC: PAUSE, then the input ends (it spun: no case matched the null key)")
+    res = pipe_session(box, "cp1", "pause")
+    judge("PAUSE", r"Press return to continue", res)
+    say("\n  CPROC: Ctrl-R (the search prompt) as the last byte, then the input ends")
+    res = pipe_session(box, "cp2", "\x12", final_nl=False)
+    judge("Ctrl-R search prompt", r"RSearch:", res)
+    say("\n  CONTROL: PAUSE answered by Return still goes on (the fix must not end it early)")
+    res = pipe_session(box, "cp3", "pause", "")
+    ended, wall, cpu, text = res
+    row("CONTROL: PAUSE answered by Return: the prompt was shown and the session ended", ended and cpu < CPU_OK and "Press return to continue" in text,
+        "ended=%s wall=%.1f cpu=%.1f %s" % (ended, wall, cpu, repr(text[-200:])))
+
+
 def record_state(box, label, rec):
     """What `ct zzeof <rec>` shows: the record's lines, or "Record 'x' not found"."""
     _e, _w, _c, ct = pipe_session(box, label + "ct", "ct zzeof " + rec)
@@ -485,8 +552,8 @@ def main():
     if len(args) != 1:
         bail("usage: sandbox-eofkeys.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
-    if mutant is not None and mutant not in MUTANTS and mutant not in SPV_MUTANTS:
-        bail("no mutant %s (%s)" % (mutant, ", ".join(list(MUTANTS) + list(SPV_MUTANTS))))
+    if mutant is not None and mutant not in MUTANTS and mutant not in SPV_MUTANTS and mutant not in CPROC_MUTANTS:
+        bail("no mutant %s (%s)" % (mutant, ", ".join(list(MUTANTS) + list(SPV_MUTANTS) + list(CPROC_MUTANTS))))
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     say("sandbox-eofkeys: sandbox %s" % box)
@@ -509,7 +576,12 @@ def main():
             continue
         if put_prog(box, nm, []):
             say("sandbox-eofkeys: the sandbox's %s was put back as the tree has it" % nm)
-    if mutant in SPV_MUTANTS:
+    cproc_was = None
+    if mutant in CPROC_MUTANTS:
+        cproc_was = patch_cproc(box, CPROC_FIX[mutant])
+        say("sandbox-eofkeys: MUTANT %s: the end-of-input fix taken out of the sandbox's cproc (put back at the end); CPROC rows only.\n"
+            "  Rows that must FAIL: %s" % (mutant, CPROC_MUTANTS[mutant]))
+    elif mutant in SPV_MUTANTS:
         for nm, changes in SPV_FIX.items():
             put_prog(box, nm, changes)
         TAG = "_" + mutant
@@ -527,7 +599,9 @@ def main():
         if mutant is not None:
             ended, wall, cpu, text = pipe_session(box, "setup", "create.file zzeof")
             row("setup: the file zzeof was made", "Created DATA part as zzeof" in text and ended, repr(text[-300:]))
-            if mutant in SPV_MUTANTS:
+            if mutant in CPROC_MUTANTS:
+                cproc_rows(box)
+            elif mutant in SPV_MUTANTS:
                 spview_rows(box, sysd, made)
             else:
                 ed_rows(box, sysd, made)
@@ -575,12 +649,16 @@ def main():
 
         spview_rows(box, sysd, made)
 
+        cproc_rows(box)
+
         say("\n  CONTROL: CED already ended at the end of input")
         res = pipe_session(box, "ced", "ced zzeof c1")
         ended, wall, cpu, text = res
         row("CONTROL: CED ended by itself and its screen was drawn (the word array)", ended and cpu < CPU_OK and "array" in text,
             "ended=%s wall=%.1f cpu=%.1f %s" % (ended, wall, cpu, repr(text[-200:])))
     finally:
+        if cproc_was is not None:
+            restore_cproc(box, cproc_was)
         for nm in made:
             for d in ("bp", "bp.out"):
                 pth = os.path.join(sysd, d, nm)
