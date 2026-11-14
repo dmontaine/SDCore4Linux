@@ -137,6 +137,8 @@ gplbld/bbcmp.py              : @core
 gplbld/COMP_PCODE            : @core
 gplbld/sandbox-gcatmode.py   : @self
 gplbld/sandbox-shmmode.py    : @self
+gplbld/sandbox-pipefds.py    : @self
+gplbld/test-pipefds-units.py : pipefds
 gplbld/sandbox-segtrust.py   : @self
 # 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
 # 2 Nov 26 (S.99): sandbox-spview's gate section loads it too (prepare(), build_account()).
@@ -243,7 +245,7 @@ gplsrc/sddefs.h              : @core auditwriter auditjournal gpm
 # 24 Oct 26 (W.11 F4, C2): the rotation shared by "sd -start" (k_error.c) and the audit daemon; compiled into sd through gpl.src and into sdlnxd by the Makefile
 gplsrc/audit_rot.c           : @core auditwriter
 gplsrc/sdsem.c               : shmmode @core
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared shmmode segtrust auditwriter @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared shmmode pipefds segtrust auditwriter @core
 gplsrc/profiler.c            : prof lockids
 gpl.src                      : @core prof netfile gpm
 gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc lockids q4
@@ -288,7 +290,7 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared segtrust ipc lockids
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared segtrust ipc lockids pipefds
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler

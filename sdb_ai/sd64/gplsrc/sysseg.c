@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  S.241: release_pipe_fds().  sdlnxd and the startup command kept the caller's fds 0-2 through daemon(1, 1), so a caller that
+ *               captured "sd -start" through a pipe (x=$(sd -start)) never saw end of file until sd -stop (found by the Windows port).  After
+ *               daemon() each of 0-2 that is a pipe is reopened on /dev/null; a file (a service's log) or a terminal is kept.
  * 14 Nov 26 dm  start_lnxd() and the startup command: a failed daemon() is said on stderr (it was ignored).
  * 25 Oct 26 dm  Option A of the daemon's restart: start_sd(with_daemon).  The fork of sdlnxd is start_lnxd(), which "sd -start -nodaemon" leaves out because
  *               sd-lnxd.service starts (and restarts) it.  A child whose exec fails now ends (_exit(1)) instead of returning to the caller.
@@ -48,6 +51,8 @@
 #include <time.h>
 #include <grp.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 /* 20240126 mab add syslog */
 #include <syslog.h>
 
@@ -408,6 +413,32 @@ void unbind_sysseg() {
 }
 
 /* ======================================================================
+   release_pipe_fds()  -  A detached child gives back the caller's pipe
+
+   14 Nov 26 dm - S.241, found by the Windows port.  daemon(1, 1) keeps fds 0-2, so a daemon started by a caller
+   that captured its output through a pipe (x=$(sd -start)) held the pipe's write end, and the reader waited for end
+   of file until sd -stop.  Called in the child after daemon(): each of 0-2 that is a pipe (S_ISFIFO) is reopened on
+   /dev/null, read for 0 and write for 1 and 2.  A regular file, a terminal and a socket (systemd's journal is one)
+   are kept, and so is anything fstat() cannot read.  If /dev/null cannot be opened nothing changes.     */
+
+void release_pipe_fds(void) {
+  int fd;
+  struct stat st;
+
+  for (fd = 0; fd <= 2; fd++) {
+    if (fstat(fd, &st) != 0 || !S_ISFIFO(st.st_mode))
+      continue;
+    int null_fd = open("/dev/null", (fd == 0) ? O_RDONLY : O_WRONLY);
+    if (null_fd < 0)
+      continue;
+    if (null_fd != fd) {
+      dup2(null_fd, fd);
+      close(null_fd);
+    }
+  }
+}
+
+/* ======================================================================
    start_lnxd()  -  Start the sdlnxd daemon as a child of this process
 
    25 Oct 26 dm - taken out of start_sd() so that "sd -start -nodaemon" can leave it out: under systemd the daemon is its own unit (sd-lnxd.service), which
@@ -441,6 +472,7 @@ Private bool start_lnxd(void) {
     /* 14 Nov 26 dm - a failed daemon() is said, not ignored: sdlnxd then starts without detaching.  */
     if (daemon(1, 1) != 0)
       fprintf(stderr, "sdlnxd: daemon() failed (%s); starting it without detaching\n", strerror(errno));
+    release_pipe_fds(); /* S.241: after the message above, which may still need the caller's stderr */
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sdlnxd", sd_sysdir()) >=
         (MAX_PATHNAME_LEN + 1)) {
@@ -494,6 +526,7 @@ bool start_sd(bool with_daemon) {
       /* 14 Nov 26 dm - a failed daemon() is said, not ignored: the startup command then runs without detaching.  */
       if (daemon(1, 1) != 0)
         fprintf(stderr, "startup command: daemon() failed (%s); running it without detaching\n", strerror(errno));
+      release_pipe_fds(); /* S.241 */
       /* converted to snprintf() -gwb 22Feb20 */
       if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sd_sysdir()) >=
           (MAX_PATHNAME_LEN + 1)) {

@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  A SCRIPT THAT CAPTURES THE OUTPUT OF "sd -start" NO LONGER WAITS UNTIL SD IS STOPPED.
+
+             What        - x=$(sd -start), or "sd -start | tee log", printed SD's start message and then never finished: the
+                           background daemon SD starts kept the script's pipe as its own output, so the script waited for the end
+                           of that output until "sd -stop".  The daemon, the STARTUP command's process and a phantom now give
+                           back a pipe they were handed and write to /dev/null in its place.  Output sent to a file or a terminal
+                           is kept as before, and so is the system journal when SD runs under systemd.  Found by SD Core for
+                           Windows, which has the same code.
+             Why         - a start script, an installer step or a monitoring check that read the start message hung.
+             Does NOT    - Change what "sd -start" prints, where a phantom's own log goes (its COMO file, as before) or how SD
+                           runs under systemd.  Anything the daemon writes after it has started no longer reaches a pipe.
+
 14 Nov 26  THE CLIENT LIBRARY PINS THE SERVER'S CERTIFICATE, AND THE API'S TLS RELAY CAN DO NOTHING BUT COPY BYTES.
 
              What        - (1) The client library now remembers each server's TLS certificate the first time it connects (in

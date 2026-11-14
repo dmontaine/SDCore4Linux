@@ -644,6 +644,7 @@ void ts_unstack(void);
 bool attach_shared_memory(void);
 void unbind_sysseg(void);
 bool start_sd(bool with_daemon); /* 25 Oct 26: FALSE leaves sdlnxd to its service unit (sd -start -nodaemon) */
+void release_pipe_fds(void); /* 14 Nov 26 S.241: a detached child gives back a pipe on fds 0-2 (/dev/null instead) */
 bool stop_sd(void);
 bool stop_sd_ex(bool kill_survivors); /* 8 Nov 26 S.177: TRUE for sd -stop / -restart - SIGKILL what is still attached after the wait */
 
