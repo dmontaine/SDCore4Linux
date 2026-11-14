@@ -621,7 +621,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 7
+"words": 12
 },
 "basic:func:getpu": {
 "kind": "basic.function",

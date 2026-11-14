@@ -192,7 +192,7 @@ clause of `execute` and `os.execute` — take the output
 `clear` — zeroes every variable
 
 - a statement of SD BASIC
-- docs: `User/markdown/06a-sd-basic-encryption.md` line 95
+- docs: `User/markdown/06a-sd-basic-encryption.md` line 96
 
 ### basic:stmt:clearcommon
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:418#9dcc91f1 src2=docs:tools/syntax-shapes.txt:32#5d346836
@@ -765,7 +765,7 @@ clause of `find`, `findstr` and `locate`
 `inherit` *object*
 
 - a statement of SD BASIC
-- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 215
+- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 217
 
 ### basic:stmt:input
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:435#009b2f48 src2=docs:tools/syntax-shapes.txt:107#297b31e5
@@ -898,7 +898,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `logmsg` *text*
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 482
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 514
 
 ### basic:stmt:loop
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:439#ae1c50d9 src2=docs:tools/syntax-shapes.txt:126#13c6f6f2
@@ -1158,7 +1158,7 @@ clause of `openseq`
 `page` {*n*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/12a-sd-basic-the-screen-statement.md` line 310
+- docs: `User/markdown/12a-sd-basic-the-screen-statement.md` line 314
 
 ### basic:stmt:panning
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:10309#7502bc52 src2=docs:tools/syntax-shapes.txt:152#13ce5390
@@ -1205,7 +1205,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `precision` *n*
 
 - a statement of SD BASIC
-- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 204
+- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 206
 
 ### basic:stmt:print
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:447#ea8544c2 src2=docs:tools/syntax-shapes.txt:156#8897326d
@@ -1213,7 +1213,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `print` *expr* {`:` …} {`:`}   ·   `print on` *unit* *expr*
 
 - a statement of SD BASIC
-- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 194
+- docs: `User/markdown/03a-sd-basic-numeric-tests-and-formatting.md` line 196
 
 ### basic:stmt:printcsv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:448#089d3f8b src2=docs:tools/syntax-shapes.txt:157#cb450a2a
@@ -1285,7 +1285,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 clause of `input` — read exactly *length* characters as they arrive
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/06a-sd-basic-encryption.md` line 133
+- docs: `User/markdown/06a-sd-basic-encryption.md` line 135
 
 ### basic:stmt:read
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:451#d5b3ec8b src2=docs:tools/syntax-shapes.txt:165#7f31b3b1
@@ -1791,7 +1791,7 @@ clause of `find`, `findstr`, `locate`, `remove`, `selectleft`, `selectright`
 `openseq` *path*`,` *id* `shared to` *file.var* `then` … `else` …
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 489
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 521
 
 ### basic:stmt:silent
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8601#8b8e3202 src2=docs:tools/syntax-shapes.txt:216#82ea83cb
