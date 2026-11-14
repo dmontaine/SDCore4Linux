@@ -94,7 +94,7 @@ def checks(src):
        and ordered(lio, "bool keyready() {", "gpm_to_ring();", "if (sdpoll(0, 0) > 0)") and ordered(lio, "Private void do_input() {", "gpm_to_ring();", "again:")
        and "poll_ret = input_poll(" in lio and ordered(lio, "Private int input_poll(int timeout) {", "fds[0].fd = 0;", "fds[1].fd = gpm_fd();", "return poll(fds, nfds, timeout);"), "")
     ck("G10 sl_mouse asks the kernel only for the linux terminal type: 1 when the mouse goes on, 0 when it goes off",
-       "if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 1)" in slm and "if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 0)" in slm and "$include int$keys.h" in slm, "")
+       "if downcase(@term.type) = 'linux' then void kernel(K$GPM, 1)" in slm and "if downcase(@term.type) = 'linux' then void kernel(K$GPM, 0)" in slm and "$include int$keys.h" in slm, "")
     ck("G11 gpmmouse is in the list of sources, and the sandbox patches that point a test build at a stand-in daemon exist for both definitions",
        re.search(r"(?m)^gpmmouse$", src["list"]) is not None and "#define SD_GPM_SOCK" in src["patch"] and "sdbox-gpm-%d" in src["patch"] and "#define SD_GPM_ANY_TTY 1" in src["patch"], "")
     ck("G12 the console's Shift-Tab (Esc Tab) is the back-tab key, for the linux terminal type and the screen library's read only",
@@ -120,8 +120,8 @@ MUTANTS = [
     ("lio", "keyready does not take the daemon's reports", "  gpm_to_ring();\n\n  /* Check if there is anything pending on stdin.", "  /* Check if there is anything pending on stdin."),
     ("lio", "the wait is on the keyboard alone", "poll_ret = input_poll((timeout && timeout < 1000) ? timeout : 1000);", "poll_ret = sdpoll(0, (timeout && timeout < 1000) ? timeout : 1000);"),
     ("lio", "a report goes into a ring that has no room for it", "    if (room < len)\n      return;", "    if (0)\n      return;"),
-    ("slm", "the mouse goes on for every terminal type", "         if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 1)", "         gpm.on = kernel(K$GPM, 1)"),
-    ("slm", "the connection is never closed", "if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 0)", "if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 2)"),
+    ("slm", "the mouse goes on for every terminal type", "         if downcase(@term.type) = 'linux' then void kernel(K$GPM, 1)", "         void kernel(K$GPM, 1)"),
+    ("slm", "the connection is never closed", "if downcase(@term.type) = 'linux' then void kernel(K$GPM, 0)", "if downcase(@term.type) = 'linux' then void kernel(K$GPM, 2)"),
     ("kc", "Esc Tab is the back-tab for every terminal type", "if kc.alt and key.string = char(27) : char(9) and downcase(@term.type) = 'linux' then", "if kc.alt and key.string = char(27) : char(9) then"),
     ("kc", "Shift-F6 is Shift-F5", "case p1 = 32 ; sfn = 6", "case p1 = 32 ; sfn = 5"),
     ("kc", "F13 to F20 are Shift-F1 to Shift-F8 for every terminal type", "if fin = '~' and md < 2 and base = '' and downcase(@term.type) = 'linux' then", "if fin = '~' and md < 2 and base = '' then"),

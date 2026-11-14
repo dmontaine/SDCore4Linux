@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: removed the unused RETURNING variable cb2 of the three message boxes; kept dold and dox (a READU that takes the lock and a
+*              READ that tests the record) and op3 (LOCATE needs its SETTING variable).
 * 3 Nov 26 dm  S.97 / S.96, THE GLOBAL CHANGE (the owner's answers of 3 Nov 26, after the core-direction warning; then "Yes, add undo").  G changes EVERY ROW THE PAGE SHOWS
 *              (a filter / or a find F must be on, and the list must not be cut at MAXV), of all three kinds: a field of a VOC entry or a dictionary item (by number, or "heading" for
 *              a D, I, E or L item) set to a value or a text in it replaced, or a text replaced in a program's source, which is then compiled again IN ITS OWN ACCOUNT by run.in
@@ -1611,7 +1613,7 @@ compile.box:
    if dcount(cbody, @fm) > 30 then cbody = field(cbody, @fm, dcount(cbody, @fm) - 29, 30)     ;* the last 30 lines: the errors and the verdict are at the end
    if cbody = '' then cbody = '(the compiler printed nothing)'
    ctitle = 'Compile ' : eid : ' in ' : ea
-   screen msgbox cbody title ctitle buttons '&OK' default 1 returning cb2 else cb2 = 0
+   screen msgbox cbody title ctitle buttons '&OK' default 1
    return
 
 * B (M5), after edit.record judged the program file and the program (the pointer is already given back): run.in compiles it for the debugger in its own account, and when that
@@ -1924,7 +1926,7 @@ do.global:
    close uf
    if dcount(gsum, @fm) > 30 then gsum = field(gsum, @fm, 1, 30) : @fm : '(and more: the audit trail has a line for each account)'
    gtitle = 'Global change: ' : gtc : ' changed'
-   screen msgbox gsum title gtitle buttons '&OK' default 1 returning cb2 else cb2 = 0
+   screen msgbox gsum title gtitle buttons '&OK' default 1
    gmsg = 'global change: ' : gtc : ' changed, ' : gtrf : ' refused, ' : gtf : ' failed, in ' : gk : (if gk = 1 then ' account' else ' accounts') : '; U puts it back'
    gosub after.global
    msg = gmsg
@@ -2476,7 +2478,7 @@ do.undo:
    uhead = u.back : ' put back, ' : u.since : ' left (changed since the run), ' : u.gone : ' left (gone), ' : u.lock : ' held by another session, ' : u.ref : ' refused, ' : u.err : ' errors'
    if u.done > 0 then uhead := ' (' : u.done : ' put back by an earlier U)'
    usum = uhead : (if usum # '' then @fm : usum else '')
-   screen msgbox usum title 'Undo of the global change' buttons '&OK' default 1 returning cb2 else cb2 = 0
+   screen msgbox usum title 'Undo of the global change' buttons '&OK' default 1
    gosub after.global
    msg = 'undo: ' : uhead
    return

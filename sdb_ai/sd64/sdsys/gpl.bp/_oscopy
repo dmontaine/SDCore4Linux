@@ -13,6 +13,7 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: the out = '' before the CAPTURING is gone (CAPTURING sets it).
 * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the journal is no longer told the target's path.
 * 19 Oct 26 dm  S.67 stage 1: after the copy the journal is told the target's path (kernel(K$MASTERS, 'note')), so a copy into a dictionary reaches the master files.
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 is a path outside the account
@@ -68,7 +69,6 @@ $include int$keys.h
          cmd = "cp -f -- '" : source : "' '" : target : "'"
    end case
 
-   out = ''
    os.execute cmd : " 2>&1" capturing out
    status = os.error()
    return

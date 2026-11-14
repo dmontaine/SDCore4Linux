@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  como_string(): the COMO write is tested (a failure loses only the copy; said why nothing more is done).
  * 27 Oct 26 dm  S.87 batch 14: case inversion is removed (PTERM key 2, getkey()'s invert argument); KEYINC and KEYINCT now do what KEYIN and KEYINT do.
  * 27 Oct 26 dm  S.87 batch 7: OPTION RUN.NO.PAGE and PAGINATE.ON.HEADING are gone; hf_paginate() keeps the RUN ... NO.PAGE test only.
  * 20 Oct 26 dm  S.71: op_readpkt() and process_client_input() refuse a declared packet length they cannot accept (apipkt.h) and stop
@@ -2540,7 +2541,11 @@ void freescrn(SCREEN_IMAGE *image) {
 
 Private void como_string(char *str, int16_t bytes) {
   if (!tio.suppress_como) {
-    Write(tio.como_file, str, bytes);
+    /* 14 Nov 26 dm - tested: the COMO file is a copy of the screen, so a failed write loses only the copy, and saying so
+       on the screen would itself be written to the COMO file.  */
+    if (Write(tio.como_file, str, bytes) != bytes) {
+      /* the copy is lost: see above */
+    }
   }
 }
 

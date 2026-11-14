@@ -1,6 +1,38 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  THE SIGN-ON BANNER NAMES THE PLATFORM, AND THE HOME SCREEN SAYS WHAT IS RUNNING.
+
+             What        - the line printed at sign-on read "SD Core, the Essential Multivalue String Database, version L2.0-0";
+                           it now reads "SD Core for Linux, ...".  The home screen showed only who is signed on and the date;
+                           the date line now ends with the product and its version, for example
+                           "Friday 13 Nov 2026  -  21:30  -  SD Core for Linux L2.0-0".  SD Core for Windows, SD Core Solo for
+                           Linux and SD Core Solo for Windows say the same with their own names.
+             Why         - the owner (14 Nov 2026): the two products should say the same thing, and the home screen never said
+                           which SD, or which version, was running.
+             Does NOT    - Change the version number or any other screen.
+
+14 Nov 26  THE BUILD AND THE INSTALL NO LONGER PRINT WARNINGS, AND WHAT THEY POINTED AT IS FIXED.
+
+             What        - the C build printed 21 warnings and the install's compile of SD's own programs about a hundred ("X is
+                           assigned a value but never used").  Each was fixed where it is, not hidden.  A user notices:
+                           SENDMAIL now fails (ER_IOE, with the mail command's status in os.error) when the mail command cannot run
+                           or fails - it used to report success; a print command that fails is reported on the terminal; an index
+                           whose clear could not shrink its file reports an error.  The rest is internal: results that were thrown
+                           away are tested (a failed path lookup is an error, a short read of a terminfo entry is an invalid entry,
+                           a phantom or daemon that cannot detach says so in the error log), and section names in sd.conf are
+                           always ended properly.
+             Compiler    - "assigned a value but never used" is now said only of a variable whose every assignment is a plain
+                           "x = ..." and which is never read.  A variable a statement fills for you - the variable of READU,
+                           LOCATE ... SETTING, FINDSTR, INPUT, CAPTURING and the like - is no longer reported: the statement needs
+                           it whether or not the program looks at it afterwards.  A call made only for what it does is written
+                           VOID name(...).
+             Also        - on an upgrade the installer no longer says "The /home/sd directory has been created" (it is kept), no
+                           longer asks you to set the sdsys Linux password when it was kept, and no longer says ssh access "was not
+                           enabled" when it was kept as it was.
+             Why         - the owner (14 Nov 2026), after an upgrade printed screens of warnings: "fix".
+             Does NOT    - Change what any program does apart from the failures named above.
+
 14 Nov 26  AN UPGRADE DOES NOT ASK WHERE SESSIONS START.
 
              What        - an upgrade that keeps the accounts no longer asks "Start new sessions at the home screen or at the command

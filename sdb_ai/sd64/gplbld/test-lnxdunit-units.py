@@ -101,7 +101,7 @@ def run():
     sl = func(y, "Private bool start_lnxd(void)")
     ss = func(y, "bool start_sd(bool with_daemon)")
     row("C1 start_lnxd() is the old fork: fork, daemon(1, 1), the sdlnxd path, execl; a failed fork is reported and a child whose exec fails ENDS (_exit(1))",
-        bool(sl) and "fork()" in sl and "daemon(1, 1);" in sl and "/bin/sdlnxd" in sl and "execl(path, path, NULL);\n    _exit(1);" in sl and "return FALSE;" in sl
+        bool(sl) and "fork()" in sl and "if (daemon(1, 1) != 0)" in sl and "/bin/sdlnxd" in sl and "execl(path, path, NULL);\n    _exit(1);" in sl and "return FALSE;" in sl
         and "Cannot start sdlnxd - fork() failed" in sl, "")
     i_pid, i_if, i_start = ss.find("sysseg->sdlnxd_pid = -1;"), ss.find("if (with_daemon && !start_lnxd())"), ss.find("if (sysseg->startup[0] != '\\0')")
     row("C2 start_sd(with_daemon) forks the daemon only when asked (after the pid is set to -1), and the STARTUP command is run either way (outside that test)",

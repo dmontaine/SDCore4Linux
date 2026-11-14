@@ -223,8 +223,12 @@ def checks(src, voc_text, newvoc_names, extra=None):
     ck("R29 the eight new messages exist and are cited", all(os.path.isfile(os.path.join(MESSAGES, str(n))) for n in NEW_MESSAGES) and all(n in cited for n in NEW_MESSAGES if n != 11242) and 11242 in cited,
        "cited %s" % cited)
     if os.path.isdir(SOLO_MESSAGES):
-        clash = [n for n in NEW_MESSAGES if os.path.exists(os.path.join(SOLO_MESSAGES, str(n)))]
-        ck("R30 none of the eight numbers (nor 11245) is used in Solo (a later carry cannot collide)", not clash and not os.path.exists(os.path.join(SOLO_MESSAGES, str(NOCATALOG_MESSAGE))), "in Solo: %s" % clash)
+        # 14 Nov 26: S.216 carried run.in to Solo with these messages; the rule is now that Solo holds each number with Core's text or not at all.
+        def solo_differs(n):
+            sp, cp = os.path.join(SOLO_MESSAGES, str(n)), os.path.join(MESSAGES, str(n))
+            return os.path.exists(sp) and (not os.path.isfile(cp) or open(sp, "rb").read() != open(cp, "rb").read())
+        clash = [n for n in NEW_MESSAGES + [NOCATALOG_MESSAGE] if solo_differs(n)]
+        ck("R30 the eight numbers and 11245 are in Solo only with Core's own text (a carry, never a collision)", not clash, "different in Solo: %s" % clash)
 
     # ---- the NO.CATALOG option (owner, 3 Nov 26: "compile option"): run.in basic always gives it, basic honours it at the one place the catalogue step runs ----------
     ck("R33 no option list lets a person give no.catalog (it is added by the verb, after the typed words are checked, and only to basic)",

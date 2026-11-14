@@ -332,7 +332,9 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   the stamp rather than by the name.  "(AI modified)" is gone with it - the
 *   stamp is this project's own number now, so there is nothing left to
 *   distinguish it FROM.
-      display "SD Core, the Essential Multivalue String Database, version " : SD.REV.STAMP
+* 14 Nov 26 dm - The owner, 14 Nov 26: the port's banner says "for Windows" and ours said only "SD Core"; it names the platform, "SD Core for Linux" here
+*   (Solo: "SD Core Solo for Linux", Windows: "SD Core for Windows" and "SD Core Solo for Windows").
+      display "SD Core for Linux, the Essential Multivalue String Database, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
       display

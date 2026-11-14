@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 14 Nov 26 dm  ak_clear(): a failed truncate of the index subfile is DHE_AK_WRITE_ERROR (it was ignored).
  * 07 Nov 26 dm  S.159 (Kimi review): delete_ak() tests the index map with & (it was &&, under a pragma that silenced the warning) after a range
  *               check of the number, and clears the bit rather than flipping it.
  * 25 Oct 26 dm  update_internal_node(): removing the LAST child of an internal node that has others left no longer takes the node out of its parent too (the parent was told "no key",
@@ -4240,7 +4241,13 @@ bool ak_clear(DH_FILE *dh_file, int16_t subfile) {
       node_num = GetAKFwdLink(dh_file, ((DH_ITYPE_NODE *)buff)->next);
     }
 
-    chsize64(dh_file->sf[subfile].fu, eof);
+    /* 14 Nov 26 dm - a failed truncate is an error, as in get_ak_node() above (dh_ak.c 3087): it used to be ignored, so a
+       CLEAR.FILE of an index could report success with the old nodes still in the subfile.  */
+    if (chsize64(dh_file->sf[subfile].fu, eof)) {
+      dh_err = DHE_AK_WRITE_ERROR;
+      process.os_error = OSError;
+      goto exit_ak_clear;
+    }
 
     /* Write an empty terminal node at the root node position */
 

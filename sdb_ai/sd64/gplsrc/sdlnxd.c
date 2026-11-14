@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  The audit socket's group change is logged when it fails; the error log's write is tested.
  * 25 Oct 26 dm  Option A of the daemon's restart: sd-lnxd.service runs this program and restarts it if it dies (Restart=on-failure), so a daemon that finds another one
  *               already named in the segment (and running this same executable) ends with status 0 - there is one daemon at a time.
  * 25 Oct 26 dm  The audit socket's directory is set to 0755 by the daemon itself, whatever the umask it was started under (the real-install witness found it 0750).
@@ -473,8 +474,10 @@ static bool audit_socket_open(void) {
     return FALSE;
   }
   umask(old);
-  if ((gr = getgrnam("sdusers")) != NULL)
-    (void)chown(SD_AUDIT_SOCK, (uid_t)-1, gr->gr_gid);
+  /* 14 Nov 26 dm - a failed group change is logged: the socket then refuses the sessions (mode 0660 below), which fall back
+     to appending themselves, so the daemon goes on.  */
+  if ((gr = getgrnam("sdusers")) != NULL && chown(SD_AUDIT_SOCK, (uid_t)-1, gr->gr_gid) != 0)
+    log_message("audit socket: cannot give it the group sdusers; sessions append to the trail themselves");
   (void)chmod(SD_AUDIT_SOCK, 0660);
   audit_sock_made = TRUE;
   return TRUE;
@@ -768,7 +771,10 @@ void log_message(char* msg) {
                       ltime->tm_year % 100, ltime->tm_hour, ltime->tm_min,
                       ltime->tm_sec, Newline, msg, Newline);
 
-      write(errlog, buff, bytes);
+      /* 14 Nov 26 dm - tested, not ignored: a failed write of the error log cannot itself be logged.  */
+      if (write(errlog, buff, bytes) != bytes) {
+        /* nothing further: this is the error log */
+      }
 
       close(errlog);
     }

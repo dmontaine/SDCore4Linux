@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: removed the unused counter pn; the BINDKEY that gives the Alt state back is now VOID (test-tkbase-units.py T38 holds the line).
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  Terminal 140 by 42, phase 3: for a program that asked for the cursor lock ($sl_guardmode), the cursor is looked at
 *               before a key is read; off the screen, $sl_guard takes the keyboard.  'guardquit' is the new key name; a lift
@@ -95,7 +96,7 @@ $include err.h
       alt.was = bindkey('', -7)           ;* an Alt-letter comes back as Esc and the letter, for this read only
       k = keycode(1)
       kst = status()                      ;* BINDKEY clears STATUS(), and the loop below tells a timeout from an input that ended by it
-      if alt.was then x = bindkey('', -7) else x = bindkey('', -8)
+      if alt.was then void bindkey('', -7) else void bindkey('', -8)
       set.status kst
       if k # '' then
          size.now = @crtwide : ',' : @crthigh
@@ -256,12 +257,10 @@ read.paste:
    raw = ''
    ptxt = ''
    pend = char(27) : '[201~'
-   pn = 0
    loop
       c = keyin(0.5)
       set.status 0
    until c = '' do
-      pn += 1
       if len(raw) < 60000 then raw := c
       if c = '~' and raw[len(raw) - 5, 6] = pend then
          raw = raw[1, len(raw) - 6]

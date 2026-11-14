@@ -277,7 +277,7 @@ def checks(raw):
     ck("CF17", "the page waits for a key with no timeout (nothing here changes by itself) and reads the file, the table and the report again only when it opens, on F5, when a view that needs them is opened and after a command it ran",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 3 and pg.count("gosub read.report") == 2 and pg.count("gosub read.backup") == 2, "read.all x%d" % pg.count("gosub read.all"))
     ck("CF18", "the page has a [?] and F1, ? and a click show tool.config.page, whose record exists with a title, the configuration page of the administrator guide (which has a section on tool.config) and a body",
-       pg.count("'tool.config.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "07-sd-admin-configuration"
+       pg.count("'tool.config.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "administrator-07-sd-admin-configuration"
        and raw["help"].split("\n")[2].strip() != "" and "## The parameters on one screen: `tool.config`" in raw["doc"], "")
     dl = block(pg, "draw.all")
     dp = block(pg, "draw.params")

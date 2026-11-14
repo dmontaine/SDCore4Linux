@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm Compiler warnings: privileged_commands is built under $ifndef IS_INSTALL, as its one reader is; kept exists.x (a READV that tests the
+*           record) and in.pos (LOCATE needs its SETTING variable).
 * 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done.  Carried from the Windows port (its RELEASE_1.1
 *           245, 12 Nov); owner, 13 Nov 2026: "Yes, carry it".
 * 11 Nov 26 dm S.213: RUN.IN no longer runs an account's own code as the administrator.  (A) the command word and every option word must be SD's own entry in
@@ -328,7 +330,9 @@ $define max.elements 500
 *   BCOMP declares the same block, with the same six names, to read ri.active (it refuses $EXECUTE in a compile RUN.IN started).
    common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
 
-* rev 0.9.0 define commands requiring admin (root) privilege 
+* rev 0.9.0 define commands requiring admin (root) privilege
+* 14 Nov 26 dm - the list is read only outside an install build (the $ifndef IS_INSTALL below), so it is built only there too
+$ifndef IS_INSTALL
    privileged_commands = ''
    privileged_commands<-1> = "$CREATEA"  ;*"CREATE.ACCOUNT"
    privileged_commands<-1> = "$DELACC"   ;*"DELETE.ACCOUNT"
@@ -344,6 +348,7 @@ $define max.elements 500
 *   and suspension) and through !create_account, exactly as CREATE.ACCOUNT does,
 *   so it is privileged for the same reason (check-storewriters.py).
    privileged_commands<-1> = "$RESTOREA"  ;*"RESTORE.ACCOUNT"
+$endif
 
    logto.reset = @false      ;* 0555
    logto.reset.all = @false  ;* 16 Oct 26, Fixes item 30: LOGTO name RESET ALL

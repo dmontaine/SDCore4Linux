@@ -492,6 +492,11 @@ def main():
             all(w in T for w in ("My tools", "Editor", "IDE", "Everyone", "Terminal", "Keys", "Switch account", "Sign out")), "")
         row("the identity (row 2) and the date and time (row 3): 'don @ zzhm' and a line like 'Thursday 22 Oct 2026  -  18:52'",
             h.line(2).strip().startswith("don @ zzhm") and re.match(r"^\s+[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} \d{4}  -  \d\d:\d\d", h.line(3)) is not None, repr((h.line(2)[:40], h.line(3)[:50])))
+        # S.231 (14 Nov 26, the owner: the home screen never said what ran): the date line ends with the product and the tree's own stamp
+        stamp_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gplsrc", "revstamp.h")).read()
+        stamp_m = re.search(r'#define\s+SD_REV_STAMP\s+"([^"]+)"', stamp_src)
+        row("S.231: the date line (row 3) ends '  -  SD Core for Linux ' and the stamp of this tree (revstamp.h), after the time",
+            stamp_m is not None and h.line(3).rstrip().endswith("  -  SD Core for Linux " + (stamp_m.group(1) if stamp_m else "?")), repr((stamp_m.group(1) if stamp_m else None, h.line(3).rstrip()[-60:])))
         row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F1 help, F5 refresh, ^Q sign out, / find; F10 left the row with S.88 U9, 2 Nov 26)",
             "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F1 help  F5 refresh  ^Q sign out  / find", repr((h.line(39)[:30], h.line(40), h.line(42))))
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))

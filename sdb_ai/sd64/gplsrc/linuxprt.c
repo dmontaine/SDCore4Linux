@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  spool_print_job(): a print command that fails is reported on stderr (system()'s result was ignored).
  * 18 Oct 26 dm  spool_print_job(): a print unit's own SPOOLER string (SETPTR ... SPOOLER, SETPU PU$SPOOLER: any program can set it) is the start
  *               of a shell command handed to system(), so it is used only by a session that holds the OS access gate (the administrator or
  *               OS.EXECUTE, os_gate_open()); anyone else prints through the configured spooler or lp.  Found by the QM4 evaluation and
@@ -184,7 +185,13 @@ cmd_too_long:
   if (Option(OptSpoolCommand))
     tio_printf("%s\n", cmd);
 
-  system(cmd);
+  /* 14 Nov 26 dm - the spool command's result is reported: a command that could not run, or that failed, used to leave the
+     print silently unprinted.  Said as the too-long case above is.  */
+  {
+    int rc = system(cmd);
+    if (rc != 0)
+      fprintf(stderr, "spool_print_job: the print command failed (status %d) - the job may not have been printed\n", rc);
+  }
   /* 15 Oct 26 dm - QM4 gaps Q-18: SYSTEM(20), the count of jobs passed to the spooler, for all sessions */
   __atomic_fetch_add(&sysseg->print_jobs, 1, __ATOMIC_SEQ_CST);
   /* -------------------- */

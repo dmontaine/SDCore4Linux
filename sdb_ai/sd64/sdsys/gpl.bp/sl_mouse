@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: the two K$GPM calls are VOID; their result went to gpm.on, which nothing read.
 * 31 Oct 26 dm  S.94: 'on' and 'off' also connect and disconnect the gpm daemon (kernel K$GPM) when the terminal type is linux, so that a text console, which ignores the xterm
 *               sequences, has a mouse.
 * 12 Oct 26 dm  New.
@@ -55,11 +56,11 @@ $include int$keys.h
          a := char(27) : '[?2004h'            ;* 28 Oct 26 (S.88 phase 1): bracketed paste, on and off with the mouse (SCREEN OPEN ... NOMOUSE leaves a paste as keys, which phase 1 made harmless)
          * 31 Oct 26 (S.94): on a Linux text console (terminal type linux) the escape sequences do nothing; the mouse comes from the gpm daemon, if it runs, as the same reports.
          *   The kernel connects only a session whose input is a text console, so a terminal emulator that is signed on as linux is not affected.
-         if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 1)
+         if downcase(@term.type) = 'linux' then void kernel(K$GPM, 1)
       case op = 'off'
          a = char(27) : '[?2004l'
          a := char(27) : '[?1006l' : char(27) : '[?1002l' : char(27) : '[?1000l'
-         if downcase(@term.type) = 'linux' then gpm.on = kernel(K$GPM, 0)
+         if downcase(@term.type) = 'linux' then void kernel(K$GPM, 0)
    end case
 
    return

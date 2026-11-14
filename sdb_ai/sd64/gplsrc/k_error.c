@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  log_message(): the error log's truncate and write are tested (a failure has nowhere to be logged; said so).
  * 06 Nov 26 dm  S.152: removed what nothing called (found by linking with --gc-sections): op_illegal2 (no dispatch table
  *               names it) and the DescrError helpers k_dh_error, k_null_id and k_strnum_len; the DescrError list is one
  *               entry per line now.
@@ -827,9 +828,12 @@ void log_message(char* msg) {
           p = buff;
         } while (bytes > 0);
 
-        /* Truncate the file */
+        /* Truncate the file.  14 Nov 26 dm - the result is tested: this IS the error log, so a failure has nowhere to be
+           recorded; the log is then longer than ERRLOG until the next trim, which is all it costs.  */
 
-        chsize64(errlog, dst);
+        if (chsize64(errlog, dst) != 0) {
+          /* nothing further: see above */
+        }
       }
 
       Seek(errlog, 0, SEEK_END);
@@ -859,7 +863,10 @@ void log_message(char* msg) {
                         ltime->tm_sec, Newline, msg, Newline);
       }
 
-      Write(errlog, buff, bytes);
+      /* 14 Nov 26 dm - tested, not ignored: a failed write of the error log cannot itself be logged.  */
+      if (Write(errlog, buff, bytes) != bytes) {
+        /* nothing further: this is the error log */
+      }
 
       CloseFile(errlog); /* 0423 */
     }

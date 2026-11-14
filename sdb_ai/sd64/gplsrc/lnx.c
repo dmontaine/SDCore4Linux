@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  sdsendmail(): a mail command that cannot run or fails makes SENDMAIL fail (ER_IOE, os.error the command's
+ *               status); it was reported as sent.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -212,12 +214,21 @@ cmd_too_long:
     }
   }
 
-  system(command);
-  /* -------------------- */
+  /* 14 Nov 26 dm - the mail command's result decides: a command that could not run (-1) or that failed (non-zero exit) was
+     reported as sent.  Now SENDMAIL fails with ER_IOE and STATUS(), os.error carrying the command's status.  */
+  {
+    int rc = system(command);
 
-  /* Delete temporary file */
+    /* Delete temporary file */
 
-  remove(tempname);
+    remove(tempname);
+
+    if (rc != 0) {
+      process.status = ER_IOE;
+      process.os_error = (rc == -1) ? errno : rc;
+      goto exit_sendmail;
+    }
+  }
 
   status = TRUE;
 

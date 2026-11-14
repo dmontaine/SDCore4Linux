@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  sdrealpath(): a failed getcwd() for a relative path is an error (NULL); it built the path on an unset buffer.
  * 07 Nov 26 dm  S.159: sdrealpath() reads a symlink's target as part of the
  *               path (its . and .. and nested links), not copied unresolved.
  * 14 Sep 26 dm  S.18: <crypt.h> dropped - nothing here calls crypt(), and the
@@ -150,7 +151,10 @@ char* sdrealpath(char* inpath,  /* Supplied path */
       return NULL;
 
     default: /* Relative pathname - get current directory */
-      getcwd(outpath, PATH_MAX);
+      /* 14 Nov 26 dm - a failed getcwd() left outpath unset and the path was built on garbage; it is an error, as an
+         empty pathname is.  */
+      if (getcwd(outpath, PATH_MAX) == NULL)
+        return NULL;
       tgt = strchr(outpath, '\0');
       break;
   }

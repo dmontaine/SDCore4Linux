@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: removed the three unused assignments to var.flags; kept au.pos (LOCATE needs its SETTING variable); removed
+*               return.key, a query nothing read (test-dbgdisplay-units.py anchors on the phantom line now).
 * 9 Nov 26 dm  S.186 (the owner: "QM compatibility is not a focus, consistency within SD is"): in the full screen F2 is Find an action (dbg.find, the
 *               finder every page has, over the menu bar's entries; Help > Find an action) and Ctrl-Q stops the program and leaves, as F3; Abort keeps the
 *               Run menu and the finder and has no key there.  Line mode, which has no menu bar, keeps F2 as Abort.  dbg.menu's dispatch is dbg.code, shared.
@@ -106,7 +108,6 @@ $define GUTTER.W               2       ;* the source's gutter: a mark (* a break
    msg.prefix = ''
    if data.lines < 5 then data.lines = DATA.AREA.LINES      ;* a common block starts at 0
    gosub set.geometry
-   return.key = seq(pterm(PT$INEWLINE,''))
    phantom = bitand(event, 0x80000000) # 0
 
    * On a terminal that has an ALTERNATE screen the debugger takes the whole of it: the program's own screen is kept
@@ -2091,7 +2092,6 @@ display.variable:
    var.type = var.info<1> + 0   ;* 0554
 
    if var.dim then
-      var.flags = var.info<4>
       if var.info<1> # V$ARRAY then
          message = sysmsg(6719) ;* Index not allowed with scalar variable
          gosub emit.err.msg
@@ -2202,7 +2202,6 @@ display.data.common:
          end case
 
       case var.type = V$ARRAY
-         var.flags = var.info<4>
          message := 'Array: '
          rows = var.info<2> + 0
          cols = var.info<3> + 0
@@ -2532,8 +2531,6 @@ setvar:
    var.type = var.info<1>
 
    if var.dim then
-      var.flags = var.info<4>
-
       if var.type # V$ARRAY then ;* 0530
          message = sysmsg(6719) ;* Index not allowed with scalar variable
          gosub emit.err.msg

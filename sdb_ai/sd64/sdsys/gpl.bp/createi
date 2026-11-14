@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: the junk = '' before the CAPTURING is gone (CAPTURING sets it).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -160,7 +161,6 @@ $include err.h
    close dict.f
 
    for i = 1 to dcount(old.indices, @fm)
-      junk = ''
       execute 'DELETE.INDEX ' : (if dict.flag # '' then 'DICT ' else '') : filename : ' ' : old.indices<i> capturing junk
    next i
 

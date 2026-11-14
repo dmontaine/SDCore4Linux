@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: removed the unused assignments to lat.bstamp (LATEST chooses by lat.best alone).
 * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; a restored account is no longer synced into them.
 * 28 Oct 26 dm  S.88 plan 2.9 (D2): the manifest key recovery (acc_os_info) is read and handed to !create_account (CA$RECOVERY) when it is exactly 1; a manifest that has none restores
 *               the account with its editors keeping no recovery copy.
@@ -175,7 +176,7 @@ $include createacc.h
          if field(lat.info<k>, ':', 1) = 'host' then lat.host = downcase(trim(field(lat.info<k>, ':', 2, 99)))
       next k
       openpath bak.dir to lat.f else stop sysmsg(13010, bak.dir)
-      lat.best = '' ; lat.bstamp = ''
+      lat.best = ''
       lat.newest = '' ; lat.nstamp = ''   ;* the newest backup of ANYTHING made on this computer
       lat.ids = '' ; lat.stamps = ''      ;* the zips the NAME admits, in no order
 *     Select lists 11 and 12 are the only ones in range (measured, 1 Oct 26); the loop
@@ -232,7 +233,6 @@ $include createacc.h
          lat.stamps<lat.pick> = ''           ;* used: it cannot be the newest again
          if all then
             lat.best = lat.id
-            lat.bstamp = lat.stamp
             exit
          end
          call !acc_archive('MANIFEST', bak.dir : @ds : lat.id, '', lat.mtext, lat.err)
@@ -251,7 +251,6 @@ $include createacc.h
             next k
             if lat.holds then
                lat.best = lat.id
-               lat.bstamp = lat.stamp
                exit
             end
          end

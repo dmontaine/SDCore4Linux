@@ -2853,6 +2853,9 @@ if [ "$allow_ssh" = "y" ]; then
     echo "Enabling ssh access from other computers (sshd at boot, port 22)."
     sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
     fw_allow 22/tcp || true
+elif [ "$keep_access" = y ]; then
+    # 14 Nov 26: an upgrade did not ask, so "was not enabled" read as a change; the summary says "kept as it was" too.
+    echo "ssh access kept as it was before the upgrade (sshd left as the box had it)."
 else
     echo "ssh access was not enabled (sshd left as the box had it; the SD"
     echo "boundary is in sshd_config for whenever ssh is turned on)."
@@ -3234,7 +3237,12 @@ echo
 printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
 echo "has been deleted."
 echo
-echo "The /home/sd directory has been created."
+# 14 Nov 26: an upgrade keeps /home/sd, so "has been created" was wrong there.
+if [ "$keep_access" = y ]; then
+    echo "The /home/sd directory was kept, with its accounts."
+else
+    echo "The /home/sd directory has been created."
+fi
 echo "User directories are created under /home/sd/user_accounts."
 echo "Group directories are created under /home/sd/group_accounts."
 echo "Accounts are only created using CREATE-ACCOUNT in SD."
@@ -3297,7 +3305,7 @@ case "$sd_pw_state" in
 esac
 echo "Linux password for sdsys (the administrator): $sdsys_pw_state."
 case "$sdsys_pw_state" in
-    set) ;;
+    set|kept*) ;;   # 14 Nov 26: "kept from the previous install" is a password too; asking to set one contradicted it
     *) echo "  Set one before administering:  sudo passwd sdsys"
        echo "  and keep to SD's rule, which passwd itself does not apply: at least"
        echo "  8 characters, with a lower-case letter, an upper-case letter, a"

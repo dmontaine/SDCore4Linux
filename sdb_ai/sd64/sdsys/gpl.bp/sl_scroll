@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: removed the unused assignment to old.
 * 13 Oct 26 dm  New.
 * 18 Oct 26 dm  The cursor is placed through $sl_curat (which tells the cursor lock where it is).
 * END-HISTORY
@@ -78,7 +79,6 @@ $include sl.h
          if span < 0 then span = 0
          pg = vis - 1
          if pg < 1 then pg = 1
-         old = val
          dec = if horiz then 'left' else 'up'
          inc = if horiz then 'right' else 'down'
          begin case

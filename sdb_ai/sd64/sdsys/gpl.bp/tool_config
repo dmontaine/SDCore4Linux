@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warning: the "Not changed here" SCREEN MSGBOX no longer keeps its answer in bx, which nothing read (RETURNING and ELSE are optional).
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the parameter list takes the extra rows, every
 *               box and text is as wide as the window, and the detail wraps at the box's width. The rows, widths, hit tests and the [?] button are counted from the pane rectangles.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -772,7 +773,7 @@ explain.fixed:
       call $tk_wrap(wh : ' A value SD does not accept stops SD, and every new session, from starting: read the guide first.', 100, pieces)
       body<-1> = pieces
    end
-   screen msgbox body title 'Not changed here' buttons '&Close' default 1 returning bx else bx = 0
+   screen msgbox body title 'Not changed here' buttons '&Close' default 1
    msg = k : ' is not changed from this page; nothing was written'
    return
 

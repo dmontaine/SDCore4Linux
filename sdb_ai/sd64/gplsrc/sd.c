@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
  * 08 Nov 26 dm  S.177: -stop and -restart call stop_sd_ex(TRUE), which ends with SIGKILL what is still attached after the wait.
  * 06 Nov 26 dm  S.152: fatal() and dump() are gone (nothing called them; found by linking with --gc-sections), and with
  *               fatal() the only longjmp to sd_exit, so its setjmp "disaster exit" and <setjmp.h> go too.
@@ -291,7 +292,10 @@ Private void sd_init(int argc, char *argv[]) {
 
   /* Save the current working directory for use by SYSTEM(1024) */
 
-  (void)getcwd(cwd, MAX_PATHNAME_LEN);
+  /* 14 Nov 26 dm - a failed getcwd() (the directory removed, or a path too long) left cwd unset and strlen() read past it;
+     SYSTEM(1024) is then the empty string.  */
+  if (getcwd(cwd, MAX_PATHNAME_LEN) == NULL)
+    cwd[0] = '\0';
   entry_dir = k_alloc(MAX_PATHNAME_LEN, strlen(cwd) + 1); /* was hard coded at 110 -gwb */
   /* Modified by Composer AI - 2026/06/10.
      k_alloc() can return NULL; abort startup rather than strcpy to NULL. */

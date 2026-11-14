@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  start_lnxd() and the startup command: a failed daemon() is said on stderr (it was ignored).
  * 25 Oct 26 dm  Option A of the daemon's restart: start_sd(with_daemon).  The fork of sdlnxd is start_lnxd(), which "sd -start -nodaemon" leaves out because
  *               sd-lnxd.service starts (and restarts) it.  A child whose exec fails now ends (_exit(1)) instead of returning to the caller.
  * 24 Oct 26 dm  W.11 F9: a session takes pcfg and the system directory from the configuration file (session_trust()), not from the segment's template
@@ -437,7 +438,9 @@ Private bool start_lnxd(void) {
   if (cpid == 0) { /* Child process */
     for (i = 3; i < 1024; i++)
       close(i);
-    daemon(1, 1);
+    /* 14 Nov 26 dm - a failed daemon() is said, not ignored: sdlnxd then starts without detaching.  */
+    if (daemon(1, 1) != 0)
+      fprintf(stderr, "sdlnxd: daemon() failed (%s); starting it without detaching\n", strerror(errno));
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sdlnxd", sd_sysdir()) >=
         (MAX_PATHNAME_LEN + 1)) {
@@ -488,7 +491,9 @@ bool start_sd(bool with_daemon) {
     if (cpid == 0) { /* Child process */
       for (i = 3; i < 1024; i++)
         close(i);
-      daemon(1, 1);
+      /* 14 Nov 26 dm - a failed daemon() is said, not ignored: the startup command then runs without detaching.  */
+      if (daemon(1, 1) != 0)
+        fprintf(stderr, "startup command: daemon() failed (%s); running it without detaching\n", strerror(errno));
       /* converted to snprintf() -gwb 22Feb20 */
       if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sd_sysdir()) >=
           (MAX_PATHNAME_LEN + 1)) {

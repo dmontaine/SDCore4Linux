@@ -58,6 +58,7 @@
 *      folder's ACL.
 *
 * START-HISTORY:
+* 14 Nov 26 dm  Compiler warnings: removed the unused counters already and cat.renamed; kept out.at and seen.at (LOCATE needs its SETTING variable).
 * 15 Oct 26 dm  The rebuild carries the sequential id counter of WRITE ... CREATING.SEQKEY to the new file (audit of the counter).
 * 07 Oct 26 dm  First COMPLETE install run (the owner's, of 40d0378): "Converted 2 of 3" and a
 *           10-file list that named voc.dic three times and the directory files syscom, newvoc,
@@ -110,7 +111,6 @@ $include err.h
 
    scanned = 0                     ;* DH files examined
    converted = 0                   ;* rebuilt to NOCASE
-   already = 0                     ;* already NOCASE, left as they are
    twin.count = 0                  ;* files holding a fold-pair, NOT converted
    dup.total = 0                   ;* duplicate record ids across all those files
    twin.files = ''                 ;* @fm: one path per file that has a pair
@@ -118,7 +118,6 @@ $include err.h
    ak.skipped = 0                  ;* AK files left for manual CONFIGURE.FILE
    err.count = 0                   ;* files that could not be read or rebuilt
    acct.skipped = 0                ;* accounts not converted (no owner to act as)
-   cat.renamed = 0                 ;* private catalogue names made lower case
    outside.count = 0               ;* files a VOC names outside its account, or under SDSYS: left
    outside.files = ''              ;* @fm: their real paths (capped like the twin list)
    sds.real = ospath(@sdsys, OS$FULLPATH)
@@ -264,7 +263,6 @@ fix.cat.names:
       close cat.f
    end
    if cat.ren then
-      cat.renamed += cat.ren
       if check.only then crt sysmsg(11031, cat.ren, cat.dir) else crt sysmsg(11034, cat.ren, cat.dir)
    end
    return
@@ -440,7 +438,6 @@ convert.one:
    scanned += 1
 
    if bitand(fileinfo(old.fu, FL$FLAGS), FL$FLAGS.NOCASE) then
-      already += 1
       close old.fu
       return
    end

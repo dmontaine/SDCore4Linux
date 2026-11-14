@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Nov 26 dm  The build's warnings: socket_byte() gives a NUL on an ended read (it returned an unset byte), the key written
+ *               to a child's pipe is tested, and the Unix-socket path is copied with its terminator always set.
  * 28 Oct 26 dm  S.88 review of L2: keyin_idle_ms() gives the inactivity clock (idle_waited, 0 unless the last wait ended by its own timeout) to kernel(K$AUTOLOGOUT, -2), so the
  *               IDE's countdown reads the clock AUTOLOGOUT really uses.
  * 28 Oct 26 dm  S.88 phase 2 (S3): AUTOLOGOUT measures idle time ACROSS keyin() calls.  A wait that ends by its own timeout
@@ -202,7 +204,15 @@ bool start_connection(int unused) {
       case PF_UNIX:
         struct sockaddr_un* sU =  (struct sockaddr_un*)&sa;
         /* pull out UNIX Socket path */
-        strncpy(ip_addr,sU->sun_path,MAX_SOCKET_ADDR_STR_LEN-1);
+        {
+          /* 14 Nov 26 dm - bounded copy that always terminates (strncpy could leave ip_addr without its NUL when the path
+             filled sun_path; -Wstringop-truncation).  */
+          size_t n = strnlen(sU->sun_path, sizeof(sU->sun_path));
+          if (n > MAX_SOCKET_ADDR_STR_LEN - 1)
+            n = MAX_SOCKET_ADDR_STR_LEN - 1;
+          memcpy(ip_addr, sU->sun_path, n);
+          ip_addr[n] = '\0';
+        }
         /* 14 Sep 26 dm - S.18.  The peer's uid was read here with getpeereid()
            for login_user()'s APILOGIN=0 branch, which ran the session as that
            uid in place of a password.  Both are gone: a Unix-socket connection
@@ -954,7 +964,11 @@ again:
       if (c == inewline)
         c = 10;
       tio_display_string(&c, 1, TRUE, FALSE);
-      write(ChildPipe, &c, 1);
+      /* 14 Nov 26 dm - tested: a failed write means the child closed its input (or ended); the key was for it, so it is
+         dropped, and op_sh.c closes the pipe when the child is reaped.  */
+      if (write(ChildPipe, &c, 1) != 1) {
+        /* dropped: see above */
+      }
     } else {
       /* Pop this character into the ring buffer */
 
@@ -1054,7 +1068,10 @@ int bytes;
 char socket_byte() {
   char c;
 
-  read(0, &c, 1);
+  /* 14 Nov 26 dm - an ended or failed read left c unset and the telnet negotiation read whatever was on the stack; it is
+     now a NUL, which no negotiation step acts on, and the next read of the connection sees the end.  */
+  if (read(0, &c, 1) != 1)
+    c = '\0';
 
   return c;
 }

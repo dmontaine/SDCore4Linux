@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
  * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the K_MASTERS (150) case is gone with masters.c.  The number is not reused.
  * 02 Nov 26 dm  S.102 stage 3: K_JOB_MARK (172) - the scheduled administrator job this process is (sd_jobmark.c), kept for the audit trail.
  * 02 Nov 26 dm  S.106: K_LOGIN_MARK (171) and its helpers are gone with the authenticator code (S.101 stage B); the number is not reused.
@@ -1067,8 +1068,10 @@ void op_kernel() {
           if (lt_fd >= 0) {
             (void)fchmod(lt_fd, 0620);
             snprintf(lt_dirpath, sizeof(lt_dirpath), "%s", sd_sysdir());
-            if (stat(lt_dirpath, &lt_dir) == 0)
-              (void)fchown(lt_fd, (uid_t)-1, lt_dir.st_gid);
+            /* 14 Nov 26 dm - the group change is reported: without it the trace keeps this session's group and the
+               administrator's group may not read it.  The trace still runs.  */
+            if (stat(lt_dirpath, &lt_dir) == 0 && fchown(lt_fd, (uid_t)-1, lt_dir.st_gid) != 0)
+              log_message("lock.tracer: could not give locktrace the group of the system directory");
             close(lt_fd);
             sysseg->lock_trace = 1;
             result.data.value = 1;
@@ -1553,7 +1556,10 @@ void op_phantom() {
     for (i = 3; i < 1024; i++)
       close(i); /* 0401 */
 
-    daemon(1, 1);
+    /* 14 Nov 26 dm - a failed daemon() (its own fork) leaves the phantom running, attached to this process group; it is
+       now said in the error log rather than ignored.  */
+    if (daemon(1, 1) != 0)
+      log_message("phantom: daemon() failed; the phantom runs without detaching");
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sd_sysdir()) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */

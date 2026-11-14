@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Nov 26 dm  copy_section_name(): a [section] name is cut at 32 and always terminated (strncpy could leave it unterminated).
  * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "Unrecognized configuration parameter", "Global catalog missing or corrupt".
  * 8 Nov 26 dm   S.172: comment only - the SCREENTHEME line names paper (the shipped value) and night.
  * 29 Oct 26 dm  S.88 3.7a: comment only - the SCREENTHEME line of the parameter list; CONFIG('SCREENTHEME') can be read now (op_config.c).
@@ -87,6 +88,17 @@ Private bool rangecheck(char* param,
                         int min_val,
                         int max_val,
                         char* errmsg);
+
+/* 14 Nov 26 dm - a "[section]" name into the 32 + 1 byte buffer both readers keep.  strncpy(section, src, 32) left the buffer
+   without its terminator when the name had 32 characters or more (the compiler's -Wstringop-truncation); a longer name is
+   cut at 32 and always terminated.  */
+Private void copy_section_name(char* section, const char* src) {
+  size_t n = strlen(src);
+  if (n > 32)
+    n = 32;
+  memcpy(section, src, n);
+  section[n] = '\0';
+}
 
 /* ====================================================================== */
 
@@ -183,7 +195,7 @@ struct CONFIG* read_config(char* errmsg) {
       p = strchr(rec, ']');
       if (p != NULL)
         *p = '\0';
-      strncpy(section, rec + 1, 32);
+      copy_section_name(section, rec + 1);
       UpperCaseString(section);
       continue;
     }
@@ -473,7 +485,7 @@ Private bool config_sysdir_scan(char *out) {
       p = strchr(rec, ']');
       if (p != NULL)
         *p = '\0';
-      strncpy(section, rec + 1, 32);
+      copy_section_name(section, rec + 1);
       UpperCaseString(section);
       continue;
     }
