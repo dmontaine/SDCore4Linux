@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  AN INDEX ON A RIGHT JUSTIFIED ITEM KEEPS ITS KEYS IN ONE ORDER: THE EMPTY KEY, THEN NUMBERS BY VALUE, THEN TEXT.
+
+             What        - made on 25 Oct 2026; this entry was missing until the Core-Solo parity audit of 14 Nov found it.  An
+                           index on a right justified dictionary item compared its keys the way a right justified sort does, and
+                           when the item held both numbers and text that comparison gave no single order, so a scan of the
+                           index and a lookup in it could disagree.  A new right justified index keeps its keys in one order:
+                           the empty key first, then numbers by value (decimals included), then text.  Building an index no
+                           longer loses record ids under keys that are equal as numbers, such as 1, 01 and 001.
+             Why         - an outside review of the index code found the inconsistent order; a query through an index must
+                           find what the same query finds by reading the records.
+             Does NOT    - Change an index that already exists: it keeps its old order until it is deleted and made again
+                           (DELETE.INDEX, CREATE.INDEX, BUILD.INDEX).  A left justified index is unchanged.  A file holding an
+                           index of the new kind cannot be opened by an SD older than this release.
+
 14 Nov 26  THE SIGN-ON BANNER NAMES THE PLATFORM, AND THE HOME SCREEN SAYS WHAT IS RUNNING.
 
              What        - the line printed at sign-on read "SD Core, the Essential Multivalue String Database, version L2.0-0";

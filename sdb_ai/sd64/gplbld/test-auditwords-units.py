@@ -158,14 +158,14 @@ def selftest():
             shutil.copytree(GPLBP, d)
             p = os.path.join(d, prog)
             if not os.path.isfile(p):
-                # byte-identical in both Linux trees (9 Oct): SD Core for Linux Solo has no delacc, createa, remoteapi ...
+                # byte-identical in both Linux trees (9 Oct): SD Core Solo for Linux has no delacc, createa, remoteapi ...
                 print("  [n/a] %s: this tree has no gpl.bp/%s" % (name, prog))
                 na += 1
                 return
             with open(p, encoding="utf-8", errors="replace") as f:
                 t = f.read()
             if t.count(old) == 0 and not os.path.isfile(os.path.join(GPLBP, "delacc")):
-                print("  [n/a] %s: SD Core for Linux Solo does not write that line" % name)
+                print("  [n/a] %s: SD Core Solo for Linux does not write that line" % name)
                 na += 1
                 return
             if t.count(old) != 1:
@@ -206,7 +206,7 @@ def selftest():
         mutant("control-upper-in-reason-text", "cproc", "reason=sdsys login'", "reason=SDSYS login'", expect_fail=False)
         mutant("control-upper-in-a-comment", "delacc", "* 07 Oct 26 dm - PAL-24: the command word is lower case.",
                "* DELETE.ACCOUNT in a comment is not code.", expect_fail=False)
-        # the same guard for the programs only SD Core for Linux Solo has (each is n/a in the full product)
+        # the same guard for the programs only SD Core Solo for Linux has (each is n/a in the full product)
         mutant("solo-admin-event-upper", "admin", "'admin refused reason=wrong password'", "'ADMIN refused reason=wrong password'")
         mutant("solo-admin-no-kv-upper", "admin", "'admin locked'", "'Admin locked'")
         mutant("solo-control-upper-in-reason", "admin", "reason=wrong password'", "reason=Wrong password'", expect_fail=False)

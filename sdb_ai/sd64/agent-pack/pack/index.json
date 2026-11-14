@@ -28264,7 +28264,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 100
+"words": 106
 },
 "tcl:set.backup.directory": {
 "kind": "tcl.verb",
