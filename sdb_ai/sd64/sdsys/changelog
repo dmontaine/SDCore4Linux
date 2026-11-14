@@ -5,7 +5,9 @@ Next release - in progress
 
              What        - an upgrade that keeps the accounts no longer asks "Start new sessions at the home screen or at the command
                            prompt?"; sessions go on starting where they did (the prompt for an install from before the home screen),
-                           and the installer says which.  A new installation still asks.
+                           and the installer says which.  When no setting was saved (L1.1-3's own uninstaller saves none) it is the
+                           prompt, where L1.1-3 always started; this release's uninstaller always saves one.  A new installation
+                           still asks.
              Why         - the owner (14 Nov 2026): "it is still asking the home screen or command prompt question, that should just
                            take the existing situation".
              Does NOT    - Change set.start.default or an account's own start setting.

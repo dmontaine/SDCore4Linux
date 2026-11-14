@@ -43,14 +43,15 @@ if [ "${1:-}" = "--selftest" ]; then
   bash "$THIS" > "$T/real.out" 2>&1 || { echo "  [FAIL] the real scripts do not pass:"; tail -8 "$T/real.out"; exit 1; }
   echo "  [ok] the real scripts pass"
   mutant default-prompt   inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/^start_choice=menu$/start_choice=terminal/'
-  mutant ignores-saved    inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/ = terminal \]; then start_choice=terminal; fi/ = never ]; then start_choice=terminal; fi/'
+  mutant ignores-saved    inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/ != menu \]; then start_choice=terminal; fi/ = never ]; then start_choice=terminal; fi/'
+  mutant compiled-not-seen del '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/sudo test -e "\$sdsysdir\/gpl.bp.out\/tool_home" || //'
   mutant upgrade-asks     inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/^if \[ -n "\$start_saved" \] || \[ -d \/home\/sd\/user_accounts \]; then$/if false; then/'
   mutant kept-accounts-ask inst '/^# START-ASK-BEGIN/,/^# START-ASK-END/ s/ || \[ -d \/home\/sd\/user_accounts \]; then$/; then/'
   mutant judged-by-nothing inst '/^# START-SET-BEGIN/,/^# START-SET-END/ s/if sudo grep -qsx .terminal. "\$sdsysdir\/start.default"; then/if true; then/'
   mutant keeps-saved      inst '/^# START-SET-BEGIN/,/^# START-SET-END/{/rm -f \/home\/sd\/start.default.saved/d}'
   mutant saves-on-delete  del  '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/^if \[ "\$keep_accts" != "DELETE" \]; then/if true; then/'
   mutant old-install-to-menu del '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/^        echo terminal | sudo tee/        echo menu | sudo tee/'
-  mutant no-old-install-rule del '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/ \&\& ! sudo test -e "\$sdsysdir\/gpl.bp\/tool_home"; then/ \&\& false; then/'
+  mutant no-old-install-rule del '/^# START-SAVE-BEGIN/,/^# START-SAVE-END/ s/ || sudo test -e "\$sdsysdir\/gpl.bp\/tool_home"; then/ || true; then/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
@@ -104,10 +105,13 @@ row "A3 fresh, prompt: the prompt" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE
 # 14 Nov 26 (owner: "it is still asking the home screen or command prompt question, that should just take the existing situation")
 fresh; echo terminal > "$T/home/start.default.saved"; out=$(run "$ASK" "h")
 row "A4 upgrade that saved terminal: the prompt, not asked (a typed h changes nothing), and it says so" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the command prompt' && echo yes)")" "$out"
-fresh; mkdir -p "$T/home/user_accounts"; out=$(run "$ASK" "p")
-row "A5 upgrade with the accounts kept and nothing saved: the home screen, not asked (a typed p changes nothing)" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the home screen' && echo yes)")" "$out"
-fresh; echo 'rm -rf /' > "$T/home/start.default.saved"; out=$(run "$ASK" "p")
-row "A6 a saved file with another word: the home screen, not asked" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && echo yes)")" "$out"
+# 14 Nov 26 (owner: "an upgrade from 1.1-3 will always be prompt, so the installer should assume that if there is no setting")
+fresh; mkdir -p "$T/home/user_accounts"; out=$(run "$ASK" "h")
+row "A5 upgrade with the accounts kept and nothing saved (L1.1-3's own deleter): the prompt, not asked (a typed h changes nothing)" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the command prompt' && echo yes)")" "$out"
+fresh; echo menu > "$T/home/start.default.saved"; out=$(run "$ASK" "p")
+row "A7 upgrade that saved menu: the home screen, not asked (a typed p changes nothing)" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=menu' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && printf '%s' "$out" | grep -q 'where they did before: at the home screen' && echo yes)")" "$out"
+fresh; echo 'rm -rf /' > "$T/home/start.default.saved"; out=$(run "$ASK" "h")
+row "A6 a saved file with another word: the prompt (only menu means the home screen), not asked" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && ! printf '%s' "$out" | grep -q '^PROMPT: ' && echo yes)")" "$out"
 # ---- S: applying it ---------------------------------------------------------------------------------------------------------
 fresh; echo terminal > "$T/home/start.default.saved"; out=$(run "start_choice=terminal
 $SET")
@@ -130,7 +134,13 @@ $SAVE")
 row "D2 accounts deleted: nothing saved" "$(ok "$([ ! -e "$T/home/start.default.saved" ] && echo yes)")" "$out"
 fresh; home_install; out=$(run "keep_accts=Y
 $SAVE")
-row "D3 a home-screen install with no start.default (the home screen): nothing saved" "$(ok "$([ ! -e "$T/home/start.default.saved" ] && printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
+row "D3 a home-screen install with no start.default (the home screen): saved as menu, mode 644" "$(ok "$(grep -qx menu "$T/home/start.default.saved" 2>/dev/null && [ "$(stat -c %a "$T/home/start.default.saved")" = 644 ] && printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
+fresh; mkdir -p "$T/sys/gpl.bp.out"; : > "$T/sys/gpl.bp.out/tool_home"; out=$(run "keep_accts=Y
+$SAVE")
+row "D3b a 2.0 install (no gpl.bp, only the compiled gpl.bp.out/tool_home) with no start.default: saved as menu" "$(ok "$(grep -qx menu "$T/home/start.default.saved" 2>/dev/null && echo yes)")" "$out"
+fresh; out=$(run "keep_accts=Y
+$SAVE")
+row "D6 no gpl.bp and no tool_home at all: saved as terminal" "$(ok "$(grep -qx terminal "$T/home/start.default.saved" 2>/dev/null && echo yes)")" "$out"
 fresh; old_install; out=$(run "keep_accts=Y
 $SAVE")
 row "D4 an install from before the home screen (L1.1-3): saved as terminal, mode 644, so the upgrade keeps the prompt" "$(ok "$(grep -qx terminal "$T/home/start.default.saved" 2>/dev/null && [ "$(stat -c %a "$T/home/start.default.saved")" = 644 ] && printf '%s' "$out" | grep -q 'before the home screen' && echo yes)")" "$out"

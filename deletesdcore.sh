@@ -300,13 +300,22 @@ fi
 # keep cycle as start.default.saved, so the installer's question offers it as the answer and an upgrade does not quietly change it.  An install from
 # before the home screen (no gpl.bp/tool_home: L1.1-3 and earlier) started every session at the prompt, so it is saved as terminal (owner, 3 Nov 2026:
 # "for existing users where all installs go to the prompt by default ... that will be retained on upgrade").
+# 14 Nov 26 dm  ALWAYS SAVED WHEN THE ACCOUNTS ARE KEPT (owner, 14 Nov 2026: "an upgrade from 1.1-3 will always be prompt, so the installer should
+#            assume that if there is no setting").  The installer now reads NO saved setting as the prompt, so an install that HAS the home screen and
+#            was left at it (no start.default: the default writes none) must say so, or its upgrade would go to the prompt.  The home screen is known
+#            by its program: gpl.bp.out/tool_home, the compiled object a 2.0 install keeps (gpl.bp, the source, is no longer installed), or
+#            gpl.bp/tool_home in an older dev install.  Anything else is an install from before the home screen: the prompt.
 # START-SAVE-BEGIN
 if [ "$keep_accts" != "DELETE" ]; then
     if sudo test -f "$sdsysdir/start.default"; then
         sudo cp "$sdsysdir/start.default" "$acct_path/start.default.saved"
         sudo chmod 644 "$acct_path/start.default.saved"
         echo "Saved where sessions start (start.default)"
-    elif sudo test -d "$sdsysdir/gpl.bp" && ! sudo test -e "$sdsysdir/gpl.bp/tool_home"; then
+    elif sudo test -e "$sdsysdir/gpl.bp.out/tool_home" || sudo test -e "$sdsysdir/gpl.bp/tool_home"; then
+        echo menu | sudo tee "$acct_path/start.default.saved" > /dev/null
+        sudo chmod 644 "$acct_path/start.default.saved"
+        echo "Saved where sessions start: at the home screen"
+    else
         echo terminal | sudo tee "$acct_path/start.default.saved" > /dev/null
         sudo chmod 644 "$acct_path/start.default.saved"
         echo "Saved where sessions start: at the prompt (this install is from before the home screen)"

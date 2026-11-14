@@ -846,14 +846,15 @@ fi
 #            START-SET block below with set.start.default; an account with a start word of its own (modify.account) keeps it.  test-install-start.sh.
 # 14 Nov 26 dm  NOT ASKED ON AN UPGRADE (owner, 14 Nov 2026: "it is still asking the home screen or command prompt question, that should just take the
 #            existing situation").  An upgrade - the accounts kept (/home/sd/user_accounts is there) or a saved start.default - keeps where sessions
-#            started: the prompt when the saved word is terminal (also an install from before the home screen, which the deleter saves as terminal),
-#            the home screen otherwise.  Only a fresh install asks.
+#            started: the home screen only when the saved word is menu; anything else, NOTHING SAVED included, is the prompt (owner, 14 Nov 2026:
+#            "an upgrade from 1.1-3 will always be prompt, so the installer should assume that if there is no setting" - L1.1-3's own deleter saves
+#            nothing, and this release's deleter always saves menu or terminal).  Only a fresh install asks.
 # START-ASK-BEGIN
 start_choice=menu
 start_saved=$(head -1 /home/sd/start.default.saved 2>/dev/null | tr -d '[:space:]' | tr 'A-Z' 'a-z' || true)
 echo
 if [ -n "$start_saved" ] || [ -d /home/sd/user_accounts ]; then
-    if [ "$start_saved" = terminal ]; then start_choice=terminal; fi
+    if [ "$start_saved" != menu ]; then start_choice=terminal; fi
     if [ "$start_choice" = terminal ]; then
         echo "New sessions start where they did before: at the command prompt."
     else
