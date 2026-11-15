@@ -42,8 +42,12 @@ FILES = {
     "intkeys": "sdsys/gpl.bp/int$keys.h",
     "xfersrv": "sdsys/gpl.bp/xfersrv",
     "forcecmd": "gplbld/ssh-forcecommand.sh",
+    "xfer": "sdsys/gpl.bp/xfer",
+    "voc_receive": "sdsys/newvoc/receive",
+    "voc_send": "sdsys/newvoc/send",
 }
 MESSAGES = list(range(14076, 14095))
+VERB_MESSAGES = [n for n in range(14095, 14114) if n != 14100]
 FIELDS = ["xfer_dir", "xfer_flags", "xfer_files", "xfer_opened", "xfer_last", "xfer_bytes"]
 
 
@@ -255,7 +259,38 @@ def checks(s):
        % (len(used_c), len(used_b)), not missing and set(used_c) | set(used_b) == set(MESSAGES) and len(set(used_c)) == len(used_c),
        "missing %r, unused %r" % (missing, sorted(set(MESSAGES) - set(used_c) - set(used_b))))
     ck("S38 no message tells a person to type a command in capitals (receive, send, modify.account are lower case)",
-       not any(re.search(r"\b(RECEIVE|SEND|MODIFY\.ACCOUNT|OVERWRITE)\b", s["msg"].get(n, "")) for n in MESSAGES))
+       not any(re.search(r"\b(RECEIVE|SEND|MODIFY\.ACCOUNT|OVERWRITE)\b", s["msg"].get(n, "")) for n in MESSAGES + VERB_MESSAGES))
+
+    # --- the verbs (stage 4) --------------------------------------------------------------------------------------------------
+    v = basic(s["xfer"])
+    ck("S39 receive and send are one $internal program, $xfer, in every ordinary account's VOC and not in SDSYS's (the administrator has no transfer)",
+       order(v, "$internal", "program xfer", "$catalog $xfer") and s["voc_receive"] == "V\nCA\n$xfer\n" and s["voc_send"] == "V\nCA\n$xfer\n"
+       and not os.path.exists(os.path.join(SD, "sdsys", "voc_template", "receive")) and not os.path.exists(os.path.join(SD, "sdsys", "voc_template", "send")))
+    ck("S40 the verb asks, in order: the syntax, XFER, that the session is in the account named after its user, the register (a user account, "
+       "xfer-on exactly YES), the directory; only then does it open the slot, and it audits the opening and the closing",
+       order(v, "crt sysmsg(14102)", "crt sysmsg(14107)", "if config('XFER') # 1 then", "if downcase(@who) # acct then",
+             "openpath @sdsys:@ds:'accounts' to acc.f else", "if acc.rec<ACC$GROUP>[1,4] # 'sdu_' then", "if upcase(trim(acc.rec<ACC$XFER>)) # 'YES' then",
+             "xdir = acc.path : @ds : dir.name", "openpath xdir to x.f else", "ans = kernel(K$XFER, 'open' : @fm : dir : @fm : flags)",
+             "void kernel(K$AUDIT, 'xfer open dir='", "ans = kernel(K$XFER, 'close')", "void kernel(K$AUDIT, 'xfer close dir='")
+       and v.count("kernel(K$XFER, 'open'") == 1)
+    ck("S41 the directory is the fixed name under the register's path; a VOC entry of that name is accepted only as F with that name or path, "
+       "and is written only when there was none",
+       order(v, "read voc.rec from voc, dir.name then", "if upcase(voc.rec<1>[1,1]) # 'F' or (voc.rec<2> # dir.name and voc.rec<2> # xdir) then",
+             "crt sysmsg(14096, dir.name)", "create.file xdir directory on error", "if voc.rec = '' then", "write 'F' : @fm : dir.name to voc, dir.name on error")
+       and "dir.name = 'xfer.out'" in v and "dir.name = 'xfer.in'" in v and v.count(" to voc, ") == 1)
+    snd = v[v.find("if is.send then\n      src.name"):v.find("before.ids = ''")]
+    ck("S42 send asks the server's own rule for the name and tests the record for plain text BEFORE it writes it out, and opens nothing when nothing was copied",
+       order(snd, "ans = kernel(K$XFER, 'name' : @fm : id)", "if ans<1> # 'OK' then\n            crt sysmsg(14108, id)", "read rec from src.f, id else", "gosub plain.test", "if not(plain) then",
+             "write rec to x.f, id on error", "copied += 1", "if copied = 0 then", "crt sysmsg(14106)", "stop")
+       and "plain = (index(rec, char(0), 1) = 0)" in v and "if c # 254 and index(rec, char(c), 1) then plain = @false" in v and "for c = 248 to 255" in v)
+    ck("S43 the wait ends when the slot is no longer live, at a key, or when the session's input has ended (three answers with no second gone)",
+       order(v, "st = kernel(K$XFER, 'state')", "if st<4> # 'live' then", "k = keyin(1)", "if k # '' then", "if time() = t0 then", "if early >= 3 then",
+             "why = 'input ended'"))
+    used_v = sorted(set(int(n) for n in re.findall(r"sysmsg\((14\d\d\d)", v)))
+    vmissing = [n for n in VERB_MESSAGES if not s["msg"].get(n, "").strip()]
+    ck("S44 messages 14095 to 14113 (14100 is not used) exist and the verb names every one; the kernel's 'name' question is answered to any $internal program",
+       not vmissing and set(VERB_MESSAGES) <= set(used_v) and order(kx, 'strcmp(arg, "name")', "sx_name_ok(f2) && sx_kind_ok(f2)", "if (!is_xfer) {"),
+       "missing %r, not named %r" % (vmissing, sorted(set(VERB_MESSAGES) - set(used_v))))
     return rows
 
 
@@ -269,7 +304,7 @@ def load():
         with open(p, encoding="latin-1") as f:
             out[k] = f.read()
     out["msg"] = {}
-    for n in MESSAGES:
+    for n in MESSAGES + VERB_MESSAGES:
         p = os.path.join(SD, "sdsys", "messages", str(n))
         if os.path.isfile(p):
             with open(p, encoding="latin-1") as f:
@@ -339,6 +374,19 @@ MUTANTS = [
     ("xfersrv", "a refusal is not audited", "   void kernel(K$AUDIT, 'xfer refused reason=' : reason : ' from=' : peer : ' user=' : lgn)\n", ""),
     ("xfersrv", "the directory comes from the VOC", "   ans = kernel(K$XFER, 'serve' : @fm : acc.path : @ds : dir.name)", "   open 'voc' to voc.f then readv dir.name from voc.f, dir.name, 2 else null\n   ans = kernel(K$XFER, 'serve' : @fm : dir.name)"),
     ("xfersrv", "a second entry runs again", "   if kernel(K$CPROC.LEVEL,0) then goto exit.xfersrv", "   if @false then goto exit.xfersrv"),
+    # stage 4, the verbs: --selftest --from=53
+    ("voc_send", "send runs another program", "$xfer\n", "$xfersrv\n"),
+    ("xfer", "the verb opens a slot from any account", "   if downcase(@who) # acct then", "   if @false then"),
+    ("xfer", "the verb does not ask xfer-on", "   if upcase(trim(acc.rec<ACC$XFER>)) # 'YES' then\n      crt sysmsg(14077, acct)", "   if @false then\n      crt sysmsg(14077, acct)"),
+    ("xfer", "the slot is opened before the directory is there", "   ans = kernel(K$XFER, 'open' : @fm : dir : @fm : flags)\n   if ans<1> # 'OK' then", "   if ans<1> # 'OK' then"),
+    ("xfer", "any VOC entry of the name is taken", "if upcase(voc.rec<1>[1,1]) # 'F' or (voc.rec<2> # dir.name and voc.rec<2> # xdir) then", "if @false then"),
+    ("xfer", "the VOC entry is always rewritten", "   if voc.rec = '' then\n      write 'F'", "   if @true then\n      write 'F'"),
+    ("xfer", "send copies a record with marks", "         if not(plain) then", "         if @false then"),
+    ("xfer", "a value mark is plain", "for c = 248 to 255", "for c = 248 to 250"),
+    ("xfer", "send does not ask the name rule", "         if ans<1> # 'OK' then\n            crt sysmsg(14108, id)", "         if @false then\n            crt sysmsg(14108, id)"),
+    ("xfer", "an empty send opens a transfer", "      if copied = 0 then", "      if @false then"),
+    ("xfer", "the wait never ends at the end of input", "         if early >= 3 then", "         if @false then"),
+    ("xfer", "the closing is not audited", "   void kernel(K$AUDIT, 'xfer close dir=' : dir.word", "   null ;* ('xfer close dir=' : dir.word"),
 ]
 
 
@@ -377,7 +425,7 @@ def main():
         print("  input %-10s %s (%d bytes)" % (k, rel, len(s[k])))
     print("  input messages   sdsys/messages/14076 to 14094 (%d found)" % len(s["msg"]))
     rows = checks(s)
-    if len(rows) < 38:
+    if len(rows) < 44:
         print("REFUSING - only %d checks ran" % len(rows), file=sys.stderr)
         return 2
     bad = report(rows)

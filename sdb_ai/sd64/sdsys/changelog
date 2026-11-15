@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+15 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: THE RECEIVE AND SEND COMMANDS (THIRD PART).
+
+             What        - two new commands open a transfer from a person's own SD session.
+                             receive {overwrite}             files come in, to the file xfer.in of the account
+                             send <file> <id> {<id> ...}     the named records are copied to xfer.out and go out
+                           Either says it is ready and waits.  The person then connects an sftp client (WinSCP, FileZilla,
+                           OpenSSH sftp) with the same login as for ssh and puts or gets the files; nothing can be moved before
+                           the command is typed or after it ends.  Enter ends it; so does XFERWAIT with no connection, XFERIDLE
+                           with nothing more happening, XFERMAX, or the end of the session.  It then says how many files and
+                           bytes moved, and for each file that came in its SHA-256, to compare with the sender's.  xfer.in and
+                           xfer.out are made on first use as ordinary directory files of the account, so a file that came in is
+                           a record (COPY, ED, BASIC) and a record sent out is a text file.  receive never replaces a file that
+                           is there; receive overwrite does.  The audit trail has "xfer open" and "xfer close" lines.
+             Why         - this is what makes the transfer usable: the person says when, from inside SD, where they are
+                           already signed in.
+             Does NOT    - Work unless the administrator has set XFER=1 in sd.conf and given the account xfer-on; the command
+                           says which is missing.  It is typed in the person's own account, not one reached with LOGTO, and not
+                           by SDSYS.  send takes records that are plain text (no NUL byte, no mark but the field mark, which
+                           becomes a new line) under an id that is a plain file name; it does not send an operating system
+                           file by path.  There is no command yet in the full-screen pages, and the documentation pages are
+                           still to come.
+
 15 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: SD ANSWERS AN SFTP CLIENT ITSELF, INSIDE ONE DIRECTORY (SECOND PART).
 
              What        - the part of SD that an sftp client talks to now exists.  The ssh settings SD installs hand the sftp

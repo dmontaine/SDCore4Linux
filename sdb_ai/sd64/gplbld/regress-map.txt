@@ -279,7 +279,12 @@ sdsys/gpl.bp/xfersrv         : sftp
 gplbld/sandbox-sftp.py       : @self
 sdsys/messages/1407[6-9]     : sftp
 sdsys/messages/1408?         : sftp
-sdsys/messages/1409[0-4]     : sftp
+sdsys/messages/1409?         : sftp
+sdsys/messages/1410?         : sftp
+sdsys/messages/1411[0-3]     : sftp
+sdsys/gpl.bp/xfer            : sftp
+sdsys/newvoc/receive         : sftp
+sdsys/newvoc/send            : sftp
 gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient

@@ -48,7 +48,7 @@ USER = g.USER
 UGROUP = "sdu_" + USER
 SUBSYS = "/usr/local/sdsys/bin/sd-sftp"
 MARK = "# sandbox-sftp below"
-SECTIONS = ["gate", "in", "wall", "text", "limits", "out", "raw", "life", "timers"]
+SECTIONS = ["gate", "in", "wall", "text", "limits", "out", "raw", "life", "timers", "verbs"]
 MUTANTS = {
     "no-account-gate": ("   if upcase(trim(acc.rec<ACC$XFER>)) # 'YES' then", "   if @false then"),
     "no-system-switch": ("   if config('XFER') # 1 then", "   if @false then"),
@@ -928,6 +928,131 @@ def sec_timers():
     c.end()
     lv.end()
     conf(XFER=1)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# V  the verbs: RECEIVE and SEND (stage 4)
+
+def voc_run(lines, done):
+    """Run a few $internal statements as the administrator (they write or delete a VOC record of the fixture account)."""
+    g.put(os.path.join(SYS, "bp", "zzxvoc"), "\n".join(["$internal"] + lines + ["   crt '%s'" % done, "end", ""]))
+    out = g.adm(["BASIC bp zzxvoc", "RUN bp zzxvoc"], internal=True)
+    if not g.has(out, "^%s$" % done):
+        bail("the VOC fixture step did not run:\n" + "\n".join(out[-6:]))
+
+
+def sec_verbs():
+    say("\n--- V. receive and send --------------------------------------------------------------------------------------")
+    for d in (XIN, XOUT):
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+    voc_run(["   openpath '%s/voc' to v else stop" % ACCT, "   delete v, 'xfer.in'", "   delete v, 'xfer.out'",
+             "   write 'X':@fm:'a':@vm:'b' to v, 'zzmv'"], "XVOC clean")
+    conf(XFER=1)
+    reg(USER, ACCT, UGROUP, "yes")
+    closed = r"^Transfer closed \((.*)\): (\d+) file\(s\), (\d+) bytes$"
+
+    lv = Live(ACCT)
+    off = audit_off()
+    m = lv.cmd("receive", r"^Ready to receive into xfer\.in\.  Connect an sftp client to (\S+) as %s and put the files\." % USER)
+    row("V1: receive, typed in the person's own account where there is no xfer.in yet, makes the directory and says it is ready",
+        m is not None and os.path.isdir(XIN) and not os.path.islink(XIN), lv.text[-300:])
+    data = b"id,name\n1,Ann\n2,Bo\n"
+    local("v1.csv", data)
+    rc, out = sftp(["put v1.csv"])
+    m = lv.cmd("", closed)
+    a = audit_new(off)
+    row("V1a: ...a file put while it waits arrives; Enter closes the transfer, which says 'closed here', 1 file, %d bytes, and the file "
+        "with hashlib's SHA-256" % len(data), rc == 0 and disk(XIN, "v1.csv") == data and m is not None
+        and m.groups() == ("closed here", "1", str(len(data))) and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None
+        and re.search(r"^   v1\.csv   sha256 %s$" % sha(data), lv.text, re.M) is not None, lv.text[-400:])
+    row("V1b: ...the audit trail has the opening (dir=in overwrite=no) and the closing (why=done files=1 bytes=%d)" % len(data),
+        has(a, r"xfer open dir=in overwrite=no account=%s" % USER) and has(a, r"xfer close dir=in why=done files=1 bytes=%d account=%s" % (len(data), USER)),
+        "audit %r" % a)
+    out = g.plain(USER, ["CT VOC xfer.in", "CT xfer.in v1.csv"])
+    row("V1c: ...and xfer.in is a file of the account: its VOC entry is F / xfer.in and the file that came is a record (CT shows its lines)",
+        g.has(out, r"^\s*0*1: F$") and g.has(out, r"^\s*0*2: xfer\.in$") and g.has(out, r"^\s*0*2: 1,Ann$"), "\n".join(out[-12:]))
+    refused_put("V2", "the transfer was closed with Enter", r"No transfer is open", r"no slot is open", name="v2.txt")
+
+    local("v1.csv", b"id,name\n9,Zed\n")
+    m = lv.cmd("receive overwrite", r"^Ready to receive into xfer\.in\.")
+    rc, out = sftp(["put v1.csv"])
+    m2 = lv.cmd("", closed)
+    row("V3: receive overwrite lets the same name come again and replace the file", m is not None and rc == 0
+        and disk(XIN, "v1.csv") == b"id,name\n9,Zed\n" and m2 is not None and m2.group(2) == "1", lv.text[-300:])
+
+    m = lv.cmd("receive everything", r"^Command Syntax: receive \{overwrite\}$")
+    row("V4: receive with any other word prints the syntax and opens nothing",
+        m is not None and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None)
+    conf()
+    lv.end()
+    lv = Live(ACCT)                                       # XFER is read as a process starts
+    m = lv.cmd("receive", r"^File transfer is not turned on for this system")
+    row("V5: with XFER not 1 in sd.conf receive says so and opens nothing",
+        m is not None and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None, lv.text[-300:])
+    lv.end()
+    conf(XFER=1)
+    reg(USER, ACCT, UGROUP, "")
+    lv = Live(ACCT)
+    m = lv.cmd("receive", r"^Account %s may not move files over its ssh login" % USER)
+    row("V6: with the account's xfer field blank receive says who allows it and opens nothing",
+        m is not None and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None, lv.text[-300:])
+    reg(USER, ACCT, UGROUP, "yes")
+    lv.end()
+    lv = Live(os.path.join(BOX, "user_accounts", "zzxoth"), account="zzxoth")
+    voc_run(["   openpath '%s/voc' to v else stop" % os.path.join(BOX, "user_accounts", "zzxoth"),
+             "   write 'V':@fm:'CA':@fm:'$xfer' to v, 'receive'"], "XVOC oth")
+    m = lv.cmd("receive", r"^A transfer is opened from your own account, %s; this session is in zzxoth$" % USER)
+    row("V7: receive typed in another account the person may enter is refused: a transfer is opened from one's own account",
+        m is not None and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None
+        and not os.path.exists(os.path.join(BOX, "user_accounts", "zzxoth", "xfer.in")), lv.text[-300:])
+    lv.end()
+
+    # SEND
+    src = b"program hello\n   crt 'hello'\nend\n"
+    with open(os.path.join(ACCT, "bp", "hello.bas"), "wb") as f:
+        f.write(src)
+    fresh(LOCAL)
+    lv = Live(ACCT)
+    off = audit_off()
+    m = lv.cmd("send bp hello.bas nosuch .dot", r"^Ready to send from xfer\.out\.  Connect an sftp client to (\S+) as %s and get the files\." % USER)
+    row("V8: send copies the record that is there to xfer.out, says which were not (no such record; not a name a transfer takes), "
+        "and says it is ready", m is not None and listing(XOUT) == ["hello.bas"] and "bp has no record nosuch" in lv.text
+        and ".dot is not a name a transfer takes" in lv.text, lv.text[-400:])
+    rc, out = sftp(["get hello.bas"])
+    m = lv.cmd("", closed)
+    got = disk(LOCAL, "hello.bas")
+    row("V8a: ...the client gets it with the record's lines as they are in the program file, and Enter closes: 1 file",
+        rc == 0 and got is not None and got.rstrip(b"\n") == src.rstrip(b"\n") and m is not None and m.group(2) == "1"
+        and has(audit_new(off), r"xfer open dir=out overwrite=no") and has(audit_new(off), r"xfer close dir=out why=done files=1"),
+        "local %r, audit %r" % (got, audit_new(off)))
+    m = lv.cmd("send voc zzmv", r"^Nothing was copied, so no transfer was opened$")
+    row("V9: a record that holds a value mark is not plain text: not copied, and with nothing copied no transfer opens",
+        m is not None and "voc zzmv is not plain text" in lv.text and "zzmv" not in listing(XOUT)
+        and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None, lv.text[-300:])
+    m = lv.cmd("send bp", r"^Command Syntax: send <file> <record id> \{<record id> \.\.\.\}$")
+    row("V9a: send with no record id prints the syntax", m is not None)
+    voc_run(["   openpath '%s/voc' to v else stop" % ACCT, "   write 'F':@fm:'/tmp' to v, 'xfer.out'"], "XVOC wrong")
+    m = lv.cmd("send bp hello.bas", r"^xfer\.out is in this account's VOC as something other than the transfer directory")
+    row("V10: a VOC entry xfer.out that points somewhere else is left alone and the transfer is refused",
+        m is not None and lv.cmd("ZZXSLOT state", r"^XSLOT state OK\|0\|") is not None, lv.text[-300:])
+    voc_run(["   openpath '%s/voc' to v else stop" % ACCT, "   delete v, 'xfer.out'"], "XVOC back")
+    lv.end()
+
+    # the session's input ends while it waits
+    off = audit_off()
+    t0 = time.time()
+    try:
+        p = subprocess.run([SD], input="\nTERM 200,9999\nreceive\n", cwd=ACCT, env=g.env(False), capture_output=True, text=True,
+                           errors="replace", timeout=40)
+        took, out = time.time() - t0, p.stdout
+    except subprocess.TimeoutExpired:
+        took, out = None, ""
+    row("V11: a session whose input ends while receive waits closes the transfer and ends (%s s): it does not wait for ever or spin"
+        % ("%.1f" % took if took is not None else "more than 40"), took is not None and took < 15
+        and "Transfer closed (this session's input ended): 0 file(s), 0 bytes" in out
+        and has(audit_new(off), r"xfer close dir=in why=input ended files=0 bytes=0"), "audit %r" % audit_new(off))
+    subprocess.run([SD, "-cleanup"], env=g.env(False), capture_output=True, timeout=60)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

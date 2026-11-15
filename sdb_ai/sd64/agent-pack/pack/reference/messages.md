@@ -10555,7 +10555,7 @@ cited by: `modifya`
 File transfer is not turned on for this system (XFER is 0 in sd.conf)
 ```
 
-cited by: `xfersrv`
+cited by: `xfer`, `xfersrv`
 
 ### msg:14077
 > kind=message tier=reference since=- src=sdsys/messages/14077:1#6e3a7055
@@ -10564,7 +10564,7 @@ cited by: `xfersrv`
 Account %1 may not move files over its ssh login (the administrator allows it with modify.account %1 xfer-on)
 ```
 
-cited by: `xfersrv`
+cited by: `xfer`, `xfersrv`
 
 ### msg:14078
 > kind=message tier=reference since=- src=sdsys/messages/14078:1#e9cafa95
@@ -10573,7 +10573,7 @@ cited by: `xfersrv`
 File transfer is only for a user account, for its own person; %1 has no user account of its own
 ```
 
-cited by: `xfersrv`
+cited by: `xfer`, `xfersrv`
 
 ### msg:14079
 > kind=message tier=reference since=- src=sdsys/messages/14079:1#c2f9f988
@@ -10691,7 +10691,7 @@ A file is sent whole, from its start: a transfer cannot be resumed or added to
 The transfer directory %1 is not there, or is not a plain directory (receive and send make it)
 ```
 
-cited by: `xfersrv`
+cited by: `xfer`, `xfersrv`
 
 ### msg:14093
 > kind=message tier=reference since=- src=sdsys/messages/14093:1#62e443e9
@@ -10700,7 +10700,7 @@ cited by: `xfersrv`
 File transfer could not start: %1
 ```
 
-cited by: `xfersrv`
+cited by: `xfer`, `xfersrv`
 
 ### msg:14094
 > kind=message tier=reference since=- src=sdsys/messages/14094:1#694f6a4e
@@ -10709,6 +10709,51 @@ cited by: `xfersrv`
 Too many files are open at once in this transfer
 ```
 
+### msg:14095
+> kind=message tier=reference since=- src=sdsys/messages/14095:1#132df9d9
+
+```
+A transfer is opened from your own account, %1; this session is in %2
+```
+
+cited by: `xfer`
+
+### msg:14096
+> kind=message tier=reference since=- src=sdsys/messages/14096:1#50cbaf73
+
+```
+%1 is in this account's VOC as something other than the transfer directory; nothing was opened
+```
+
+cited by: `xfer`
+
+### msg:14097
+> kind=message tier=reference since=- src=sdsys/messages/14097:1#ef4b0ec6
+
+```
+Ready to receive into %1.  Connect an sftp client to %2 as %3 and put the files.  Press Enter here when done.
+```
+
+cited by: `xfer`
+
+### msg:14098
+> kind=message tier=reference since=- src=sdsys/messages/14098:1#14aa56e2
+
+```
+Ready to send from %1.  Connect an sftp client to %2 as %3 and get the files.  Press Enter here when done.
+```
+
+cited by: `xfer`
+
+### msg:14099
+> kind=message tier=reference since=- src=sdsys/messages/14099:1#5f650daf
+
+```
+Transfer closed (%1): %2 file(s), %3 bytes
+```
+
+cited by: `xfer`
+
 ### msg:1410
 > kind=message tier=reference since=- src=sdsys/messages/1410:1#20a6b269
 
@@ -10716,12 +10761,129 @@ Too many files are open at once in this transfer
 Trigger function argument count mismatch
 ```
 
+### msg:14101
+> kind=message tier=reference since=- src=sdsys/messages/14101:1#3ef4765e
+
+```
+A transfer is opened from a terminal session, not from a phantom or a program run for a client
+```
+
+cited by: `xfer`
+
+### msg:14102
+> kind=message tier=reference since=- src=sdsys/messages/14102:1#7180caad
+
+```
+Command Syntax: send <file> <record id> {<record id> ...}
+```
+
+cited by: `xfer`
+
+### msg:14103
+> kind=message tier=reference since=- src=sdsys/messages/14103:1#711fe96f
+
+```
+%1 %2 is not plain text (a NUL byte, or a mark other than a field mark) and was not copied
+```
+
+cited by: `xfer`
+
+### msg:14104
+> kind=message tier=reference since=- src=sdsys/messages/14104:1#5ae03d90
+
+```
+%1 has no record %2
+```
+
+cited by: `xfer`
+
+### msg:14105
+> kind=message tier=reference since=- src=sdsys/messages/14105:1#44186357
+
+```
+Cannot open %1
+```
+
+cited by: `xfer`
+
+### msg:14106
+> kind=message tier=reference since=- src=sdsys/messages/14106:1#92bd0fa5
+
+```
+Nothing was copied, so no transfer was opened
+```
+
+cited by: `xfer`
+
+### msg:14107
+> kind=message tier=reference since=- src=sdsys/messages/14107:1#e391d583
+
+```
+Command Syntax: receive {overwrite}
+```
+
+cited by: `xfer`
+
+### msg:14108
+> kind=message tier=reference since=- src=sdsys/messages/14108:1#f092962c
+
+```
+%1 is not a name a transfer takes (or not a kind of file this system moves) and was not copied
+```
+
+cited by: `xfer`
+
+### msg:14109
+> kind=message tier=reference since=- src=sdsys/messages/14109:1#be6c97dc
+
+```
+closed here
+```
+
+cited by: `xfer`
+
 ### msg:1411
 > kind=message tier=reference since=- src=sdsys/messages/1411:1#3047038a
 
 ```
 Data validation error: 
 ```
+
+### msg:14110
+> kind=message tier=reference since=- src=sdsys/messages/14110:1#4a976b60
+
+```
+no connection came in time
+```
+
+cited by: `xfer`
+
+### msg:14111
+> kind=message tier=reference since=- src=sdsys/messages/14111:1#1c1c4e0a
+
+```
+nothing more came
+```
+
+cited by: `xfer`
+
+### msg:14112
+> kind=message tier=reference since=- src=sdsys/messages/14112:1#48108779
+
+```
+the time limit for a transfer was reached
+```
+
+cited by: `xfer`
+
+### msg:14113
+> kind=message tier=reference since=- src=sdsys/messages/14113:1#023aeaad
+
+```
+this session's input ended
+```
+
+cited by: `xfer`
 
 ### msg:1412
 > kind=message tier=reference since=- src=sdsys/messages/1412:1#d559e762
@@ -11786,7 +11948,7 @@ cited by: `cname`, `savestk`
 Cannot open accounts register
 ```
 
-cited by: `login`, `lstvocrm`, `rstvoc`, `set_acc_password`, `setacc`, `setfile`, `upgrade_nocase`, `xfersrv`
+cited by: `login`, `lstvocrm`, `rstvoc`, `set_acc_password`, `setacc`, `setfile`, `upgrade_nocase`, `xfer` and 1 more
 
 ### msg:2201
 > kind=message tier=reference since=- src=sdsys/messages/2201:1#704ebe48
