@@ -48,12 +48,12 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `8` | user | free for the application — SD does not read it |
 
 ### core:gates
-> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:272#65ba882f
+> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:276#3a9069b3
 
 A new user account starts with every gate OFF. Only SDSYS, the one administrator, turns one on, with these words (`create.account`, then `modify.account <account> <word>`). Each word is the chunk `sys:word:<word>`. This is what `create.account` prints:
 
 ```
-Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}
+Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {xfer-on} {no.query}
                 create.account group <group name> {start-menu | start-terminal} {pins-on} {no.query}
                 create.account other <account name> <pathname> {start-menu | start-terminal} {pins-on} {no.query}
   A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change
@@ -64,6 +64,7 @@ Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on
   It starts where the system default says (set.start.default) unless start-menu or start-terminal is typed,
   and cannot add programs of its own to its home screen unless pins-on is typed.
   Its editors keep no recovery copy of unsaved text unless recovery-on is typed (a user account only).
+  It cannot move files over its ssh login (receive / send) unless xfer-on is typed (a user account only).
 ```
 
 ### core:start

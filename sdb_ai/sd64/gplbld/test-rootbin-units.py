@@ -70,6 +70,10 @@ SD_C = env("SD_C", os.path.join(SD64, "gplsrc", "sd.c"))
 MAKEFILE = env("MAKEFILE", os.path.join(SD64, "Makefile"))
 HELPERS = ["sd-elevate", "sd-accarchive", "ssh-forcecommand.sh", "reconcile-accounts.sh", "sd-ai", "sd-ai-ctl"]
 SUDOERS = "sdcore.sudoers"
+# 15 Nov 26 (S.242): ssh-forcecommand.sh names /usr/local/sdsys/bin/sd-sftp as the sftp Subsystem of the ordinary Match arm.  It is a NAME: sshd hands it to the
+# arm's ForceCommand (sd) as SSH_ORIGINAL_COMMAND and sd compares the string (gplsrc/sd_sftp.h).  No file is installed there and nothing runs it, so it is not
+# a root-run file; this one line is left out of the computed set and row B4a holds the reasons.
+SFTP_NAME_LINE = re.compile(r"\s*SFTP_CMD=\$\{SD_SSH_SFTP_CMD:-/usr/local/sdsys/bin/sd-sftp\}\s*$")
 
 
 def row(name, ok, detail=""):
@@ -138,6 +142,8 @@ def bin_names_in(text, comments="shell"):
     if comments == "shell":
         for _, l in code_lines(text):
             if re.match(r"\s*(sudo\s+)?rm\s+-f\s", l):      # a removal runs nothing (S.95: the installer deletes the PAM module's stray copy from the sealed bin)
+                continue
+            if SFTP_NAME_LINE.match(l):                     # S.242: the sftp Subsystem's NAME (sd recognises the string; no file is there, nothing runs it) - row B4a holds this
                 continue
             names.update(pat.findall(l))
     else:
@@ -300,6 +306,19 @@ def run():
     computed = set(found)
     row("B4 rootbin_files %s equals the computed root-run set %s" % (sorted(listed) if listed is not None else "(none)", sorted(computed)), listed == computed,
         "only in the block: %s; only computed: %s" % (sorted((listed or set()) - computed), sorted(computed - (listed or set()))))
+
+    # ---- B4a (15 Nov 26, S.242) ---------------------------------------------------------------------------------------------------------------------------
+    fc_lines = [l for _, l in code_lines(read(os.path.join(HELPERDIR, "ssh-forcecommand.sh")))]
+    named = [l for l in fc_lines if "/bin/sd-sftp" in l]
+    sftp_h = read(os.path.join(GPLSRC, "sd_sftp.h")) if os.path.exists(os.path.join(GPLSRC, "sd_sftp.h")) else ""
+    sftp_c = strip_c_comments(read(os.path.join(GPLSRC, "sd_sftp.c"))) if os.path.exists(os.path.join(GPLSRC, "sd_sftp.c")) else ""
+    elsewhere = [n for n, t in (("Makefile", read(MAKEFILE)), ("installsdcore.sh", "\n".join(l for _, l in code_lines(inst))),
+                                ("deletesdcore.sh", "\n".join(l for _, l in code_lines(deleter)))) if "sd-sftp" in t]
+    row("B4a the one name left out of that set, bin/sd-sftp, is the sftp Subsystem's NAME and not a file: ssh-forcecommand.sh names it on one line, the SFTP_CMD "
+        "default; sd_sftp.h compares that same path; the Makefile, the installer and the deleter never name it; sd_sftp.c starts no program",
+        len(named) == 1 and SFTP_NAME_LINE.match(named[0]) is not None and '#define SD_SFTP_SUBSYSTEM "/usr/local/sdsys/bin/sd-sftp"' in sftp_h
+        and not elsewhere and sftp_c != "" and not re.search(r"\b(exec[lv]p?e?|system|popen|fork|posix_spawn)\s*\(", sftp_c),
+        "lines naming it: %r; also named in: %s" % (named, elsewhere))
 
     # ---- B5 -----------------------------------------------------------------------------------------------------------------------------------------------
     cmd = [l for _, l in code_lines(block) if not l.lstrip().startswith(("echo", "printf"))]
@@ -523,6 +542,10 @@ def selftest():
     inst("list-lost-sdlnxd", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdidx pcode)")
     inst("list-extra-sdfix", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd sdidx pcode sdfix)")
     inst("list-brings-back-sd-totp", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)")      # S.106: sd-totp is gone, and nothing runs it
+    # 15 Nov 26 (S.242): the sftp Subsystem's name is left out of the set only while it is a name
+    inst("installer-makes-sd-sftp", "B4a", '\necho "Bootstrap pass 1."\n', '\nsudo ln -s sd "$sdsysdir/bin/sd-sftp"\necho "Bootstrap pass 1."\n')
+    dir_mutant("forcecommand-runs-sd-sftp", "B4a", "h", "ssh-forcecommand.sh", "SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}\n",
+               "SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}\n/usr/local/sdsys/bin/sd-sftp --version\n", "HELPER_DIR")
     dir_mutant("unit-new-daemon", "B4", "u", "sd-lnxd.service", "ExecStart=/usr/local/sdsys/bin/sdlnxd", "ExecStart=/usr/local/sdsys/bin/sdnewd", "UNITDIR")
     dir_mutant("unit-new-prestart", "B4", "u", "sd.service", "ExecStart=/usr/local/sdsys/bin/sd -start -nodaemon", "ExecStartPre=/usr/local/sdsys/bin/sdprep\nExecStart=/usr/local/sdsys/bin/sd -start -nodaemon", "UNITDIR")
     dir_mutant("unit-prefixed-exec", "B4", "u", "sd.service", "ExecStop=/usr/local/sdsys/bin/sd -stop", "ExecStop=-/usr/local/sdsys/bin/sdstopper -stop", "UNITDIR")

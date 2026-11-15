@@ -43,6 +43,11 @@ Public char* entry_dir init(NULL); /* Current directory on entry */
 Public bool is_bootstrap init(FALSE);  /* Bootstrap build (install process) */
 Public bool is_phantom init(FALSE);  /* Process is a phantom */
 Public bool is_sdApiSrvr init(FALSE); /* Process is a sdApiSrvr */
+/* 15 Nov 26 dm - S.242 stage 3: this process is the file transfer server of an sftp request (sd_sftp.c xfer_detect()).  The client's
+   channel is on these two descriptors and nowhere else; 0 and 1 are /dev/null, so nothing SD prints reaches the client. */
+Public bool is_xfer init(FALSE);
+Public int xfer_fd_in init(-1);
+Public int xfer_fd_out init(-1);
 Public bool class_main_ok init(FALSE); /* Set by op_run() and op_chain() for the one k_call() they make: a class module may run its MAIN (16 Oct 26, Fixes item 484) */
 Public bool is_nt init(FALSE);       /* Windows NT/2000/XP? */
 

@@ -170,6 +170,9 @@
 * 02 Nov 26 dm - S.102 stage 3.  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process is (systemd's
 *   cgroup, a root-owned definition whose command is this session's own command line), or ''.  Must match gplsrc/keys.h.
       $define K$JOB.MARK       172      ;* The scheduled job this session is, or ''
+* 15 Nov 26 dm - S.242 stage 3.  kernel(K$XFER, op {: @fm : ...}): the file transfer slot (open, close, state) and the transfer server's side
+*   (find, serve, refuse).  The arguments and answers are at k_xfer() in gplsrc/sd_sftp.c.  Must match gplsrc/keys.h.
+      $define K$XFER           173      ;* File transfer over the ssh login: the slot and the server (S.242)
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

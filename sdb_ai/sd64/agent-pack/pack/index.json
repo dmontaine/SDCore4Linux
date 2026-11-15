@@ -3897,7 +3897,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 223
+"words": 243
 },
 "core:start": {
 "kind": "core.start",
@@ -4814,7 +4814,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 13
+"words": 14
 },
 "msg:10004": {
 "kind": "message",
@@ -5234,7 +5234,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 10
+"words": 11
 },
 "msg:1011": {
 "kind": "message",
@@ -13307,6 +13307,48 @@
 "tier": "reference",
 "words": 17
 },
+"msg:14074": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
+"msg:14075": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 27
+},
+"msg:14076": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
+"msg:14077": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 23
+},
+"msg:14078": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"msg:14079": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 24
+},
 "msg:1408": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -13314,12 +13356,117 @@
 "tier": "reference",
 "words": 6
 },
+"msg:14080": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
+"msg:14081": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 44
+},
+"msg:14082": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:14083": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 24
+},
+"msg:14084": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:14085": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:14086": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:14087": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:14088": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:14089": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
 "msg:1409": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
 "words": 9
+},
+"msg:14090": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:14091": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:14092": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 23
+},
+"msg:14093": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:14094": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
 },
 "msg:1410": {
 "kind": "message",
@@ -14292,7 +14439,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 16
 },
 "msg:2201": {
 "kind": "message",
@@ -17813,7 +17960,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 16
+"words": 17
 },
 "msg:5010": {
 "kind": "message",
@@ -17883,7 +18030,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 13
 },
 "msg:5020": {
 "kind": "message",
@@ -18625,7 +18772,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 10
 },
 "msg:5262": {
 "kind": "message",
@@ -25044,7 +25191,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1711
+"words": 1728
 },
 "sys:ikeys:lgn$": {
 "kind": "sys.keys",
@@ -25107,7 +25254,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 261
+"words": 282
 },
 "sys:keys:csv$": {
 "kind": "sys.keys",
@@ -25599,6 +25746,55 @@
 "tier": "reference",
 "words": 18
 },
+"sys:param:xfer": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:xferfile": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:xferidle": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:xferkind": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"sys:param:xfermax": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:xferslot": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:xferwait": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
 "sys:param:yearbase": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -25618,7 +25814,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 347
+"words": 372
 },
 "sys:word:add": {
 "kind": "sys.word",
@@ -25920,6 +26116,20 @@
 "since": "-",
 "tier": "reference",
 "words": 62
+},
+"sys:word:xfer-off": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
+"sys:word:xfer-on": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 71
 },
 "tcl:%e": {
 "kind": "tcl.keyword",
@@ -28262,7 +28472,7 @@
 "tcl:set.ai": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 106
 },

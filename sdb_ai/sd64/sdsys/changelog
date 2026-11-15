@@ -1,6 +1,29 @@
 Next release - in progress
 --------------------------
 
+15 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: SD ANSWERS AN SFTP CLIENT ITSELF, INSIDE ONE DIRECTORY (SECOND PART).
+
+             What        - the part of SD that an sftp client talks to now exists.  The ssh settings SD installs hand the sftp
+                           request of an ordinary SD user to SD (never to the system's own sftp server, and never for sdsys),
+                           and SD is the server: there is no shell and no other program behind it.  It works in one directory
+                           of the person's own account and nowhere else - xfer.in for files coming in, xfer.out for files going
+                           out - with no sub-directory, no "..", no link followed, and nothing made, renamed or removed except a
+                           file the same connection has just sent.  A file coming in must be plain text (no NUL byte and none
+                           of the bytes 248 to 255), within XFERFILE and XFERSLOT, of a kind XFERKIND allows, under a name that
+                           is a record id as it stands, and it never replaces a file that is there unless the transfer was
+                           opened for that.  It is written under a working name and given its own only when it is complete, so
+                           a connection that drops leaves nothing behind.  What goes out is held to the same plain-text rule.
+                           Every connection, every file with its size and SHA-256, and every refusal with its reason is a line
+                           of the audit trail beginning "xfer".  The connection is a process in LISTU, shown as sftp with the
+                           address it came from, and LOGOUT ends it.
+             Why         - this is the door the 14 Nov entry described.  The wall is SD's own code, so it is the same on every
+                           system and does not depend on how sshd or the file system is set up.
+             Does NOT    - Move a file for anybody yet.  A transfer needs a person to open it from their own SD session with the
+                           receive or send command, and those commands are the next part; until then every sftp connection is
+                           told, in words, that no transfer is open.  It also stays shut unless XFER is 1 in sd.conf and the
+                           account has xfer-on.  It does not resume or add to a file, and a group account has no transfer.  SD
+                           must be restarted after this update (the installer does it): the shared memory layout changed.
+
 15 Nov 26  AN ADMINISTRATOR'S LOGTO LANDS AT THE PROMPT: NO LOGIN PARAGRAPH, NO HOME SCREEN.
 
              What        - when the administrator (SDSYS) entered another account with LOGTO, the account's own LOGIN paragraph ran

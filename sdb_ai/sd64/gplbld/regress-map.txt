@@ -142,7 +142,7 @@ gplbld/test-pipefds-units.py : pipefds
 gplbld/sandbox-segtrust.py   : @self
 # 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
 # 2 Nov 26 (S.99): sandbox-spview's gate section loads it too (prepare(), build_account()).
-gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter spview
+gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter spview sftp
 # 24 Oct 26 (W.11 F4, C1): sandbox-auditwriter loads sandbox-auditjournal (its journal reader), so a change to that one runs this one too.
 gplbld/sandbox-auditjournal.py : @self auditwriter
 # 1 Nov 26: the AI helper's rules were below the catch-all `gplbld/*` of this block and never matched (a change of `sd-ai` chose the ten @core suites and none of the AI ones); here they come first.
@@ -272,6 +272,14 @@ gplsrc/scram_client.h        : qmclient
 # S.102 stage 3 (2 Nov 26): the scheduled job's identity (K$JOB.MARK) - free-checked by test-jobmark-units.py; no sandbox can be a systemd unit (the VM witness is).
 gplsrc/sd_jobmark.c          : none
 gplsrc/sd_jobmark.h          : none
+# 15 Nov 26 (S.242 stage 3): the file transfer server inside sd (an sftp request over the ssh login), its command processor and messages
+gplsrc/sd_sftp.c             : sftp
+gplsrc/sd_sftp.h             : sftp
+sdsys/gpl.bp/xfersrv         : sftp
+gplbld/sandbox-sftp.py       : @self
+sdsys/messages/1407[6-9]     : sftp
+sdsys/messages/1408?         : sftp
+sdsys/messages/1409[0-4]     : sftp
 gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient
@@ -290,12 +298,12 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared segtrust ipc lockids pipefds
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared segtrust ipc lockids pipefds sftp
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
 gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared csvb jsonx xmlx ipc
-gplsrc/sd.c                  : @core fixes-b12 segtrust auditwriter
+gplsrc/sd.c                  : @core fixes-b12 segtrust auditwriter sftp
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core

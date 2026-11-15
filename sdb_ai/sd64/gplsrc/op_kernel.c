@@ -19,6 +19,7 @@
  * START-HISTORY:
  * 14 Nov 26 dm  S.241: a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
+ * 15 Nov 26 dm  S.242 stage 3: K_XFER (173), the file transfer slot and server (sd_sftp.c k_xfer()).
  * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the K_MASTERS (150) case is gone with masters.c.  The number is not reused.
  * 02 Nov 26 dm  S.102 stage 3: K_JOB_MARK (172) - the scheduled administrator job this process is (sd_jobmark.c), kept for the audit trail.
  * 02 Nov 26 dm  S.106: K_LOGIN_MARK (171) and its helpers are gone with the authenticator code (S.101 stage B); the number is not reused.
@@ -95,6 +96,7 @@
 #include "dh_int.h"
 #include "locks.h"
 #include "sd_jobmark.h"
+#include "sd_sftp.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
 void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE conversion */
@@ -1418,6 +1420,11 @@ void op_kernel() {
     case K_AI_CANCEL:
     case K_AI_STATUS:
       k_ai(action, descr, &result);
+      break;
+
+    /* 15 Nov 26 dm - S.242 stage 3: the file transfer slot (RECEIVE / SEND) and the transfer server's side of it; $internal only (sd_sftp.c) */
+    case K_XFER:
+      k_xfer(descr, &result);
       break;
 
     default:

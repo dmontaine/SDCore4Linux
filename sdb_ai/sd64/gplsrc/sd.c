@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Nov 26 dm  S.242 stage 3: main() calls xfer_detect() first; an sftp request sshd sent here is the file transfer server (sd_sftp.c).
  * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
  * 08 Nov 26 dm  S.177: -stop and -restart call stop_sd_ex(TRUE), which ends with SIGKILL what is still attached after the wait.
  * 06 Nov 26 dm  S.152: fatal() and dump() are gone (nothing called them; found by linking with --gc-sections), and with
@@ -102,6 +103,7 @@
 #include "locks.h"
 #include "keys.h"
 #include "sd_tls.h"
+#include "sd_sftp.h"
 
 #define BUILD_TARGET "64 Bit"
 
@@ -138,6 +140,10 @@ int main(int argc, char *argv[]) {
   char errmsg[80 + 1];
 
   tio.term_type[0] = '\0';
+
+  /* 15 Nov 26 dm - S.242 stage 3.  FIRST, before anything can print: an sftp request that sshd sent here (no terminal, SSH_ORIGINAL_COMMAND
+     the Subsystem path) is the file transfer server, not a login.  Its channel is moved off descriptors 0 and 1 (sd_sftp.c). */
+  xfer_detect(argc);
 
  /* 20240126 mab add syslog */
  /* log startup and command line args */

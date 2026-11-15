@@ -1179,7 +1179,7 @@ def checks_2c(srcs, c, ck):
                      mo, re.M) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILES>\s*=", cr)) == 1
-       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}" in cr and "files-only login (files-on" in cr, "")   # 28 Oct 26: {recovery-on} (S.88 plan 2.9)
+       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {xfer-on} {no.query}" in cr and "files-only login (files-on" in cr, "")   # 28 Oct 26: {recovery-on} (S.88 plan 2.9)
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
        re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None

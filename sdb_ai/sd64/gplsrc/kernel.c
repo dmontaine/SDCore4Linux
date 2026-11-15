@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Nov 26 dm  S.242 stage 3: init_kernel() clears the file transfer slot of the cell it takes; the transfer server's @TTY is "sftp".
  * 28 Oct 26 dm  S.88 phase 2 review: dump_status() (the record PSTAT prints) writes another session's text - its last command,
  *               program names, the path and record id it waits for, its account - through ev_safe(), the shared rule of
  *               op_lock.c (show_unsafe_byte(): 0-31, 127, 128-159, 248-255 as '?'); @PSTAT keeps its marks as spaces and
@@ -202,6 +203,13 @@ retry_login:
     }
     my_uptr->lockwait_index = 0;
     my_uptr->ttyname[0] = '\0';
+    /* 15 Nov 26 dm - S.242 stage 3: no file transfer slot is open in a cell just taken (whatever the process before left) */
+    my_uptr->xfer_dir = 0;
+    my_uptr->xfer_flags = 0;
+    my_uptr->xfer_files = 0;
+    my_uptr->xfer_opened = 0;
+    my_uptr->xfer_last = 0;
+    my_uptr->xfer_bytes = 0;
 
     /* 14 Oct 26 dm - sheet items 24 and 29: the account is empty until the session enters one (a phantom's cell
        was given its parent's account when the parent reserved it, and keeps it).  And item 38: the peak number of
@@ -251,6 +259,10 @@ retry_login:
         unsetenv("SD_STARTUP");
         strcpy((char*)(my_uptr->ttyname), "startup");
       }
+
+      /* 15 Nov 26 dm - S.242 stage 3: the file transfer server of an sftp request (sd_sftp.c) is "sftp" in LISTU */
+      if (is_xfer)
+        strcpy((char*)(my_uptr->ttyname), "sftp");
     }
   }
 

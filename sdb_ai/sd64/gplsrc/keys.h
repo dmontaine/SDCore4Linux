@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Nov 26 dm  S.242 stage 3: K_XFER (173), the file transfer slot and server.
  * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
  * 28 Oct 26 dm  S.88: SD_USER_HOME (112), the SDEXT test of the effective user's home and a directory below it (the recovery store).
  * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), the kernel's one rule for showing another session's text, for BASIC (PSTAT, PROFILER, HSM).
@@ -247,6 +248,10 @@
    (systemd's cgroup sdcore-job-<name>.service, a root-owned /etc/sdcore/jobs.d/<name> whose command= is this session's own command line), or ''
    (sd_jobmark.c).  172: free in this tree and in the Windows tree.  GPL.BP/INT$KEYS.H carries the same number.                        */
 #define K_JOB_MARK           172
+/* 15 Nov 26 dm - S.242 stage 3 (file transfer over the ssh login).  kernel(K$XFER, 'op' {: @fm : ...}) from a $internal program: the slot a
+   session opens with RECEIVE / SEND (open, close, state) and the transfer server's side of it (find, serve, refuse); sd_sftp.c k_xfer() has the
+   arguments and answers.  173: free in this tree and in the Windows tree (checked 15 Nov).  GPL.BP/INT$KEYS.H carries the same number.  */
+#define K_XFER               173
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
