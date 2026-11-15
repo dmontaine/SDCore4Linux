@@ -173,6 +173,7 @@
 * 15 Nov 26 dm - S.242 stage 3.  kernel(K$XFER, op {: @fm : ...}): the file transfer slot (open, close, state) and the transfer server's side
 *   (find, serve, refuse).  The arguments and answers are at k_xfer() in gplsrc/sd_sftp.c.  Must match gplsrc/keys.h.
       $define K$XFER           173      ;* File transfer over the ssh login: the slot and the server (S.242)
+* 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER (its row 310); not implemented on Linux and not reused here.
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

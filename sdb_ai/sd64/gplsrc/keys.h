@@ -252,6 +252,9 @@
    session opens with RECEIVE / SEND (open, close, state) and the transfer server's side of it (find, serve, refuse); sd_sftp.c k_xfer() has the
    arguments and answers.  173: free in this tree and in the Windows tree (checked 15 Nov).  GPL.BP/INT$KEYS.H carries the same number.  */
 #define K_XFER               173
+/* 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER ("this process's Windows user is the local account SDSYS", its
+   row 310: the way back with LOGTO SDSYS, since Windows clears the administrator flag on leaving SDSYS).  Linux does not implement it - its
+   K_ADMINISTRATOR already says it (cproc, S.246) - and does not give the number to anything else (agreed by mail 15 Nov).  */
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH

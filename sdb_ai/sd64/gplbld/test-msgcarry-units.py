@@ -46,6 +46,10 @@ ALLOWED = {
     ("importdata", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the CSV / JSON / XML task, 21 Oct 26)",
     ("setnetlogin", "11460"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
     ("setserver", "11439"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
+    # 15 Nov 26, the Solo carry of S.242 (file transfer): Solo has one account and no modify.account, so the way to give the account's switch is
+    # Solo's own verb (proposed set.xfer.access on, as set.net.access is for the NET gate - the owner's to approve, plan-s242-solo-carry.md item 4)
+    ("xfer", "14077"): "the way to give file transfer: Core modify.account NAME xfer-on, Solo its own verb (S.242 Solo carry)",
+    ("xfersrv", "14077"): "the way to give file transfer: Core modify.account NAME xfer-on, Solo its own verb (S.242 Solo carry)",
     # 23 Oct 26, Solo carry 14: Solo has no shared account, so context.help and pdf/ are in the SD system directory ("the install directory") and the messages say so
     ("docsinst", "11720"): "the pdf directory of the install directory (Solo) against of the shared account (Core): Solo has no shared account (carry 14, 23 Oct 26)",
     ("docsinst", "11722"): "into the pdf directory (Solo) against into the shared account (Core): Solo has no shared account (carry 14, 23 Oct 26)",
