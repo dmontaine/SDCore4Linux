@@ -519,9 +519,18 @@ def section_k0_k2():
 
 
 def fill(p, vals, defaults):
-    """The form: each entry's default taken off with Backspace and the value typed, Tab between them, Return presses the default button"""
-    s = "\t".join("\x7f" * len(d) + v for v, d in zip(vals, defaults)) + "\r"
-    p.h.typed(s, idle=1.5)
+    """The form (S.244, 15 Nov 26): an entry opens EMPTY and keeps its default (shown beside it) when left empty, so a value equal to the default is not typed; the job is a
+    SELECTOR of JOB_IDS starting on its default, and the space bar takes the next word (after the last, the first).  Tab between them, Return presses the default button"""
+    parts = []
+    for v, d in zip(vals, defaults):
+        if v in JOB_IDS and d in JOB_IDS:
+            parts.append(" " * ((JOB_IDS.index(v) - JOB_IDS.index(d)) % len(JOB_IDS)))
+        else:
+            parts.append("" if v == d else v)
+    p.h.typed("\t".join(parts) + "\r", idle=1.5)
+
+
+JOB_IDS = ["backup-all", "update-accounts"]          # the page's JOBIDS, in its order (JOBS is the shim's scratch directory)
 
 
 def section_k3_k10():
@@ -540,13 +549,14 @@ def section_k3_k10():
     fill(p, ["nightly", "backup-all", "every 7 minutes"], ["", "update-accounts", "daily 02:30"])
     T = p.text()
     ok1 = "the schedule is every 5 10 15 20 30 minutes" in T and not box_open(T)        # norm() reads the bars of 5|10|15 as the box's own
+    T1 = T
     p.key("esc", 1.0)
     p.key("n", 1.5)
     fill(p, ["Bad-", "backup-all", "daily 02:30"], ["", "update-accounts", "daily 02:30"])
     T = p.text()
     ok2 = "a job name is 1 to 32 characters" in T and not box_open(T)
     p.key("esc", 1.0)
-    arow("K4", "the form refuses a schedule of none of the five shapes and a bad name, says so in the form and asks the helper nothing", ok1 and ok2 and calls()[c0:] == [], repr((ok1, ok2, calls()[c0:])))
+    arow("K4", "the form refuses a schedule of none of the five shapes and a bad name, says so in the form and asks the helper nothing", ok1 and ok2 and calls()[c0:] == [], repr((ok1, ok2, calls()[c0:], T1[:1800])))
 
     say("\n--- K5-K6: N, then Run")
     a0 = audit_off()

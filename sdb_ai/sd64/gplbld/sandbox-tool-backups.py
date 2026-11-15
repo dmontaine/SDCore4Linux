@@ -78,7 +78,7 @@ MUTANTS = {
     # name: (old text of the sandbox's tool_backups, new text, the row ids that must fail and no others, the last section run)
     "check-skipped": ("do.backup.all:\n   gosub check.alone\n   if not(others_ok) then return\n", "do.backup.all:\n", ["B3"], "B3"),
     "register-unchecked": ("   if missing # '' then\n      msg = 'the archive holds accounts that are not registered here", "   if 0 then\n      msg = 'the archive holds accounts that are not registered here", ["B5"], "B5"),
-    "typed-dropped": ("   typed = 'RESTORE'\n", "   typed = ''\n", ["B5"], "B5"),
+    "typed-dropped": ("   typed = 'restore'", "   typed = ''", ["B5"], "B5"),
 }
 
 # ------------------------------------------------------------------------------------------------------------------------------- the fixture archives
@@ -407,14 +407,14 @@ def section_b5(p, orig):
     arow("B5d", "R on the archive of the registered accounts shows 'restore.account <archive> all no.query', says it replaces %s and %s, and the box will want RESTORE typed" % (ACC, OTHER),
          on_all and box_open(p) and ("restore.account " + reg_all + " all no.query") in T and ACC in T and OTHER in T and "replaces the account of the same name" in T, T[-600:])
     p.h.typed("r", idle=1.5)
-    p.h.typed("restore\r", idle=1.5)
-    arow("B5e", "a wrong word (restore in lower case) runs nothing", "restore" in st(p).lower() and "ran (status" not in st(p) and not [ln for ln in audit_lines()[a0:] if "restore.account" in ln], st(p))
+    p.h.typed("restor\r", idle=1.5)
+    arow("B5e", "a wrong word (restor) runs nothing, and the status line names the word as restore (S.244 (5): lower case)", "restore" in st(p) and "RESTORE" not in st(p) and "ran (status" not in st(p) and not [ln for ln in audit_lines()[a0:] if "restore.account" in ln], st(p))
     p.key("r", 1.5)
     p.h.typed("r", idle=1.5)
     p.h.typed("RESTORE\r", idle=10.0)
     s = st(p)
     after = {a: tree_state(a) for a in (ACC, OTHER)}
-    arow("B5f", "with the right word the real verb ran and REFUSED the archive whose manifest does not match its tree (nothing changed): the status line carries the verb's last words after 'ran (status', and the two accounts' files are byte for byte the same",
+    arow("B5f", "with the right word, typed in upper case (S.244 (5): either case), the real verb ran and REFUSED the archive whose manifest does not match its tree (nothing changed): the status line carries the verb's last words after 'ran (status', and the two accounts' files are byte for byte the same",
          ("restore.account " + reg_all) in s[:140] and "ran (status" in s and before == after, repr((s, before == after)))
 
 

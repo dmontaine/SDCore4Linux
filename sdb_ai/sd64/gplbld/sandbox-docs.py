@@ -483,7 +483,7 @@ def main():
         row("a [?] at the end of the first box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
         h.click(135, 2, idle=1.4)
         T = re.sub(r"[|\s]+", " ", h.text())
-        words = ("archives", "manifest", "RESTORE", "root")         # single words: the box wraps its text
+        words = ("archives", "manifest", "restore", "root")         # single words: the box wraps its text (S.244: the word is restore now)
         row("a click on the [?] shows the record of tool.backups.page: its title and words of its three paragraphs", "Backups and restores" in T and all(w in T for w in words) and "Help is not installed" not in T, T[-700:])
         h.key("esc", idle=0.8)
         h.key("f1", idle=1.4)
@@ -521,7 +521,7 @@ def main():
         row("a [?] at the end of the first box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
         h.click(135, 2, idle=1.4)
         T = re.sub(r"[|\s]+", " ", h.text())
-        words = ("doors", "OPEN", "servers", "Cancel")         # single words: the box wraps its text
+        words = ("doors", "open", "servers", "Cancel")         # single words: the box wraps its text (S.244: the word is open now)
         row("a click on the [?] shows the record of tool.remote.page: its title and words of its three paragraphs", "Remote access" in T and all(w in T for w in words) and "Help is not installed" not in T, T[-700:])
         h.key("esc", idle=0.8)
         h.key("f1", idle=1.4)

@@ -117,8 +117,9 @@ PINS = {
                    "case mx >= dfl.x + 1 and mx <= dfl.x + dfl.w - 2 and my >= dfl.y + 1 and my <= dfl.y + 3", "call $tk_wrap(lines<wi>, ww, pieces)", "for r = 1 to WV",
                    "tfw = aw - 48", "if len(tf) > tfw then tf = tf[1, tfw - 1] : '+'"],
 }
-# The pages that give the terminal away and take the screen again: the new context holds no panes
-REOPEN = {"tool_remote", "tool_ai"}
+# The pages that give the terminal away and take the screen again: the new context holds no panes.  tool_ai left the list on 15 Nov 26 (S.239): its reopen routine had
+# no caller since the key setting went into the page's own dialog, and was removed
+REOPEN = {"tool_remote"}
 
 
 def load_model():

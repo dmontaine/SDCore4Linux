@@ -76,7 +76,7 @@ end
 
 MUTANTS = {
     # name: (old text of the sandbox's tool_remote, new text, the row ids that must fail and no others, the last section run)
-    "on-needs-no-word": ("      case aw = 'on'\n         typed = 'OPEN'", "      case aw = 'on'\n         typed = ''", ["R2"], "R2"),
+    "on-needs-no-word": ("      case aw = 'on'\n         typed = 'open'", "      case aw = 'on'\n         typed = ''", ["R2"], "R2"),
     "delete-first-server": ("   d = defs<ci>\n   word = d<1, 1>\n   gosub plain.word", "   d = defs<1>\n   word = d<1, 1>\n   gosub plain.word", ["R4"], "R4"),
     "port-unchecked": ("(s.port + 0) > 65535", "(s.port + 0) > 99999", ["R5"], "R5"),
 }
@@ -257,26 +257,33 @@ def section_r1():
 def section_r2(p):
     say("\n--- R2: the doors")
     a0 = len(audit_lines())
+    # S.244 (1), 15 Nov 26: A and S choose from a LIST that starts on off; Up moves, Enter chooses
     p.key("a", 1.2)
-    p.ask("maybe")
-    arow("R2a", "A with a word that is not on, local or off is refused in words and shows no box", "the API door is on, local or off" in st(p) and not box_open(p), st(p))
+    T = norm(p.text())
+    p.key("esc", 1.0)
+    arow("R2a", "A shows a list (on, local, off) instead of a typed word, and Esc on it runs nothing and shows no box",
+         "The API door (REMOTE.API)" in T and "other computers may connect" in T and "only this computer" in T and "no API socket" in T and "nothing was run" in st(p) and not box_open(p), T[-500:])
     p.key("a", 1.2)
-    p.ask("local")
+    p.key("up", 0.4)
+    p.key("enter", 1.2)
     T = norm(p.text())
     arow("R2b", "A with local shows 'remote.api local' and what it does, in a box with Run and Cancel", box_open(p) and "remote.api local" in T and "127.0.0.1:4247 only" in T, T[-400:])
     p.key("esc", 1.0)
     p.key("a", 1.2)
-    p.ask("on")
+    p.key("home", 0.4)
+    p.key("enter", 1.2)
     T = norm(p.text())
     arow("R2c", "A with on shows 'remote.api on', says it listens on EVERY address and opens the firewall, in a box", box_open(p) and "remote.api on" in T and "EVERY address" in T, T[-500:])
     p.h.typed("r", idle=1.5)
-    p.h.typed("open\r", idle=1.5)
-    arow("R2d", "Run asks for the word OPEN; a wrong word (open in lower case) runs nothing: the status line says so and the audit trail has no remote.api line", "open" in st(p).lower() and "ran (status" not in st(p) and not [ln for ln in audit_lines()[a0:] if "remote.api" in ln], st(p))
+    p.h.typed("opne\r", idle=1.5)
+    arow("R2d", "Run asks for the word open (S.244 (5): shown in lower case); a wrong word runs nothing: the status line says so and the audit trail has no remote.api line", "open" in st(p) and "OPEN" not in st(p) and "ran (status" not in st(p) and not [ln for ln in audit_lines()[a0:] if "remote.api" in ln], st(p))
     p.key("s", 1.2)
-    p.ask("sometimes")
-    arow("R2e", "S with a word that is not on or off is refused in words", "the ssh door is on or off" in st(p) and not box_open(p), st(p))
+    T = norm(p.text())
+    p.key("esc", 1.0)
+    arow("R2e", "S shows a list (on, off) instead of a typed word; Esc runs nothing", "The ssh door (REMOTE.SSH)" in T and "the firewall allows port 22" in T and "only this computer over ssh" in T and "nothing was run" in st(p) and not box_open(p), T[-500:])
     p.key("s", 1.2)
-    p.ask("on")
+    p.key("home", 0.4)
+    p.key("enter", 1.2)
     T = norm(p.text())
     arow("R2f", "S with on shows 'remote.ssh on' in a box that says the firewall will allow port 22 and that it never moves the ssh server", box_open(p) and "remote.ssh on" in T and "port 22" in T and "never the ssh server" in T, T[-500:])
     p.key("esc", 1.0)
@@ -353,12 +360,17 @@ def section_r5(p):
         p.key("n", 1.2)
 
     # S.88: N is one form (name, host, port, account, pin, mode, local accounts); Tab between the entries, Return presses Define; a refusal is said in the form, which stays until Esc
-    DEF = ["", "", "4247", "", "connect", "read", ""]
+    # S.244 (15 Nov 26): every entry opens EMPTY (the port and the pin take their default, shown beside them, when left empty) and Files is a selector on read
 
     def fill(vals):
-        """vals: the seven answers (None leaves the entry as it starts); backspaces clear what an entry starts with"""
-        s = "\t".join("" if v is None else "\x7f" * len(DEF[i]) + v for i, v in enumerate(vals)) + "\r"
-        p.h.typed(s, idle=1.5)
+        """vals: the seven answers (None leaves the field as it starts); the sixth, Files, is a choice: 'write' is the space bar"""
+        parts = []
+        for i, v in enumerate(vals):
+            if i == 5:
+                parts.append(" " if v == "write" else "")
+            else:
+                parts.append("" if v is None else v)
+        p.h.typed("\t".join(parts) + "\r", idle=1.5)
 
     def refused(words):
         T = norm(p.text())
@@ -381,8 +393,11 @@ def section_r5(p):
     fill(["gamma", "good.example", None, "remoteacct", "xyz", None, None])
     arow("R5e", "a pin that is neither connect nor 64 hexadecimal digits is refused", refused("a pin is the word connect or exactly 64 hexadecimal digits"), st(p))
     start()
-    fill(["gamma", "good.example", None, "remoteacct", None, "rw", None])
-    arow("R5f", "a mode that is not read or write is refused", refused("the mode is read or write"), st(p))
+    p.key("n", 1.2)
+    T = norm(p.text())
+    p.key("esc", 1.0)
+    arow("R5f", "S.244: Files is a choice [READ | write], not typed, and the port and pin entries open empty with their defaults beside them",
+         "[READ write]" in T and "default: 4247" in T and "default: connect" in T, T[-600:])     # norm() takes the bars out
     start()
     fill(["gamma", "good.example", None, "remoteacct", None, None, "nosuchacct"])
     arow("R5g", "a local account that is not a registered USER account is refused", refused("each local account must be a registered USER account"), st(p))
@@ -439,7 +454,7 @@ def section_r8(p):
     p.key("o", 1.5)
     T = norm(p.text())
     arow("R8d", "O shows 'remote.sdsys on' in a box that says sdsys can then sign in with its password, that nothing else stands between the network and the administrator, and wants a word typed",
-         box_open(p) and "remote.sdsys on" in T and "password" in T and "OPEN" in T, T[-500:])
+         box_open(p) and "remote.sdsys on" in T and "password" in T and "word open typed" in T, T[-500:])
     p.key("esc", 1.2)
     p.key("f", 1.5)
     T = norm(p.text())

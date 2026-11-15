@@ -124,7 +124,7 @@ MUTANTS = {
     # refusal's IF alone taken away left an unopened file to fail the type test, and the path and FL$PATH alone left the subfiles' test to refuse it (3 Nov 26)
     "global-no-rule": (GC_RULE, GC_RULE.replace("kernel(K$PATH.IN, ap.f : @fm : tp)", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp)", "1")
                        .replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')", "1"), ["E14"], "E14"),
-    "field1-any-count": ("      if gfld = 1 and gn > 1 then\n", "      if 0 then\n", ["E14"], "E14"),      # the owner's field 1 answer: the count test dropped
+    "field1-any-count": ("         if gfbad = '' and gfld = 1 and gn > 1 then\n", "         if 0 then\n", ["E14"], "E14"),      # the owner's field 1 answer: the count test dropped
     "global-stops": ("         if gk > 0 and gw then gosub gc.audit\n", "         if gk > 0 and gw then gosub gc.audit\n         if gk > 0 and gnr<gk> + gnf<gk> > 0 then exit\n", ["E14"], "E14"),
     "undo-no-digest": ("         case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)\n", "         case 0\n", ["E14"], "E14"),
     "undo-after-write": ("   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
@@ -1501,10 +1501,16 @@ def zg_obj(acct, pid):
 
 
 def zg_global(p, answers, wait=15.0):
-    """G, then the answers to its prompts; returns the preview box's text (or the status line when no box came)."""
+    """G, then its ONE form (S.244 (3), 15 Nov 26): for a VOC entry or a dictionary item [field, 's' or 'r', text(s)], the change being a selector that starts on
+    replace (the space bar takes set) and set's value going in the SECOND text; for programs [from, to].  Returns the preview box's text."""
     p.h.typed("g", idle=1.2)
-    for a in answers:
-        p.h.typed(a + "\r", idle=1.2)
+    if len(answers) == 2 and answers[0] not in ("heading",) and not answers[0].isdigit():
+        s = answers[0] + "\t" + answers[1] + "\r"
+    elif answers[1] == "s":
+        s = answers[0] + "\t \t\t" + answers[2] + "\r"
+    else:
+        s = answers[0] + "\t\t" + answers[2] + "\t" + answers[3] + "\r"
+    p.h.typed(s, idle=1.5)
     wait_for(p.h, lambda t: "Update these records?" in t, wait)
     return p.text()
 
@@ -1591,14 +1597,14 @@ def section_e14():
     p.key("f", 1.0)
     p.h.typed("zg1\r", idle=2.5)                               # zg1a, zg1b, zg1one: three records
     p.h.typed("g", idle=1.2)
-    p.h.typed("1\r", idle=1.5)
-    st_f1 = norm(p.st())
-    asked = "S sets the field" in p.text()
-    p.key("esc", 1.2)                                          # closes the next prompt if one came (a page that did not refuse)
+    p.h.typed("1\t \t\tPA\r", idle=1.5)                        # field 1, set, to PA (S.244 (3): one form)
+    st_f1 = norm(p.text())
+    asked = "Update these records?" in st_f1
+    p.key("esc", 1.2)                                          # closes the form (a page that did not refuse would show the box)
     F = zg_read(["zg1a", "zg1b", "zg1one"])
-    arow("E14m", "G on field 1 with THREE records shown is refused before any box, in its own words, and asks nothing more; the disk is unchanged",
-         "field 1 is the type of the record: G changes it on one record only, and 3 are shown" in st_f1 and not asked
-         and F["zg1a"] == B["zg1a"] and F["zg1b"] == B["zg1b"] and F["zg1one"] == B["zg1one"], repr((st_f1, asked, F)))
+    arow("E14m", "G on field 1 with THREE records shown is refused IN THE FORM, in its own words, before any box; the disk is unchanged",
+         "field 1 is the type of the record" in st_f1 and "Global change" in st_f1 and not asked      # the refusal wraps over the form's rows, with the page beside them
+         and F["zg1a"] == B["zg1a"] and F["zg1b"] == B["zg1b"] and F["zg1one"] == B["zg1one"], repr((st_f1[-600:], asked, F)))
     p.key("f", 1.0)
     p.h.typed("zg1one\r", idle=2.5)                            # one record
     f1box = norm(zg_global(p, ["1", "s", "PA"]))

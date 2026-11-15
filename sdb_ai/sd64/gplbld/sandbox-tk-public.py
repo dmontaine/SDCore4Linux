@@ -212,8 +212,11 @@ def main():
         key(h, "ctrl-n")
         T = h.text()
         row("P5a the form shows its title and the labels of its entries", "Make one" in T and "Name" in T and "Code" in T, "")
+        row("P5a2 S.244: the entries open EMPTY and the starting texts are shown beside them", "now: abc" in T and "now: xyz" in T, T[-600:])
+        h.s.type("\x12", idle=0.8)                                  # Ctrl-R in the first entry: the value shown beside it goes in
         key(h, "enter")
-        row("P5b Enter presses the default button: ok, with the texts the entries held", "form:ok:abc|xyz" in h.line(40), repr(h.line(40)[:50]))
+        row("P5b Enter presses the default button: ok, with the entries' texts - abc in the first, put there by Ctrl-R, and the second empty (it opened empty and keeps nothing unless the field asks to)",
+            "form:ok:abc|" in h.line(40) and "form:ok:abc|xyz" not in h.line(40), repr(h.line(40)[:50]))
         key(h, "ctrl-n")
         key(h, "esc")
         row("P5c Esc is cancel", "form:cancel" in h.line(40), repr(h.line(40)[:50]))

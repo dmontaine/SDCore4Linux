@@ -1586,11 +1586,6 @@ def dialogs_rows(box, made):
         "nothing was run: what was typed is not zztkdlg2" in t.line(40) and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
     t.key("F8")
     t.s.type("r", idle=0.6)
-    t.s.type("ZZTKDLG2\r", idle=0.8)
-    row("the name is compared exactly: ZZTKDLG2 is not zztkdlg2, so nothing runs and nothing is on the disk",
-        "nothing was run: what was typed is not zztkdlg2" in t.line(40) and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
-    t.key("F8")
-    t.s.type("r", idle=0.6)
     t.key("ESC")
     row("Esc at the name asks nothing more and runs nothing: the status line is the plain 'nothing was run', not the wrong-name message",
         not box_up() and t.line(40).rstrip().endswith("nothing was run") and "what was typed" not in t.line(40) and "type zztkdlg2" not in scr() and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
@@ -1599,8 +1594,8 @@ def dialogs_rows(box, made):
     row("Enter on the first box of the typed flow is Cancel too: nothing on the disk", not box_up() and not on_disk(box, "zztkdlg2"), repr(on_disk(box, "zztkdlg2")))
     t.key("F8")
     t.s.type("r", idle=0.6)
-    t.s.type("zztkdlg2\r", idle=1.2)
-    row("the right name runs it: the command went through $tk_run (the status line says it ran) and the file IS on the disk (so the sentinel can fire)",
+    t.s.type("ZZTKDLG2\r", idle=1.2)
+    row("the right name, typed in UPPER case (S.244 (5), 15 Nov 26: the word is taken in either case, as any command is), runs it: the command went through $tk_run (the status line says it ran) and the file IS on the disk (so the sentinel can fire)",
         "ran, status" in t.line(40) and on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
     t.key("F7")
     t.s.type("r", idle=1.2)

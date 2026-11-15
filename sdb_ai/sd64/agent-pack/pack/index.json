@@ -11128,7 +11128,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 15
 },
 "msg:11811": {
 "kind": "message",
@@ -11205,7 +11205,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 11
 },
 "msg:11822": {
 "kind": "message",
@@ -13607,6 +13607,20 @@
 "since": "-",
 "tier": "reference",
 "words": 9
+},
+"msg:14114": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:14115": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
 },
 "msg:1412": {
 "kind": "message",
@@ -26955,7 +26969,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "L1.1-0",
 "tier": "reference",
-"words": 33
+"words": 34
 },
 "tcl:delete.catalog": {
 "kind": "tcl.verb",
@@ -27303,7 +27317,7 @@
 "tcl:fstat.user": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 40
 },
@@ -28943,7 +28957,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 87
+"words": 92
 },
 "tcl:tool.ai": {
 "kind": "tcl.verb",

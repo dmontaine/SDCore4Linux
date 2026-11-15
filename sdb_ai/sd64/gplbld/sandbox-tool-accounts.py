@@ -74,7 +74,7 @@ MUTANTS = {
     # name: (old text of the sandbox's tool_accounts, new text, the row ids that must fail and no others, the last section run)
     "suspend-wrong-word": ("      sent = 'modify.account ' : anm<ci> : ' unsuspended'\n", "      sent = 'modify.account ' : anm<ci> : ' suspended'\n", ["AA4"], "AA4"),
     "person-any-kind": ("   if akind<ci> # 'GROUP' then\n      msg = anm<ci> : ' is not a group account", "   if 0 then\n      msg = anm<ci> : ' is not a group account", ["AA5"], "AA5"),
-    "delete-untyped": ("   typed = anm<ci>\n", "   typed = ''\n", ["AA7"], "AA7"),
+    "delete-untyped": ("      if trim(fv<1>) = anm<ci> then exit\n", "      if 0 then exit\n      call $tk_form('close', ctx, '', '', '')\n      msg = 'mutant ran'\n      return\n", ["AA7"], "AA7"),
 }
 
 GATE_ORDER = ["sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write"]
@@ -404,12 +404,13 @@ def section_aa6(p):
     say("\n--- AA6: create (S.88: ONE form - kind, name, doors, directory; Tab between the entries, Return presses Create; a refusal is said in the form, which stays until Esc)")
     a0 = len(audit_lines())
     before = register_ids()
-    DEF = ["user", "", "none", ""]
+    # S.244 (15 Nov 26): the kind and the doors are SELECTORS (the space bar takes the next word), the two entries open empty
+    KINDS = ["user", "group", "other"]
+    DOORS = ["none", "ssh", "api", "both"]
 
     def create(kind, name, doors=None, dirv=None):
         p.key("c", 1.2)
-        vals = [kind, name, doors, dirv]
-        s = "\t".join("" if v is None else "\x7f" * len(DEF[i]) + v for i, v in enumerate(vals)) + "\r"
+        s = " " * KINDS.index(kind) + "\t" + name + "\t" + " " * DOORS.index(doors or "none") + "\t" + (dirv or "") + "\r"
         p.h.typed(s, idle=1.5)
 
     def refused(words):
@@ -417,8 +418,13 @@ def section_aa6(p):
         p.key("esc", 1.0)
         return words in T
 
-    create("banana", "zzx")
-    arow("AA6a", "a kind that is not user, group or other is refused in words, in the form", refused("the kind is user, group or other"), st(p))
+    p.key("c", 1.2)
+    T = norm(p.text())
+    p.h.typed("banana", idle=0.8)
+    T2 = norm(p.text())
+    p.key("esc", 1.0)
+    arow("AA6a", "the kind and the doors are choices, not typed fields (S.244 (1)): the form shows [USER | group | other] and [NONE | ssh | api | both], and letters typed on the kind change nothing",
+         "[USER group other]" in T and "[NONE ssh api both]" in T and "[USER group other]" in T2 and "banana" not in T2, T[-500:])     # norm() takes the bars out
     create("group", "Bad Name")
     arow("AA6b", "a name with a capital and a space is refused in words", refused("an account name has only a-z, 0-9, dot, dash and underscore"), st(p))
     create("group", "zzaa")
@@ -427,8 +433,6 @@ def section_aa6(p):
     T = norm(p.text())
     arow("AA6d", "kind group shows 'create.account group zznewg no.query' in a box", box_open(p) and "create.account group zznewg no.query" in T and "no Linux user of its own" in T, T[-400:])
     p.key("esc", 1.0)
-    create("user", "zznewu", "maybe")
-    arow("AA6e", "kind user with a door word that is not none, ssh, api or both is refused in words", refused("the doors are none, ssh, api or both"), st(p))
     create("user", "zznewu", "both")
     T = norm(p.text())
     arow("AA6f", "kind user shows 'create.account user zznewu both' in a box that says the terminal is given to the verb for the password", box_open(p) and "create.account user zznewu both" in T and "asks for the password of the new person" in T, T[-500:])
@@ -446,23 +450,25 @@ def section_aa7(p):
     say("\n--- AA7: delete")
     a0 = len(audit_lines())
     before = register_ids()
+    # S.244 (4), the owner: "type x, get a prompt for the name and click run" - one dialog, no box, no terminal.  THE DELETE ITSELF IS NOT RUN HERE: a sandbox
+    # cannot remove a Linux user or group, and every row below stops short of a name typed right (the sentence is held by test-toolaccounts-units.py AC9)
     p.to("zzaa")
     p.key("x", 1.2)
-    p.ask("n", "n")
     T = norm(p.text())
-    arow("AA7a", "X on a user account asks about the home directory (default n) and then shows 'delete.account zzaa' in a box that says there is no taking it back", box_open(p) and "delete.account zzaa" in T and "remove.home" not in T and "no taking this back" in T, T[-500:])
-    p.key("esc", 1.0)
-    p.key("x", 1.2)
-    p.ask("y", "n")
-    T = norm(p.text())
-    arow("AA7b", "answering y adds remove.home to the sentence", box_open(p) and "delete.account zzaa remove.home" in T, T[-400:])
-    p.h.typed("r", idle=1.5)
+    arow("AA7a", "X on a user account opens ONE dialog: 'Delete the account zzaa', the name to type, the home directory a choice [KEEP | remove], and the note that there is no taking it back; no confirm box",
+         "Delete the account zzaa" in T and "Type its name" in T and "[KEEP remove]" in T and "taking this back" in T and "Run this command?" not in T, T[-500:])     # norm() takes the bars out; the note wraps over the form's rows
     p.h.typed("nope\r", idle=1.5)
-    arow("AA7c", "Run asks for the account's own name; a wrong word runs nothing: the status line says so, zzaa is still registered, and the page is still the page", "zzaa" in register_ids() and "The account under the cursor" in p.text() and not [ln for ln in audit_lines()[a0:] if "delete.account" in ln], st(p))
+    T = norm(p.text())
+    arow("AA7b", "a wrong name runs nothing: the dialog stays and says what was typed is not zzaa, zzaa is still registered, no delete.account line in the audit trail",
+         "what was typed is not zzaa" in T and "Delete the account zzaa" in T and "zzaa" in register_ids() and not [ln for ln in audit_lines()[a0:] if "delete.account" in ln], T[-400:])
+    p.h.typed("ZZAA", idle=0.3)
+    p.key("esc", 1.0)
+    arow("AA7c", "Esc leaves the dialog with nothing run: the status line says so, zzaa is still registered, and the page is still the page",
+         "nothing was run" in st(p) and "zzaa" in register_ids() and "The account under the cursor" in p.text(), st(p))
     p.to("zzgrp")
     p.key("x", 1.2)
     T = norm(p.text())
-    arow("AA7d", "X on the group account goes straight to the box: 'delete.account zzgrp', no question about a home directory", box_open(p) and "delete.account zzgrp" in T and "Also remove the home directory" not in T, T[-400:])
+    arow("AA7d", "X on the group account: the same dialog with no home directory choice", "Delete the account zzgrp" in T and "Type its name" in T and "Home directory" not in T and "[KEEP remove]" not in T, T[-400:])
     p.key("esc", 1.0)
     arow("AA7e", "no account was removed", register_ids() == before, repr(register_ids()))
 

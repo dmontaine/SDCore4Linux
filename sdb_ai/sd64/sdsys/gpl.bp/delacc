@@ -65,11 +65,14 @@
 *               it added are stripped, so a deleted administrator does not
 *               keep passwordless sd-elevate.  A true deletion, the owner's
 *               ruling 12 Sep 2026.
+* 15 Nov 26 dm  S.244 (4), the owner of tool.accounts X: "type x, get a prompt for the name and click
+*               run", no terminal.  NO.QUERY leaves out the one confirmation, which the caller
+*               has asked.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
-* DELETE.ACCOUNT account.name {REMOVE.HOME}
+* DELETE.ACCOUNT account.name {REMOVE.HOME} {NO.QUERY}
 *
 * Removes the account directory, the sdu_ or sdg_ group, the ACCOUNTS record
 * and - for a USER account whose Linux user SD created - that Linux user.  One
@@ -142,14 +145,18 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   Matched on the token text, as CREATEA matches its tier keywords, so the
 *   shared KW$ table is not extended for one verb.  Anything else is refused.
    remove.home = @false
+   no.query = @false
    loop
       call @parser(parser$get.token, token.type, token, keyword)
    until token.type = PARSER$END
-      if upcase(token) = 'REMOVE.HOME' then
-         remove.home = @true
-      end else
-         stop sysmsg(2018, token) ;* Unexpected token (xx)
-      end
+      begin case
+         case upcase(token) = 'REMOVE.HOME'
+            remove.home = @true
+         case keyword = KW$NO.QUERY
+            no.query = @true                 ;* 15 Nov 26 (S.244 (4)): the confirmation was asked by the caller (tool.accounts X)
+         case 1
+            stop sysmsg(2018, token) ;* Unexpected token (xx)
+      end case
    repeat
 
    if acc.name = 'sdsys' then
@@ -294,22 +301,25 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 * 10 Sep 26 dm - ONE CONFIRMATION, AND IT NAMES WHAT WILL ACTUALLY GO (the
 *   port's).  10158 first, because deleting takes the account's data with it.
 *   Enter takes the default the prompt shows, N (port PRE_RELEASE_FIXES 79).
-   crt sysmsg(10158, acc.name)
+   yn = 'Y'
+   if not(no.query) then
+      crt sysmsg(10158, acc.name)
 
-   loop
-      begin case
-         case del.user # '' and remove.home
-            display sysmsg(10905, acc.name, del.user, home.dir) : ;* ... and the home directory
-         case del.user # ''
-            display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
-         case 1
-            display sysmsg(10085, acc.name) :           ;* account and its directory
-      end case
-      input yn
-      yn = upcase(yn)
-      if yn = '' then yn = 'N'
-   until yn = 'Y' or yn = 'N'
-   repeat
+      loop
+         begin case
+            case del.user # '' and remove.home
+               display sysmsg(10905, acc.name, del.user, home.dir) : ;* ... and the home directory
+            case del.user # ''
+               display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
+            case 1
+               display sysmsg(10085, acc.name) :           ;* account and its directory
+         end case
+         input yn
+         yn = upcase(yn)
+         if yn = '' then yn = 'N'
+      until yn = 'Y' or yn = 'N'
+      repeat
+   end
 
    if yn = 'N' then
       @system.return.code = -ER$STOPPED

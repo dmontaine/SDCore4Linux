@@ -300,7 +300,8 @@ class Page:
         self.h.typed("\x7f" * len(existing) + text + "\r", idle=0.9)
 
     def set_filters(self, vals):
-        """F, then the six questions; vals is from to event account user text."""
+        """C (S.244: an empty entry now KEEPS the filter shown beside it, so the filters are cleared first), then F and the six questions; vals is from to event account user text."""
+        self.h.typed("c", idle=1.5)
         self.h.typed("f", idle=1.2)
         self.form(vals, self.flt)
         self.flt = list(vals)

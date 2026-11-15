@@ -103,9 +103,9 @@ def checks(raw):
        and "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in bs and "if not(ok) or dcount(names.in, ' ') > 20 then" in bs and 0 < bs.find("index(good, wd[q, 1], 1) = 0") < bs.find("sent = ") and 0 < bs.find("if bdir = '' then") < bs.find("screen ask"), bs[:200])
     rs = block(pg, "do.restore")
     ck("TB7", "R restores only the archive under the cursor, every account it holds, with no.query given because the box has asked; the manifest is read first, the accounts come from its [account lines, every one must be registered "
-       "(the register is read, a missing one stops the command with the names) BEFORE the sentence, and the box wants the word RESTORE typed",
-       rs.count("sent = ") == 1 and "sent = 'restore.account ' : anm<ci> : ' all no.query'" in rs and "typed = 'RESTORE'" in rs
-       and 0 < rs.find("call !acc_archive('MANIFEST'") < rs.find("[account") < rs.find("openpath @sdsys : @ds : 'accounts' to reg.f") < rs.find("if missing # '' then") < rs.find("sent = ") < rs.find("typed = 'RESTORE'")
+       "(the register is read, a missing one stops the command with the names) BEFORE the sentence, and the box wants the word restore typed (S.244 (5): shown in lower case, taken in either case)",
+       rs.count("sent = ") == 1 and "sent = 'restore.account ' : anm<ci> : ' all no.query'" in rs and "typed = 'restore'" in rs and "'RESTORE'" not in rs
+       and 0 < rs.find("call !acc_archive('MANIFEST'") < rs.find("[account") < rs.find("openpath @sdsys : @ds : 'accounts' to reg.f") < rs.find("if missing # '' then") < rs.find("sent = ") < rs.find("typed = 'restore'")
        and "if index(@fm : regids : @fm, @fm : accts<k> : @fm, 1) = 0 then missing<-1> = accts<k>" in rs and "readnext rid from 9 else exit" in rs, rs[:200])
     ds = block(pg, "do.directory")
     ck("TB8", "D sends 'set.backup.directory ' + a path that is absolute, has no space and is at most 200 characters, tested BEFORE the sentence",
@@ -179,7 +179,8 @@ MUTANTS = [
     ("B runs with no directory saved", "TB6", sub("page", "   if bdir = '' then\n      msg = 'no backup directory has been saved: D saves one first'\n      return\n   end\n   sent = 'backup.account all'", "   sent = 'backup.account all'")),
     ("a name with a slash is allowed", "TB6", sub("page", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-/'")),
     ("any number of names", "TB6", sub("page", "if not(ok) or dcount(names.in, ' ') > 20 then", "if not(ok) then")),
-    ("R is run without the word typed", "TB7", sub("page", "   typed = 'RESTORE'\n", "   typed = ''\n")),
+    ("R is run without the word typed", "TB7", sub("page", "   typed = 'restore'", "   typed = ''")),
+    ("the word is upper case again", "TB7", sub("page", "   typed = 'restore'", "   typed = 'RESTORE'")),
     ("R is run without no.query", "TB7", sub("page", "' all no.query'", "' all'")),
     ("R does not check the register", "TB7", sub("page", "   if missing # '' then\n      msg = 'the archive holds accounts that are not registered here", "   if 0 then\n      msg = 'the archive holds accounts that are not registered here")),
     ("R restores the first archive, not the one under the cursor", "TB7", sub("page", "sent = 'restore.account ' : anm<ci> : ' all no.query'", "sent = 'restore.account ' : anm<1> : ' all no.query'")),

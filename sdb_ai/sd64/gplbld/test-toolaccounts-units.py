@@ -84,10 +84,14 @@ def checks(raw):
        "open %s audit %s first %s" % (i_open, i_audit, i_first))
     cr = block(pg, "confirm.and.run")
     ch = block(pg, "confirm.and.hand.over")
-    ck("AC3", "the commands run through the routines are modify.account and create.account only (one allow list), through $tk_run or $tk_runx directly after the confirm box and guarded by res = 'run', each exactly once; "
+    rs = block(pg, "run.sent")
+    ck("AC3", "the commands run through the routines are modify.account, create.account and delete.account only (one allow list), through $tk_run or $tk_runx in run.sent, each exactly once; run.sent is reached only "
+       "from the confirm box guarded by res = 'run' and from X's own dialog (S.244 (4)); "
        "the only other way a verb is run is the terminal hand-over, which is `execute sent` once, after the box and after $tk_close; nothing else executes, performs or chains",
-       re.findall(r"\ballow = '([^']*)'", pg) == ["modify.account create.account"] and pg.count("call $tk_run(allow, sent, out, stat, err)") == 1 and pg.count("call $tk_runx(allow, sent, out, stat, err)") == 1
-       and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n\s*if use\.x then\s*\n\s*call \$tk_runx", cr) is not None
+       re.findall(r"\ballow = '([^']*)'", pg) == ["modify.account create.account delete.account"] and pg.count("call $tk_run(allow, sent, out, stat, err)") == 1 and pg.count("call $tk_runx(allow, sent, out, stat, err)") == 1
+       and re.search(r"if use\.x then\s*\n\s*call \$tk_runx\(allow, sent, out, stat, err\)\s*\n\s*end else\s*\n\s*call \$tk_run\(allow", rs) is not None
+       and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n\s*gosub run\.sent", cr) is not None
+       and pg.count("gosub run.sent") == 2 and block(pg, "do.delete").count("gosub run.sent") == 1
        and len(re.findall(r"\bexecute\b", pg)) == 1 and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res # 'run' then\s*\n\s*msg = cmsg\s*\n\s*return\s*\n\s*end\s*\n\s*call \$tk_close\(ctx\)\s*\n\s*execute sent", ch) is not None
        and not re.search(r"\b(os\.execute|perform|chain)\b", pg), "")
     ck("AC4", "THE PAGE WRITES NOTHING ITSELF: no write, delete, writeseq, openseq, matwrite, no ospath with OS$DELETE or OS$CHOWN; the register is opened only to be read and SDSYS is never listed",
@@ -111,9 +115,14 @@ def checks(raw):
        and "sent = 'create.account group ' : nn : ' no.query'" in cc and "sent = 'create.account user ' : nn : ' ' : rt" in cc and "sent = 'create.account other ' : nn : ' ' : pth : ' no.query'" in cc
        and 0 < cc.find("case kd # 'user'") < cc.find("gosub plain.word") < cc.find("if px > 0") < cc.find("sent = ") and cc.count("gosub confirm.and.hand.over") == 1 and cc.count("gosub confirm.and.run") == 2 and "use.x = 1" in cc, cc[:200])
     dd = block(pg, "do.delete")
-    ck("AC9", "X refuses a name that does not pass plain.word, asks about REMOVE.HOME only for a USER account (the default is n), types the ACCOUNT'S OWN NAME into the box (typed = anm<ci>) before it can run, and hands the terminal to the verb",
-       "gosub plain.word" in dd and re.search(r"if akind<ci> = 'USER' then\s*\n\s*screen ask", dd) is not None and "value 'n'" in dd and "typed = anm<ci>" in dd and "sent := ' remove.home'" in dd and dd.count("gosub confirm.and.hand.over") == 1
-       and 0 < dd.find("gosub plain.word") < dd.find("sent = 'delete.account '") < dd.find("typed = anm<ci>") < dd.find("gosub confirm.and.hand.over"), dd[:200])
+    ck("AC9", "X (S.244 (4), the owner: \"type x, get a prompt for the name and click run\"): refuses a name that does not pass plain.word, then ONE form - the ACCOUNT'S OWN NAME typed and, for a USER account only, "
+       "the home directory a choice of keep (first, so the default) or remove - which stays until the name typed is the account's; the sentence is built only after the form closed, "
+       "always ends with no.query, and runs through run.sent: no box of its own and no terminal",
+       "gosub plain.word" in dd and "spec<-1> = 'name' : @vm : 'Type its name'" in dd and "if isusr then spec<-1> = 'home' : @vm : 'Home directory' : @vm : '' : @vm : '' : @vm : 2 : @vm : '' : @vm : 'keep' : @sm : 'remove'" in dd
+       and "isusr = (akind<ci> = 'USER')" in dd and "if trim(fv<1>) = anm<ci> then exit" in dd and "if isusr and fv<2> = 'remove' then sent := ' remove.home'" in dd and "sent := ' no.query'" in dd
+       and "confirm.and.hand.over" not in dd and "tk_confirm" not in dd and "execute" not in dd
+       and 0 < dd.find("gosub plain.word") < dd.find("call $tk_form('open'") < dd.find("if trim(fv<1>) = anm<ci> then exit") < dd.rfind("call $tk_form('close'") < dd.find("sent = 'delete.account '")
+       < dd.find("sent := ' no.query'") < dd.find("gosub run.sent"), dd[:200])
     ck("AC10", "the hand-over gives the terminal back in order: the box, $tk_close, the verb, a pause for Enter, $tk_open for the ADMINISTRATOR again (a refusal there ends the page), the context regenerated, everything read and drawn again",
        0 < ch.find("call $tk_confirm") < ch.find("call $tk_close(ctx)") < ch.find("execute sent") < ch.find("input junk") < ch.find("call $tk_open('tool.accounts', 'admin', ctx, err)") < ch.find("gen += 1") < ch.find("gosub read.all") < ch.find("gosub draw.all")
        and "done = 1" in ch, ch[:200])
@@ -162,8 +171,8 @@ MUTANTS = [
     ("the page is opened for anyone", "AC2", sub("page", "call $tk_open('tool.accounts', 'admin', ctx, err)", "call $tk_open('tool.accounts', '', ctx, err)")),
     ("the page reads before it opens the base", "AC2", sub("page", "   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n", "   openpath @sdsys : @ds : 'accounts' to acc0 else null\n   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n")),
     ("an ordinary account gets the verb", "AC1", setkey("newvoc_has", "1")),
-    ("the page may run another command", "AC3", sub("page", "allow = 'modify.account create.account'", "allow = 'modify.account create.account delete.account'")),
-    ("the box is skipped for the routines", "AC3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res = 'run' then\n      if use.x then", "   res = 'run'\n   if res = 'run' then\n      if use.x then")),
+    ("the page may run another command", "AC3", sub("page", "allow = 'modify.account create.account delete.account'", "allow = 'modify.account create.account delete.account sh'")),
+    ("the box is skipped for the routines", "AC3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res = 'run' then\n      gosub run.sent", "   res = 'run'\n   if res = 'run' then\n      gosub run.sent")),
     ("the terminal is handed over before the box", "AC3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   call $tk_close(ctx)\n   execute sent", "   call $tk_close(ctx)\n   execute sent")),
     ("a second execute", "AC3", sub("page", "   keys = ''\n", "   execute 'who' capturing xx\n   keys = ''\n")),
     ("the page writes a record", "AC4", sub("page", "   keys = ''\n", "   write 'x' to acc.f, 'y'\n   keys = ''\n")),
@@ -182,8 +191,10 @@ MUTANTS = [
     ("C allows two door words", "AC8", sub("page", "rt # 'none' and rt # 'ssh' and rt # 'api' and rt # 'both'", "index(' none ssh api both ', ' ' : rt : ' ', 1) = 0")),
     ("C allows a relative path", "AC8", sub("page", "pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200", "index(pth, ' ', 1) > 0 or len(pth) > 200")),
     ("a group account is made without no.query", "AC8", sub("page", "' no.query'\n         typed = ''\n         el = ''\n         el<-1> = 'A group account", "''\n         typed = ''\n         el = ''\n         el<-1> = 'A group account")),
-    ("X needs no typed name", "AC9", sub("page", "   typed = anm<ci>\n", "   typed = ''\n")),
-    ("X asks about remove.home for every kind", "AC9", sub("page", "   if akind<ci> = 'USER' then\n      screen ask \"Also remove", "   if 1 then\n      screen ask \"Also remove")),
+    ("X needs no typed name", "AC9", sub("page", "      if trim(fv<1>) = anm<ci> then exit\n", "      exit\n")),
+    ("X asks about remove.home for every kind", "AC9", sub("page", "   if isusr then spec<-1> = 'home'", "   if 1 then spec<-1> = 'home'")),
+    ("X leaves out no.query, so the verb would ask through the routine", "AC9", sub("page", "   sent := ' no.query'\n", "")),
+    ("X removes the home by default", "AC9", sub("page", "'keep' : @sm : 'remove'", "'remove' : @sm : 'keep'")),
     ("X skips the name test", "AC9", sub("page", "   word = anm<ci>\n   gosub plain.word\n   if not(plain) then\n      call $tk_badch(word, bad.ch)                   ;* 9 Nov 26 (S.186): say which character\n      if bad.ch = '' then bad.ch = 'more than 32 characters'\n      msg = 'this account name has ' : bad.ch : ', which this page will not put in a command; use delete.account at the prompt'\n      return\n   end\n", "")),
     ("the page does not take the screen back", "AC10", sub("page", "   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   call $tk_aipage('again'", "   call $tk_aipage('again'")),     # 1 Nov 26: the AI line's again follows the open
     ("the page does not read after a hand-over", "AC10", sub("page", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub read.all\n   gosub draw.all\n   msg = 'back from '", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub draw.all\n   msg = 'back from '")),

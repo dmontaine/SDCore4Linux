@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Nov 26 dm  S.245: a grouped phantom whose parent ended before it started is given EVT_LOGOUT, not EVT_TERMINATE, so it ends at once
+ *               instead of running its command first (sandbox-q4 I4).
  * 15 Nov 26 dm  S.242 stage 3: init_kernel() clears the file transfer slot of the cell it takes; the transfer server's @TTY is "sftp".
  * 28 Oct 26 dm  S.88 phase 2 review: dump_status() (the record PSTAT prints) writes another session's text - its last command,
  *               program names, the path and record id it waits for, its account - through ev_safe(), the shared rule of
@@ -197,8 +199,12 @@ retry_login:
     memset((void*)&(my_uptr->ustats), 0, sizeof(struct FILESTATS)); /* FSTAT.USER */
     my_uptr->ustats.reset = sdtime();
     if (is_phantom && my_uptr->grouped && (my_uptr->puid == 0)) {
-      /* PHANTOM GROUP, and the parent ended before this phantom had started: it goes at once (ReleaseLicence) */
-      my_uptr->events = EVT_TERMINATE;
+      /* PHANTOM GROUP, and the parent ended before this phantom had started: it goes at once (ReleaseLicence).
+         15 Nov 26 dm - S.245: EVT_LOGOUT, the immediate end, not EVT_TERMINATE.  The graceful one unwinds to the command processor
+         and calls it again, and a phantom's command processor that has not yet run the phantom's command runs it then: the phantom
+         stayed, "logout pending", for the length of its command (measured: SLEEP 60, alive for all of it, the error log saying
+         "Forced logout").  Nothing has run yet, so there is nothing for a graceful end to tidy. */
+      my_uptr->events = EVT_LOGOUT;
       my_uptr->flags = USR_LOGOUT;
     }
     my_uptr->lockwait_index = 0;
