@@ -285,6 +285,8 @@ sdsys/messages/1411[0-3]     : sftp
 sdsys/gpl.bp/xfer            : sftp
 sdsys/newvoc/receive         : sftp
 sdsys/newvoc/send            : sftp
+sdsys/voc_template/receive   : sftp pack-examples
+sdsys/voc_template/send      : sftp pack-examples
 gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient

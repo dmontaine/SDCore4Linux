@@ -263,9 +263,14 @@ def checks(s):
 
     # --- the verbs (stage 4) --------------------------------------------------------------------------------------------------
     v = basic(s["xfer"])
-    ck("S39 receive and send are one $internal program, $xfer, in every ordinary account's VOC and not in SDSYS's (the administrator has no transfer)",
+    def vt(name):
+        p = os.path.join(SD, "sdsys", "voc_template", name)
+        return open(p, encoding="latin-1").read() if os.path.isfile(p) else ""
+    ck("S39 receive and send are one $internal program, $xfer, in newvoc and in voc_template alike (every verb of newvoc is in both; the administrator "
+       "has the words and no transfer: the program refuses an account that is not a user account before it opens anything)",
        order(v, "$internal", "program xfer", "$catalog $xfer") and s["voc_receive"] == "V\nCA\n$xfer\n" and s["voc_send"] == "V\nCA\n$xfer\n"
-       and not os.path.exists(os.path.join(SD, "sdsys", "voc_template", "receive")) and not os.path.exists(os.path.join(SD, "sdsys", "voc_template", "send")))
+       and vt("receive") == "V\nCA\n$xfer\n" and vt("send") == "V\nCA\n$xfer\n"
+       and order(v, "if acc.rec<ACC$GROUP>[1,4] # 'sdu_' then\n      crt sysmsg(14078, lgn)\n      stop", "ans = kernel(K$XFER, 'open'"))
     ck("S40 the verb asks, in order: the syntax, XFER, that the session is in the account named after its user, the register (a user account, "
        "xfer-on exactly YES), the directory; only then does it open the slot, and it audits the opening and the closing",
        order(v, "crt sysmsg(14102)", "crt sysmsg(14107)", "if config('XFER') # 1 then", "if downcase(@who) # acct then",

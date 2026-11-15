@@ -120,7 +120,7 @@
   },
   "voc.layer": {
    "chunks": 2,
-   "sha256": "4c6266138d76d70e697651f33ee45f950d268dcefdc4e94f5aee74098043431f"
+   "sha256": "59c594ba02330fd4d33e3634702961814163db9d87b2acd2856ebe2349abbc2a"
   },
   "voc.type": {
    "chunks": 9,
@@ -199,7 +199,7 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "4648440b7336d622e6cb2a3602a559d0a62ecd6a4d66401f4334678e428a4dbe",
+   "sha256": "2280acfd75e69e7cc6107c52057eabef65282b67feb018e106659881a66b384e",
    "words": 1927
   }
  },
