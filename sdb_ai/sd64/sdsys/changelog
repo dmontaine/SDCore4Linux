@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+15 Nov 26  THE ADMINISTRATOR CAN LOGTO SDSYS TO COME BACK.
+
+             What        - a session that signed in as sdsys and went to another account with logto can now type
+                           logto sdsys to come back to SDSYS.  It is an ordinary LOGTO, audited as logto account=sdsys,
+                           and it goes to the system directory itself.
+             Why         - the administrator had to sign out and in again after every visit to a user's account.
+             Does NOT    - Let any other session in.  logto sdsys is still refused, in the same words (10002) and audited,
+                           to every session that did not sign in as sdsys - an ordinary user in any account, and a command
+                           that run.in is running.  It does not change how SDSYS is first entered: signing in as sdsys.
+
+15 Nov 26  FILE TRANSFER ON THE GATE PAGES AND THE HOME SCREEN (FOURTH PART).
+
+             What        - a Receive files tile on the home screen, among the person's own tools, runs receive and waits for
+                           Enter after it so that the list of files and their SHA-256 can be read.  It is there only where
+                           receive would open a transfer: XFER is 1, the session is in the person's own account, and the
+                           account has xfer-on.  send stays a typed command: it needs a file and record ids.
+                         - the administrator's gate matrix (tool.gates in SDSYS) has a column, xfer, for file transfer, and
+                           every account holder's own tool.gates page has a row for it.  The column is read from the account's
+                           register, as the transfer server reads it at each connection; Enter queues xfer-on or xfer-off and R
+                           runs modify.account as for any other gate.
+             Why         - the switch existed only as two words of modify.account, so nobody could see at a glance which
+                           accounts had it.  Turning it ON asks for the account's name to be typed, as for every gate that
+                           reaches beyond SD: it opens a door from the network into the account's transfer folders.
+             Does NOT    - Replace a file from the tile (type receive overwrite), or let set.tile turn the tile off by itself:
+                           xfer-off removes it.  Turn on the system switch XFER (sd.conf), or the ssh gate the transfer also needs; the cell box
+                           says so.  A group or other account cannot be given it, here or with the verb.  To make room for the
+                           eighteenth column, the matrix shows the first 15 letters of an account's name (it showed 20); the
+                           box under the matrix still gives the whole name.
+
 15 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: THE RECEIVE AND SEND COMMANDS (THIRD PART).
 
              What        - two new commands open a transfer from a person's own SD session.

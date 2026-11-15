@@ -270,7 +270,7 @@ def runtime_rows(box, made):
     for m in re.finditer(r"^(\w+) st=(-?\d+) err=\[(.*)\] ran=(\d)\s*$", out, re.M):
         got[m.group(1)] = (int(m.group(2)), m.group(3), int(m.group(4)))
     line = lambda pat: re.search(pat, out, re.M)
-    row("$tk_gate_info 'list' returns the 17 ids (S.166's home among them), the first ssh and the last the planned sockets", line(r"^GL 17 ssh sockets\s*$") is not None, out[-300:])
+    row("$tk_gate_info 'list' returns the 18 ids (S.166's home and S.242's xfer among them), the first ssh and the last the planned sockets", line(r"^GL 18 ssh sockets\s*$") is not None, out[-300:])
     row("a gate by id returns its words, kernel key, conflict slot and status: sh = sh-on sh-off K$SH SH built", line(r"^GSH sh-on sh-off K\$SH SH built\s*$") is not None, "")
     row("an id that is not in the table returns nothing", line(r"^GNO \[\]\s*$") is not None, "")
     row("a planned gate shows as planned and has no word to run", line(r"^GSK planned \[\]\s*$") is not None, "")
@@ -306,21 +306,22 @@ def runtime_rows(box, made):
 
 # TK-0.3.  $tk_gates reads the sandbox's own register (sys/accounts) in an internal session.  The fixtures are records this suite writes and deletes (zztk*); the
 # fields are the register's (keys.h): 1 path, 3 Linux group, 5 suspension, 7 sh, 8 os, 9 sd, 10 voc, 11 bp, 12 dict, 13 shared.read, 14 shared.write, 15 net.
-IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
 # 8 Nov 26: S.166 (7 Nov) added the 'home' gate (where a session starts, ACC$START) between ai and sockets; the fixtures leave field 16 blank, so it follows the
 # sandbox's start.default, which is terminal: 0 for every fixture
 HOME_STATE = "0"
 ROUTE_GROUP = {"ssh": "sdssh", "api": "sdapi", "files": "sdfiles", "files-write": "sdfileswrite", "files-admin": "sdfilesadmin", "ai": "sdaiusers"}
 REG = {"sh": 7, "os": 8, "sd": 9, "voc": 10, "bp": 11, "dict": 12, "shared-read": 13, "shared-write": 14, "net": 15}
-#            name        group            suspension   values of fields 7 to 15 (sh os sd voc bp dict shared.read shared.write net)
-FIXTURES = [("zztkon", "sdu_zztkon", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes"),
-            ("zztkoff", "sdu_zztkoff", "", "no,no,no,no,no,no,no,no,no"),
-            ("zztkblank", "sdu_zztkblank", "", ",,,,,,,,"),
-            ("zztkmix", "sdu_zztkmix", "SUSPENDED", "yes,no,,YES, yes ,maybe,No,Yes,no"),
-            ("zztkgrp", "sdg_zztkgrp", "", "yes,,,,,,,,"),
-            ("zztkoth", "plainname", "", "yes,,,,,,,,"),
-            ("zztkreal", "sdu_@USER@", "", ",,,,,,,,"),
-            ("ZZTKUP", "sdu_zztkup", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes")]       # registered under an upper-case name: only the name check can refuse it
+XFER_FIELD = 22        # S.242 stage 6: the file transfer gate (kind 'record', no kernel key) is register field 22, the TENTH value of a fixture below
+#            name        group            suspension   values of fields 7 to 15 (sh os sd voc bp dict shared.read shared.write net), then field 22 (xfer)
+FIXTURES = [("zztkon", "sdu_zztkon", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes,yes"),
+            ("zztkoff", "sdu_zztkoff", "", "no,no,no,no,no,no,no,no,no,no"),
+            ("zztkblank", "sdu_zztkblank", "", ",,,,,,,,,"),
+            ("zztkmix", "sdu_zztkmix", "SUSPENDED", "yes,no,,YES, yes ,maybe,No,Yes,no, Yes "),
+            ("zztkgrp", "sdg_zztkgrp", "", "yes,,,,,,,,,yes"),
+            ("zztkoth", "plainname", "", "yes,,,,,,,,,"),
+            ("zztkreal", "sdu_@USER@", "", ",,,,,,,,,"),
+            ("ZZTKUP", "sdu_zztkup", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes,yes")]       # registered under an upper-case name: only the name check can refuse it
 SHOWS = [("on", "zztkon"), ("off", "zztkoff"), ("blank", "zztkblank"), ("mix", "zztkmix"), ("grp", "zztkgrp"), ("oth", "zztkoth"), ("real", "zztkreal"),
          ("none", "zznone"), ("upper", "ZZTKON"), ("upfix", "ZZTKUP"), ("empty", ""), ("quote", "a'b"), ("semi", "zztkon;x")]
 
@@ -339,7 +340,7 @@ def gates_program(user):
         p.append("   read x from f, '%s' then crt 'TKG left %s'" % (nm, nm))
     p += ["   crt 'TKG end'", "   stop",
           "mk:", "   rec = ''", "   rec<1> = '/tmp/' : nm", "   rec<2> = 'tkgates fixture'", "   rec<3> = grp", "   rec<5> = sus",
-          "   for k = 1 to 9", "      rec<6 + k> = field(vals, ',', k)", "   next k", "   write rec to f, nm", "   return",
+          "   for k = 1 to 9", "      rec<6 + k> = field(vals, ',', k)", "   next k", "   rec<%d> = field(vals, ',', 10)" % XFER_FIELD, "   write rec to f, nm", "   return",
           "show:", "   call $tk_gates(nm, g, info, err)",
           "   outl = 'G ' : tag : ' err=[' : err : '] type=' : info<1> : ' susp=' : info<2> : ' user=' : info<3> : ' |'",
           "   for k = 1 to dcount(g, @fm)", "      outl := ' ' : g<k, 1> : '=' : g<k, 2>", "   next k", "   crt outl", "   return", "end", ""]
@@ -381,13 +382,14 @@ def gates_rows(box, made):
         for i, fno in REG.items():
             raw = vals[fno - 7].strip().upper()
             out_[i] = ("1" if raw != "NO" else "0") if i in default_on_ids else ("1" if raw == "YES" else "0")
+        out_["xfer"] = "1" if vals[9].strip().upper() == "YES" else "0"         # S.242: field 22, yes or nothing else, for any kind of account (modify.account refuses it for a group)
         return out_
 
     v = {nm: vals.split(",") for nm, _g, _s, vals in FIXTURES}
     for tag, nm, typ, susp in (("on", "zztkon", "USER", "0"), ("off", "zztkoff", "USER", "0"), ("blank", "zztkblank", "USER", "0"), ("mix", "zztkmix", "USER", "1")):
         e = dict(reg_expect(v[nm]), sockets="", home=HOME_STATE, **{i: "0" for i in ROUTE_GROUP})
         g = got.get(tag)
-        row("%s (%s): type USER, suspension %s, and all 17 gates in the table's order with the states the fields give: %s" % (tag, nm, susp, " ".join("%s=%s" % (i, e[i]) for i in IDS)),
+        row("%s (%s): type USER, suspension %s, and all 18 gates in the table's order with the states the fields give: %s" % (tag, nm, susp, " ".join("%s=%s" % (i, e[i]) for i in IDS)),
             g is not None and g[0] == "" and g[1] == typ and g[2] == susp and g[3] == nm and states(tag) == e and list(states(tag)) == IDS, repr(g))
     row("blank means ON for shared-read only: the blank record has shared-read=1 and every other register gate 0", states("blank").get("shared-read") == "1" and all(states("blank").get(i) == "0" for i in REG if i != "shared-read"), repr(states("blank")))
     row("the word is read as upper case with spaces trimmed: ' yes ' and 'YES' are on, 'maybe' and an empty field are off, 'No' turns shared-read off", states("mix").get("bp") == "1" and states("mix").get("voc") == "1"

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 15 Nov 26 dm Owner decision (Windows' RELEASE_1.1 310): LOGTO SDSYS is taken by the administrator's session (K$ADMINISTRATOR), so it can come back
+*              from a user's account without signing out; every other session is refused as before (10002).
 * 14 Nov 26 dm Compiler warnings: privileged_commands is built under $ifndef IS_INSTALL, as its one reader is; kept exists.x (a READV that tests the
 *           record) and in.pos (LOCATE needs its SETTING variable).
 * 13 Nov 26 dm A refused login exits with status 1 (it was 0), so a script or job can tell refused from done.  Carried from the Windows port (its RELEASE_1.1
@@ -728,8 +730,8 @@ $endif
          mat proc.fvar = 0     ;* Ensure all PROC files are closed
 
 * 3 Nov 26 dm - S.96.  THE SAFETY NET OF RUN.IN.  A command it ran in another account was aborted (a break, a run-time error, ABORT, a forced logout): the session goes back to the
-*   account it left before anything else happens, whatever the cause and at whatever level the abort was caught.  Without this the administrator would stay in that account for the
-*   rest of the session, and LOGTO SDSYS is refused for everybody.
+*   account it left before anything else happens, whatever the cause and at whatever level the abort was caught.  Without this the administrator would stay in that account, with
+*   the command's reach, until it typed LOGTO SDSYS (since 15 Nov 26 the administrator's way back by hand).
          if ri.active then
             gosub revert.account
             display sysmsg(11242, ri.who)   ;* run.in: the command did not finish; the session is back in account %1 - the account it LEFT (ri.who), not the one it visited (14 Nov 26, Windows 308)
@@ -2902,10 +2904,15 @@ int.logto:
       return
    end
 * 20240330 mab only root can logto sdsys
-* 18 Sep 26 dm - TEARDOWN (S.26).  LOGTO SDSYS IS REFUSED FOR EVERYBODY,
-*   administrators included.  SDSYS is entered only by running SD as the
-*   sdsys OS user on a local session - the entry block above, not LOGTO.
-   if (downcase(new.account) = "sdsys") then
+* 18 Sep 26 dm - TEARDOWN (S.26).  SDSYS is entered by running SD as the sdsys OS user - the entry block above.
+* 15 Nov 26 dm - OWNER DECISION (relayed by Windows, its RELEASE_1.1 310): "the admin needs to be able to logto a users account and then log back
+*   to sdsys without having to log out each time".  LOGTO SDSYS is taken ONLY by a session that is the administrator: the flag K$ADMINISTRATOR,
+*   which only the entry block above grants (an sdsys login, local or over ssh, or a root-started scheduled job), which only an $internal
+*   program can set, and which a LOGTO never clears - so the session that reached another account FROM SDSYS can come back.  Every other
+*   session is refused exactly as before, whatever account it is in; nothing is opened to anybody who did not already hold SDSYS.  RUN.IN's
+*   command is refused above, before this.
+   into.sdsys = (downcase(new.account) = "sdsys")
+   if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then
 * 07 Oct 26 - 10002 has two lines; one DISPLAY of it put the raw field mark on the screen, so
 *   it is shown a line at a time, as 10190/10191/10195 are (19 Sep).
       lg.msg = sysmsg(10002) ;* entered only by running SD as the sdsys OS user
@@ -2966,6 +2973,10 @@ int.logto:
          new.account = ''
       end
       close acc.f
+   end
+   if into.sdsys then                   ;* 15 Nov 26: the administrator's way back is to the system directory itself, never a path the register holds
+      acc.rec = @sdsys
+      new.account = 'sdsys'
    end
 
    * new.account contains the account name, null if attaching by path

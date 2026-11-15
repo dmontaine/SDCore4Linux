@@ -573,26 +573,21 @@ if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
     for r in "L1 two arrivals in $ACC" "L2 one arrival in sdsys" "L3 no refusal" "LC.1 control refused" "LC.2 control stayed"; do
         not_reached "$r"; done
 else
-    # 18 Sep 26 dm - LOGTO SDSYS IS REFUSED FOR EVERYBODY NOW (S.26), so the
-    #   middle arrival cannot happen.  What the rows measure: both LOGTOs INTO
-    #   $ACC arrive, the SDSYS arrival does NOT, and the refusal names the one
-    #   route in.  The administrator's own access is unchanged - it is the sdsys
-    #   session these commands run from.
-    OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys (refused), LOGTO $ACC" \
+    # 15 Nov 26 dm - OWNER DECISION (relayed by Windows, its row 310): the administrator's
+    #   session may LOGTO sdsys to come back without signing out; every other
+    #   session is refused (the control below).  What the rows measure: both
+    #   LOGTOs INTO $ACC arrive, the SDSYS arrival in between arrives too, and
+    #   there is no refusal.
+    OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys (the way back), LOGTO $ACC" \
           "LOGTO $ACC" "WHO" "LOGTO sdsys" "WHO" "LOGTO $ACC" "WHO")
     if [ "$COMMIT" -eq 1 ]; then
-        # 19 Sep 26 - THREE, NOT TWO: the refused LOGTO sdsys leaves the session
-        #   where it was, so the WHO after it names $ACC too (fifth cycle: 3).
-        #   That also means the count can no longer tell a failed second LOGTO
-        #   from a successful one (the session would still be in $ACC), so the
-        #   refusals are what decide it: L3a (10003) and L3c (any SD error).
-        ck "L1 WHO reported $ACC three times (two arrivals; the refused LOGTO sdsys stayed)" 3 \
+        ck "L1 WHO reported $ACC twice (two arrivals)" 2 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)")"
-        ck "L2 and never sdsys - LOGTO sdsys is refused (S.26)" 0 \
+        ck "L2 and sdsys once between them - the administrator's LOGTO sdsys came back" 1 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+sdsys([[:space:]]|$)")"
         ck_absent "L3a no 10003" "User not allowed in requested account" "$OUT"
-        ck_absent "L3c no SD error on either LOGTO into $ACC" "Error " "$OUT"
-        ck_says "L3b and the refusal names the one route in" \
+        ck_absent "L3c no SD error on any of the LOGTOs" "Error " "$OUT"
+        ck_absent "L3b and no refusal of the way back" \
                 "entered only by running SD as the sdsys OS user" "$OUT"
     fi
     # THE CONTROL: without it L1-L3 cannot tell "the administrator keeps its

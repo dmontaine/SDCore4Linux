@@ -447,7 +447,7 @@ sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
 # S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
-sdsys/gpl.bp/tool_home       : home home2 ai-line l2-home tk-resize
+sdsys/gpl.bp/tool_home       : home home2 ai-line l2-home tk-resize sftp
 # AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps
 gplbld/sandbox-ai-line.py    : @self ai-pages

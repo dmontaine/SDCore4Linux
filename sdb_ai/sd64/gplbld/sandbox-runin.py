@@ -623,6 +623,19 @@ def main():
     f = sg.flags(out)
     row("F2: LOGTO zzoff (both off): the administrator flag stays and SH and OS.EXECUTE are off - the second load replaced the first", f is not None and f[:3] == ("1", "0", "0"), "KFLAGS %r" % (f,))
 
+    # --- L. 15 Nov 26, the owner's decision (relayed by Windows, its row 310): the administrator's LOGTO SDSYS ----------------
+    say("\n--- L. LOGTO SDSYS: the administrator's way back without signing out; anybody else is still refused ------------------")
+    n_in, n_back = len(audit_has(r"logto account=zzoff$")), len(audit_has(r"logto account=sdsys$"))
+    out, where, pwd = run(["LOGTO zzoff", "LOGTO SDSYS"])
+    row("L1: the administrator LOGTOs a user's account and LOGTO SDSYS brings it back: both LOGTOs are audited, and WHERE and the working directory equal the baseline",
+        len(audit_has(r"logto account=zzoff$")) == n_in + 1 and len(audit_has(r"logto account=sdsys$")) == n_back + 1 and where == base_where and pwd == base_pwd
+        and not any("SDSYS account is entered only" in ln for ln in out), "where %r pwd %r\n%s\naudit %r" % (where, pwd, "\n".join(out[-8:]), audit_lines()[-4:]))
+    n_back, n_ref = len(audit_has(r"logto account=sdsys$")), len(audit_has(r"logto refused account=sdsys reason=sdsys is entered by its own session only"))
+    out = sg.plain("zzoff", ["LOGTO SDSYS"])
+    row("L2: an ordinary session in zzoff is refused exactly as before (10002's words, one more refusal line) and is not let in (no logto account=sdsys line): the control",
+        any("SDSYS account is entered only" in ln for ln in out) and len(audit_has(r"logto account=sdsys$")) == n_back
+        and len(audit_has(r"logto refused account=sdsys reason=sdsys is entered by its own session only")) == n_ref + 1, "\n".join(out[-8:]))
+
     # --- E. the audit trail --------------------------------------------------------------------------------------------
     say("\n--- E. audit lines ---------------------------------------------------------------------------------------------------")
     begins = audit_has(r"\brun\.in begin account=")

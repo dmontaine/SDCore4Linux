@@ -21,7 +21,7 @@
 #   M5      the row under the cursor in words: a gate that is off ("You cannot", the word the administrator would use), one that is on ("You can", the withdrawing word), a planned gate
 #   M6      THE PAGE CHANGES NOTHING: Enter, R, Space, A, T, U and a click on a row queue and run nothing; every record, the group file and the audit trail are as they were
 #   M7      what the session holds is not what the register says now: the register is changed under a running page, F5 keeps what the session holds (the edit gates are read at sign-on);
-#           a group change shows at once; a NEW session shows the register
+#           a group change shows at once; a NEW session shows the register; the file transfer gate (S.242) is the register as it is now, after F5
 #   M8      the administrator's TOOL.GATES in the same sandbox is the matrix
 #   M9      a VOC entry that points at the administrator's page in an ordinary account is refused before anything is drawn
 #   M10     the [?] and F1 reach the help box; a window under 140 by 43 gets no page
@@ -87,8 +87,8 @@ def write_groups(ssh=(), files=(), ai=()):
     g.put(os.path.join(box(), "grp", "group"), "\n".join(lines))
 
 
-def reg_record(name, sh_="no", os_="no", sd="no", voc="no", bp="no", dict_="no", srd="", swr="", net="no"):
-    return [os.path.join(box(), "user_accounts", name), "", "sdu_" + ME, "", "", "", sh_, os_, sd, voc, bp, dict_, srd, swr, net, "", "", ""]
+def reg_record(name, sh_="no", os_="no", sd="no", voc="no", bp="no", dict_="no", srd="", swr="", net="no", xfer=""):
+    return [os.path.join(box(), "user_accounts", name), "", "sdu_" + ME, "", "", "", sh_, os_, sd, voc, bp, dict_, srd, swr, net, "", "", "", "", "", "", xfer]     # field 22 is ACC$XFER (S.242)
 
 
 def gate_titles():
@@ -161,7 +161,7 @@ def table(h):
     return out
 
 
-NGATES = 17                                     # S.166: the home gate is the seventeenth
+NGATES = 18                                     # S.166: the home gate is the seventeenth; S.242: file transfer (xfer) the eighteenth
 SUMROW = 3 + NGATES                             # the line that says who is signed on (row 20)
 
 
@@ -205,10 +205,10 @@ def section_page():
          and "tool start" not in (fg.audit_new(a0) or ""), repr((h.line(0)[100:], fg.audit_new(a0))))
     tb = table(h)
     titles = [t for _g, t, _s in gate_titles()]
-    arow("M2", "the seventeen gates, in the table's order (home off: the sandbox's default is the prompt), for an account with every register gate off: shared-read ON as delivered, ssh and files ON from the groups, sockets plan",
+    arow("M2", "the eighteen gates, in the table's order (home off: the sandbox's default is the prompt), for an account with every register gate off: shared-read ON as delivered, ssh and files ON from the groups, sockets plan",
          list(tb) == titles and {k: v[0] for k, v in tb.items()} == expected({"shared-read"}, {"ssh", "files"}), repr({k: v[0] for k, v in tb.items()}))
-    arow("M2b", "each row says how the gate is delivered and whether it reaches beyond SD, from the table", tb[titles[2]][1] == "off" and tb[titles[2]][2] == "yes" and tb[titles[5]][2] == "no" and tb[titles[9]][1] == "on",
-         repr((tb[titles[2]], tb[titles[5]], tb[titles[9]])))
+    arow("M2b", "each row says how the gate is delivered and whether it reaches beyond SD, from the table", tb[titles[2]][1] == "off" and tb[titles[2]][2] == "yes" and tb[titles[5]][2] == "no" and tb[titles[10]][1] == "on",
+         repr((tb[titles[2]], tb[titles[5]], tb[titles[10]])))      # titles[10] is shared-read (S.242 put xfer at 8, before net)
     L19 = h.line(SUMROW)[3:138].rstrip()
     arow("M4", "the line that says who is signed on, in which account, and how many gates are on for the session (home off: the sandbox's default is the prompt)",
          L19.startswith("Signed on as %s in the account %s.  3 of %d gates are on" % (ME, A1, NGATES)), repr(L19))
@@ -269,13 +269,19 @@ def section_session():
     rec = g.reg_read(A2)
     rec[10 - 1] = "no"                           # voc
     rec[7 - 1] = "no"                            # sh
-    g.put(os.path.join(sh.SYS, "accounts", A2), "\n".join(rec[:18]) + "\n")
+    g.put(os.path.join(sh.SYS, "accounts", A2), "\n".join(rec[:18] + ["", "", "", "yes"]) + "\n")     # S.242: and field 22, xfer, turned on under the running page
     write_groups(ssh=[], files=[ME], ai=[ME])    # the person leaves sdssh and joins sdaiusers
     h.key("f5", idle=2.0)
     tb = {k: v[0] for k, v in table(h).items()}
     titles = {gid: t for gid, t, _s in gate_titles()}
     arow("M7a", "the register says voc and sh are off now, and the open session still holds them (sh and voc ON): the register is not what this page reports", tb[titles["voc"]] == "ON" and tb[titles["sh"]] == "ON", repr((tb[titles["voc"]], tb[titles["sh"]])))
     arow("M7b", "a route group is read from the system each time: after F5 ssh is off and ai is ON", tb[titles["ssh"]] == "off" and tb[titles["ai"]] == "ON", repr((tb[titles["ssh"]], tb[titles["ai"]])))
+    h.key("home", idle=0.4)
+    for _ in range(8):                           # xfer is the ninth row
+        h.key("down", idle=0.4)
+    B = re.sub(r"\s+", " ", " ".join(boxb(h)))
+    arow("M7d", "S.242: file transfer is the register as it is NOW (the transfer server reads it at each connection): after F5 it is ON, and its row says it is read at each connection",
+         tb[titles["xfer"]] == "ON" and "[xfer]" in B and "read at each connection" in B, repr((tb[titles["xfer"]], B[:300])))
     h.key("ctrl-q", idle=1.2)
     h.end()
     h = page(A2)

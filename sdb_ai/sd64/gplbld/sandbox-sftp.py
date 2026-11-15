@@ -16,7 +16,8 @@
 # audit line's, a listing of the directory before and after, the bytes of a file that must not have changed.  A refusal row wants
 # three things: the client failed, the disk is as it was, and the audit line (or the server's words) names the reason.
 #
-# SECTIONS (--only=): gate in wall text limits out raw life timers.  `gate` is the control for all the others (its row G7 is the
+# SECTIONS (--only=): gate in wall text limits out raw life timers verbs tile (`tile`, 15 Nov 26: the home screen's Receive files tile, on a
+# pseudo-terminal, with the gate blank and XFER off as its controls).  `gate` is the control for all the others (its row G7 is the
 # transfer that works); every section builds what it needs.
 #
 # MUTANTS (--mutant=, on the sandbox's own copy of gpl.bp/xfersrv, recompiled there): no-account-gate (the register's xfer-on is
@@ -48,7 +49,7 @@ USER = g.USER
 UGROUP = "sdu_" + USER
 SUBSYS = "/usr/local/sdsys/bin/sd-sftp"
 MARK = "# sandbox-sftp below"
-SECTIONS = ["gate", "in", "wall", "text", "limits", "out", "raw", "life", "timers", "verbs"]
+SECTIONS = ["gate", "in", "wall", "text", "limits", "out", "raw", "life", "timers", "verbs", "tile"]
 MUTANTS = {
     "no-account-gate": ("   if upcase(trim(acc.rec<ACC$XFER>)) # 'YES' then", "   if @false then"),
     "no-system-switch": ("   if config('XFER') # 1 then", "   if @false then"),
@@ -1053,6 +1054,65 @@ def sec_verbs():
         and "Transfer closed (this session's input ended): 0 file(s), 0 bytes" in out
         and has(audit_new(off), r"xfer close dir=in why=input ended files=0 bytes=0"), "audit %r" % audit_new(off))
     subprocess.run([SD, "-cleanup"], env=g.env(False), capture_output=True, timeout=60)
+
+
+def home_screen():
+    """The person's own account on a pseudo-terminal at 140 by 43, at the home screen (HOME typed at the prompt)."""
+    sys.path.insert(0, HERE)
+    from ptydrive import PtySession
+    env = dict(g.env(False), TERM="xterm", LC_ALL="C", LANG="C")
+    h = PtySession([SD], ACCT, env, 140, 43)
+    h.settle(2.0)
+    h.type("home\r", idle=3.0)
+    return h
+
+
+def screen_text(h):
+    return "\n".join(l.rstrip() for l in h.screen.lines())
+
+
+def sec_tile():
+    """15 Nov 26 (S.242 stage 6; the owner: a home screen tile): Receive files is on the person's home screen only where RECEIVE would open a transfer, and the tile runs it."""
+    say("\n--- T. the Receive files tile on the home screen -------------------------------------------------------------")
+    if os.path.isdir(XIN):
+        shutil.rmtree(XIN)
+    voc_run(["   openpath '%s/voc' to v else stop" % ACCT, "   delete v, 'xfer.in'"], "XVOC clean")
+    conf(XFER=1)
+    reg(USER, ACCT, UGROUP, "yes")
+    h = home_screen()
+    T = screen_text(h)
+    row("T1: XFER 1 and the account's xfer gate on: the home screen shows Receive files among the person's own tools", "My tools" in T and "Receive files" in T, T[:1500])
+    off = audit_off()
+    h.type("r", idle=1.0)                               # a letter moves to the first tile whose label starts with it
+    h.type("\r", idle=3.0)
+    T = screen_text(h)
+    row("T2: the tile runs receive: it says it is ready and the transfer is open (the slot is live, and nothing was received yet)",
+        re.search(r"Ready to receive into xfer\.in\.", T) is not None and os.path.isdir(XIN) and listing(XIN) == [], T[-600:])
+    data = b"from the tile\n"
+    local("t2.txt", data)
+    rc, out = sftp(["put t2.txt"])
+    h.type("\r", idle=3.0)                              # Enter closes the transfer
+    T = screen_text(h)
+    a = audit_new(off)
+    row("T3: Enter closes it; the summary and the file's SHA-256 stay on the screen until a key (the tile's pause), and the file is on the disk",
+        rc == 0 and disk(XIN, "t2.txt") == data and "Transfer closed (closed here): 1 file(s)" in T and ("sha256 %s" % sha(data)) in T and "Receive files" not in T
+        and has(a, r"xfer close dir=in why=done files=1"), T[-700:])
+    h.type("\r", idle=3.0)
+    T = screen_text(h)
+    row("T4: the key brings the home screen back", "My tools" in T and "Receive files" in T, T[:600])
+    h.finish()
+    reg(USER, ACCT, UGROUP, "")
+    h = home_screen()
+    T = screen_text(h)
+    row("T5: the gate blank: no Receive files tile, and the rest of the person's tools are there (the control)", "My tools" in T and "IDE" in T and "Receive files" not in T, T[:1500])
+    h.finish()
+    reg(USER, ACCT, UGROUP, "yes")
+    conf()
+    h = home_screen()
+    T = screen_text(h)
+    row("T6: XFER not 1: no Receive files tile, although the gate is on", "My tools" in T and "IDE" in T and "Receive files" not in T, T[:1500])
+    h.finish()
+    conf(XFER=1)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

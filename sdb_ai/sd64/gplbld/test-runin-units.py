@@ -341,12 +341,27 @@ def checks(src, voc_text, newvoc_names, extra=None):
     lg_msg = first(logto, "display sysmsg(14073, ri.account)")
     lg_aud = first(logto, "'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto'")
     lg_ret = first(logto, "return", lg_aud or 0)
-    lg_sys = first(logto, 'if (downcase(new.account) = "sdsys") then')
+    lg_sys = first(logto, 'into.sdsys = (downcase(new.account) = "sdsys")')
     lg_first = min([n for n, s in logto if re.search(r"OS\$CD|K\$AUDIT, 'logto |gosub proc\.sentence|gosub load\.account\.switches|voc = new\.voc|K\$SET\.ACCOUNT", s)] or [10 ** 9])
     ck("R50 LOGTO is refused while a run is in progress: right after the account name is read and BEFORE the sdsys test, ON.LOGTO, any directory change, switch, "
        "VOC or audit line of LOGTO's own; it says so (14073 with the run's account), audits run.in refused ... reason=logto, and returns",
        None not in (lg_tok, lg_act, lg_msg, lg_aud, lg_ret, lg_sys) and lg_tok < lg_act < lg_msg < lg_aud < lg_ret < lg_sys < lg_first,
        "token %s active %s msg %s audit %s return %s sdsys %s first change %s" % (lg_tok, lg_act, lg_msg, lg_aud, lg_ret, lg_sys, lg_first))
+    # ---- 15 Nov 26, the owner's decision relayed by Windows (its row 310): the administrator's LOGTO SDSYS, the way back without signing out -------------
+    sy_if = first(logto, 'if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then')
+    sy_msg = first(logto, "lg.msg = sysmsg(10002)", sy_if or 0)
+    sy_aud = first(logto, "void kernel(K$AUDIT, 'logto refused account=sdsys reason=sdsys is entered by its own session only')", sy_if or 0)
+    sy_ret = first(logto, "return", sy_aud or 0)
+    sy_reg = first(logto, "read acc.record from acc.f, downcase(new.account) then")
+    sy_set = first(logto, "if into.sdsys then", sy_reg or 0)
+    sy_path = first(logto, "acc.rec = @sdsys", sy_set or 0)
+    sy_name = first(logto, "new.account = 'sdsys'", sy_set or 0)
+    sy_cd = first(logto, "if not(ospath(acc.rec, OS$CD)) then")
+    ck("R52 LOGTO SDSYS: refused (10002, audited, return) for every session that is not the administrator - the test is the flag K$ADMINISTRATOR and nothing else - "
+       "and taken by the administrator's, which then enters the system directory itself (acc.rec = @sdsys after the register is read, before the directory change), never a path the register holds",
+       None not in (lg_sys, sy_if, sy_msg, sy_aud, sy_ret, sy_reg, sy_set, sy_path, sy_name, sy_cd) and lg_sys < sy_if < sy_msg < sy_aud < sy_ret < sy_reg < sy_set < sy_path < sy_cd
+       and sy_name < sy_cd and count(logto, "into.sdsys") == 3,
+       "set %s if %s msg %s audit %s return %s register %s path-if %s path %s name %s cd %s" % (lg_sys, sy_if, sy_msg, sy_aud, sy_ret, sy_reg, sy_set, sy_path, sy_name, sy_cd))
     if extra is not None and "_voc_ref" in extra:
         vsrc = extra["_voc_ref"]
         vc = code(vsrc)
@@ -507,7 +522,7 @@ MUTANTS += [
     ("the LOGTO refusal goes on into LOGTO", "cproc", "      display sysmsg(14073, ri.account) ;* logto is refused while run.in is running a command in account %1\n      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')\n      unwinding = 2\n      return\n",
      "      display sysmsg(14073, ri.account) ;* logto is refused while run.in is running a command in account %1\n      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')\n      unwinding = 2\n"),
     ("the LOGTO refusal comes after the sdsys test", "cproc",
-     "   if ri.active then\n      display sysmsg(14073, ri.account)", "   if (downcase(new.account) = \"sdsys\") then null\n   if ri.active then\n      display sysmsg(14073, ri.account)"),
+     "   if ri.active then\n      display sysmsg(14073, ri.account)", "   into.sdsys = (downcase(new.account) = \"sdsys\")\n   if ri.active then\n      display sysmsg(14073, ri.account)"),
     ("_voc_ref follows any Q-pointer during a run", "_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then", "                  if 0 then"),
     ("_voc_ref accepts an unregistered path during a run", "_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then",
      "                  if q.registered and downcase(q.named) # ri.account then"),
@@ -517,6 +532,13 @@ MUTANTS += [
      "\n* 13 Oct 26 dm - second sitting: only into an account the user could LOGTO (see the note at the top).\n               if not(vr.admin) then\n                  gosub check.q.hop\n                  if not(q.ok) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n               if ri.active then\n                  if not(q.registered and downcase(q.named) = ri.account) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n"),
     ("_voc_ref's common differs from cproc's", "_voc_ref", "   common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account\n", "   common /$runin/ ri.active, ri.account\n"),
     ("message 14073 does not name logto", "msg14073", "logto is refused", "it is refused"),
+]
+M_LOGTOBACK = len(MUTANTS)            # 15 Nov 26: the administrator's LOGTO SDSYS (R52); --selftest --from=M_LOGTOBACK
+MUTANTS += [
+    ("LOGTO SDSYS is refused to the administrator too", "cproc", "   if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then", "   if into.sdsys then"),
+    ("LOGTO SDSYS is taken by everybody", "cproc", "   if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then", "   if into.sdsys and @false then"),
+    ("LOGTO SDSYS is taken by a session SH is on for", "cproc", "   if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then", "   if into.sdsys and not(kernel(K$SH, -1)) then"),
+    ("the way back takes the register's path", "cproc", "      acc.rec = @sdsys\n", ""),
 ]
 
 

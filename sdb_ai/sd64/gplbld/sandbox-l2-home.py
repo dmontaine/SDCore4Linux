@@ -197,6 +197,7 @@ def expect(W, H, admin):
     pnx, py0, pnw, ph, _ = g["panel"]
     nc, tw, xc = L2.columns(pnx, pnw, p)
     gr, tl = L2.page(groups, admin)
+    tl = [t for t in tl if t["id"] != "receive"]          # S.242: Receive files is drawn only where a transfer can open (XFER 1 and xfer-on); a sandbox has XFER 0
     n, _, _ = L2.new_layout(gr, tl, nc, tw, xc, p["BASE"])
     lab = labels()
     cells = []

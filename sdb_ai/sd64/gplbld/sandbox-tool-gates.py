@@ -5,7 +5,7 @@
 #
 #   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-gates.py <dir> [--build] [--mutant=NAME] [--only=NAME[,NAME]]
 #
-# --only (2 Nov 26) runs the named sections: cell queue run several route needs tighten filter who mouse refresh group small allon leave.  The set-up and G0-G1 (opening the page)
+# --only (2 Nov 26) runs the named sections: cell queue run several route needs tighten filter who mouse refresh group home xfer small allon leave.  The set-up and G0-G1 (opening the page)
 # always run.  The sections up to group were written to run in that order on one page and some read what an earlier one left (G13a reads the gates G9 and G10 turned off, which a fresh
 # sandbox also has off); only `leave` has been run alone.
 #
@@ -36,6 +36,7 @@
 #   G13      who can reach the operating system; the live sessions of the account under the cursor
 #   G14-G16  the mouse; F1; F5 reads the machine again and keeps the queue; the null case (no account)
 #   G17      sh and os for a group account are refused in words; a window under 140 by 43 gets no page
+#   G21      (15 Nov 26, S.242 stage 6, section xfer) the file transfer gate: ACC$XFER read from the register, xfer-on asks for the account's name, xfer-off does not, a group account is refused
 #   G19      (2 Nov 26, S.88 P10, section leave) Ctrl-Q with nothing queued leaves at once; with a change queued it asks in $tk_confirm's box (Run the changes, Leave without them,
 #            Cancel): Enter is Cancel, File > Quit asks too, Esc on the page opens the bar and does not leave, Leave without them runs nothing, Run the changes goes through R's own
 #            box (Esc there keeps the page and the queue; Run and the name run it, and the page closes).  Whether the page has gone is judged by DISPLAY at the TCL prompt.
@@ -68,9 +69,10 @@ sh.KEYS["f1"] = "\x1b[[A"
 ME = fg.ME
 FAILED_IDS = []
 
-HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "home", "sock"]     # 7 Nov 26 S.166: home
-IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
+HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "home", "sock"]     # 7 Nov 26 S.166: home; 15 Nov 26 S.242: xfer
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
 NC = len(IDS)
+CX = 24                                          # S.242: the screen column of the first gate cell (3 of border and gap + 15 of name + 6 of kind); the name was 20 wide until eighteen cells needed the room for 'susp'
 G2, G3, GG, GO = "zzg2", "zzg3", "zzgg", "zzgo"
 NAMES = [ME, G2, G3, GG, GO]
 
@@ -93,7 +95,7 @@ MUTANTS = {
     "leave-at-once": ("      case nm = 'ctrl-q'\n         gosub leave.ask\n", "      case nm = 'ctrl-q'\n         done = 1\n", ["G19"]),
     "leave-default": ("'&Run the changes,&Leave without them,&Cancel'", "'&Run the changes,&Cancel,&Leave without them'", ["G19"]),
 }
-SECTIONS = ("cell", "queue", "run", "several", "route", "needs", "tighten", "filter", "who", "mouse", "refresh", "group", "home", "small", "allon", "leave")
+SECTIONS = ("cell", "queue", "run", "several", "route", "needs", "tighten", "filter", "who", "mouse", "refresh", "group", "home", "xfer", "small", "allon", "leave")
 ONLY = None
 
 
@@ -149,14 +151,14 @@ def write_groups(members):
     g.put(os.path.join(box(), "grp", "group"), "\n".join(lines))
 
 
-def reg_record(name, grp, sh_="no", os_="no", sd="no", voc="no", bp="no", dict_="no", srd="", swr="", net="no", susp=""):
+def reg_record(name, grp, sh_="no", os_="no", sd="no", voc="no", bp="no", dict_="no", srd="", swr="", net="no", susp="", xfer=""):
     path = os.path.join(box(), "user_accounts", name)
-    return [path, "", grp, "", susp, "", sh_, os_, sd, voc, bp, dict_, srd, swr, net, "", "", ""]
+    return [path, "", grp, "", susp, "", sh_, os_, sd, voc, bp, dict_, srd, swr, net, "", "", "", "", "", "", xfer]       # field 22 is ACC$XFER (S.242)
 
 
 def write_register():
     recs = {ME: reg_record(ME, "sdu_" + ME),
-            G2: reg_record(G2, "sdu_zzother2", "yes", "yes", "yes"),
+            G2: reg_record(G2, "sdu_zzother2", "yes", "yes", "yes", xfer="yes"),
             G3: reg_record(G3, "sdu_zzother3", susp="SUSPENDED"),
             GG: reg_record(GG, "sdg_zzgg", sd="yes"),
             GO: reg_record(GO, "zzgother")}
@@ -256,10 +258,10 @@ class Page:
         out = {}
         for n in range(3, 17):
             line = self.line(n)
-            nm = line[3:23].strip()
+            nm = line[3:CX - 6].strip()
             if not nm:
                 continue
-            out[nm] = (line[23:29].strip(), [line[29 + 6 * i:35 + 6 * i].strip() for i in range(NC)], line[29 + 6 * NC:138].strip())
+            out[nm] = (line[CX - 6:CX].strip(), [line[CX + 6 * i:CX + 6 + 6 * i].strip() for i in range(NC)], line[CX + 6 * NC:138].strip())
         return out
 
     def cell(self, name, gate):
@@ -304,7 +306,7 @@ def expect_cells(me_overrides=None):
     me[IDS.index("home")] = home_default()       # S.166: the register's start field is blank, so the cell is the system's default (the sandbox's set-up writes terminal)
     me[IDS.index("sockets")] = "plan"
     z2 = list(me)
-    for k in ("ssh", "sh", "os", "sd"):
+    for k in ("ssh", "sh", "os", "sd", "xfer"):
         z2[IDS.index(k)] = "ON"
     z3 = list(me)
     gg = list(me)
@@ -360,14 +362,14 @@ def section_open():
          len(re.findall(r"tool start app=tool\.gates$", new, re.M)) == 1 and snapshot() == snap, repr((new[-160:], snapshot() == snap)))
     T = p.text()
     arow("G1a", "the four boxes", all(w in T for w in ("Gates by account", "The cell under the cursor", "Who can reach the operating system", "Sessions of the account under the cursor")), T[:300])
-    head = [p.line(2)[29 + 6 * i:35 + 6 * i].strip() for i in range(NC)]
-    arow("G1b", "the seventeen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
+    head = [p.line(2)[CX + 6 * i:CX + 6 + 6 * i].strip() for i in range(NC)]
+    arow("G1b", "the eighteen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
     rows = p.rows()
     exp = expect_cells()
     ok = sorted(rows) == sorted(NAMES) and all(rows[n][0] == exp[n][0] and rows[n][1] == exp[n][1] for n in NAMES)
     arow("G1c", "five rows, SDSYS not among them, by name: each with its kind and its sixteen cells read from the register and the scratch groups (ON, off, a dash for a route on a group or "
          "other account, plan for sockets, shared-read ON as delivered)", ok, repr({n: (rows[n][0], rows[n][1]) for n in rows}))
-    arow("G1d", "the suspended account says so at the end of its row (susp: seventeen cells leave five columns)", rows[G3][2] == "susp" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
+    arow("G1d", "the suspended account says so at the end of its row (susp: eighteen cells and a name of 15 letters leave five columns)", rows[G3][2] == "susp" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
     c1, c2 = p.counts()
     arow("G1e", "the counts: all accounts, 5 of 5, one with a gate on that reaches beyond SD (zzg2; zzgg has sd on, which is also beyond SD: two)", c1.startswith("all accounts: 5 of 5 accounts.  2 with a gate on"), repr(c1))
     arow("G1f", "nothing is queued yet", c2.startswith("Nothing queued for"), repr(c2))
@@ -647,7 +649,7 @@ def section_filter(p):
 def section_who(p):
     say("\n--- G13: who can reach the operating system, and the sessions")
     W = [p.line(n)[3:67].rstrip() for n in range(32, 38)]
-    arow("G13a", "the box lists zzg2 with its gates that reach beyond SD (ssh sh os sd) and zzgg (sd); the sandbox user's account has none now", any(re.match(r"^zzg2\s+ssh sh os sd$", x) for x in W) and any(re.match(r"^zzgg\s+sd$", x) for x in W)
+    arow("G13a", "the box lists zzg2 with its gates that reach beyond SD (ssh sh os sd xfer) and zzgg (sd); the sandbox user's account has none now", any(re.match(r"^zzg2\s+ssh sh os sd xfer$", x) for x in W) and any(re.match(r"^zzgg\s+sd$", x) for x in W)
          and not any(x.startswith(ME) for x in W), repr(W))
     p.to(ME, "ssh")
     S = [p.line(n)[72:137].rstrip() for n in range(32, 34)]
@@ -663,7 +665,7 @@ def section_who(p):
 
 def section_mouse(p):
     say("\n--- G14: the mouse and help")
-    p.h.click(29 + 6 * IDS.index("voc") + 2, 3 + sorted(NAMES).index(G3))
+    p.h.click(CX + 6 * IDS.index("voc") + 2, 3 + sorted(NAMES).index(G3))
     p.r = sorted(NAMES).index(G3)
     p.c = IDS.index("voc")
     B = p.boxb()
@@ -742,6 +744,46 @@ def section_home(p):
          "modify.account %s %s" % (ME, second_word) in T2 and field(ME, 16) == second_field and p.cell(ME, "home") == second_cell, repr((field(ME, 16), p.cell(ME, "home"))))
     GG_home = p.cell(GG, "home")
     arow("G20f", "a group account has the gate too (it applies to every kind of account): its cell is the default, %s, not a dash" % dflt, GG_home == dflt, repr(GG_home))
+
+
+def section_xfer(p):
+    """15 Nov 26 S.242 stage 6: the file transfer gate (xfer), register field 22 (ACC$XFER), the one gate no kernel key holds (the transfer server reads the register at each
+    connection): read from the register, switched with modify.account's xfer-on / xfer-off, a USER account's only, and it reaches beyond SD so ON asks for the account's name."""
+    say("\n--- G21: the file transfer gate (xfer-on / xfer-off), register field 22")
+    p.to(ME, "xfer")
+    T = re.sub(r"\s+", " ", " ".join(p.boxb()))
+    arow("G21a", "the column reads the register: %s off (field 22 blank), %s ON (field 22 yes), the group account off; the cell box names the gate, its words and what else it needs" % (ME, G2),
+         p.cell(ME, "xfer") == "off" and p.cell(G2, "xfer") == "ON" and p.cell(GG, "xfer") == "off" and field(ME, 22) == "" and field(G2, 22) == "yes"
+         and "[xfer]" in T and "xfer-on turns it on, xfer-off turns it off" in T and "xfer also needs the system switch XFER" in T and "reaches BEYOND SD" in T, T[-700:])
+    a0 = fg.audit_off()
+    snap = snapshot()
+    p.key("enter")
+    p.typed("r", idle=1.5)
+    T = re.sub(r"\s+", " ", p.text())
+    arow("G21b", "R shows modify.account NAME xfer-on, says it is off as delivered, and asks for the name (it reaches beyond SD)",
+         "modify.account %s xfer-on" % ME in T and "A gate that is off as delivered is being turned ON." in T and "so the account name has to be typed" in T, T[-700:])
+    p.key("esc", idle=1.2)
+    arow("G21c", "Esc is Cancel: nothing ran, field 22 is as it was, the queue is still there (the cell shows the state it would have, ON*)", field(ME, 22) == "" and snapshot() == snap and p.cell(ME, "xfer") == "ON*", repr((field(ME, 22), p.cell(ME, "xfer"))))
+    p.typed("r", idle=1.3)
+    p.typed("r", idle=1.3)
+    p.typed(ME + "\r", idle=2.5)
+    new = fg.audit_new(a0) or ""
+    arow("G21d", "the name typed: field 22 says yes (read from the disk), the cell says ON, the audit trail has the verb's line",
+         field(ME, 22) == "yes" and p.cell(ME, "xfer") == "ON" and re.search(r"modify\.account xfer-on account=%s$" % re.escape(ME), new, re.M) is not None, repr((field(ME, 22), p.cell(ME, "xfer"), new[-200:])))
+    a1 = fg.audit_off()
+    p.key("enter")
+    p.typed("r", idle=1.5)
+    T = re.sub(r"\s+", " ", p.text())
+    arow("G21e", "OFF: the box shows modify.account NAME xfer-off and asks for no name", "modify.account %s xfer-off" % ME in T and "so the account name has to be typed" not in T, T[-700:])
+    p.typed("r", idle=2.5)
+    new = fg.audit_new(a1) or ""
+    arow("G21f", "Run: field 22 says no again, the cell off, and the audit trail has the verb's line", field(ME, 22) == "no" and p.cell(ME, "xfer") == "off" and re.search(r"modify\.account xfer-off account=%s$" % re.escape(ME), new, re.M) is not None,
+         repr((field(ME, 22), p.cell(ME, "xfer"), new[-200:])))
+    snap = snapshot()
+    p.to(GG, "xfer")
+    p.key("enter")
+    arow("G21g", "Enter on xfer of a group account queues nothing and says why (modify.account refuses it for any account but a user's)",
+         p.cell(GG, "xfer") == "off" and "is entered by whoever its Linux group admits" in st(p.h) and snapshot() == snap, repr((p.cell(GG, "xfer"), st(p.h))))
 
 
 def section_null_and_small():
@@ -915,7 +957,7 @@ def main():
         if mutant in (None, "tighten-queues-on") and chosen("tighten"):
             section_tighten(p)
         if mutant is None:
-            for nm, fn in (("filter", section_filter), ("who", section_who), ("mouse", section_mouse), ("refresh", section_refresh), ("group", section_group_account), ("home", section_home)):
+            for nm, fn in (("filter", section_filter), ("who", section_who), ("mouse", section_mouse), ("refresh", section_refresh), ("group", section_group_account), ("home", section_home), ("xfer", section_xfer)):
                 if chosen(nm):
                     fn(p)
         p.quit()

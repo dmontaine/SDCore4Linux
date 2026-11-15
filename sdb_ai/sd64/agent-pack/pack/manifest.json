@@ -8,7 +8,7 @@
  "kinds": {
   "basic.clause": {
    "chunks": 33,
-   "sha256": "b7bb0c082c4d2bfab9f727273f538d3635ed62cfa00a2ef8c3281715123fb058"
+   "sha256": "365d7b167605c510dec8c6193986ae6672067374e62fda16250abc7dacd67622"
   },
   "basic.function": {
    "chunks": 230,
@@ -88,7 +88,7 @@
   },
   "sys.param": {
    "chunks": 57,
-   "sha256": "b18fe4f8d96ba3d609b427f20aa9e91922315853bd8c58bacb5a7658225b5951"
+   "sha256": "1e10be77b5ae541670677e8122ee65702832e7e7bc76ff8bb733dd0f7b519007"
   },
   "sys.releases": {
    "chunks": 1,
@@ -108,7 +108,7 @@
   },
   "tcl.verb": {
    "chunks": 207,
-   "sha256": "661442c0577f79ad86286be0ae52982f3ff9498e4be1352b9d18ebe274af51cc"
+   "sha256": "46b4628d8e8146095ad5fc5135721b6515970ae8650d6946942f0d719f23a197"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -164,7 +164,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 270,
-   "sha256": "9080d71fa9a9f9550a65a1c8e83388a5c53622945b6566e85946a09f5e02137f",
+   "sha256": "fdbeb0328e619e6557ade57759770c9bcdf68c323c5652f87a59866aec51eb8f",
    "words": 5949
   },
   "reference/dictionaries.md": {
@@ -184,7 +184,7 @@
   },
   "reference/system.md": {
    "chunks": 104,
-   "sha256": "aa072a685fb4c6cf393133690c9811b50c1f5fb66b5e7934519a34c2d8d4eafd",
+   "sha256": "8d9a6a209898e1d68a98887cf9f5d9b6f65a55ef0c90dcbfadda5b0a18bed44a",
    "words": 3292
   },
   "reference/tcl-keywords.md": {
@@ -194,7 +194,7 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 211,
-   "sha256": "4b5d791f39fdf28f93e0592a0ddee79551bb28e6ac4eddce7db7e64bef26aacd",
+   "sha256": "3e9a71c377bea03fd4ee9b7b9562eb9df55b8f0fb683d0005cf215904b0e8a99",
    "words": 9880
   },
   "reference/voc.md": {

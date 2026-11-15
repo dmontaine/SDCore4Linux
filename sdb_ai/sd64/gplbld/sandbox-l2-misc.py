@@ -67,8 +67,8 @@ TITLES = {
 # Texts a page places from its rectangles: (pane id, ('t', k) the k-th row from the top of the pane or ('b', k) the k-th from the bottom, dx the columns from the pane's left edge or ('r', k) the
 # k-th from its right edge, a regular expression the text must start with, the (row, column) it was at 140 by 43 before L2).
 ANCH = {
-    "tool_mygates": [("gates", ("t", 1), 2, r"Gate\s+Now\s+As delivered", (2, 3)), ("gates", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("gates", ("b", 3), 2, r"Signed on as ", (20, 3)),
-                     ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (21, 3)), ("cell", ("t", 1), 2, r"\S", (24, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],    # 9 Nov 26: rows 20, 21, 24, one lower, the gates box is a row taller (S.182)
+    "tool_mygates": [("gates", ("t", 1), 2, r"Gate\s+Now\s+As delivered", (2, 3)), ("gates", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("gates", ("b", 3), 2, r"Signed on as ", (21, 3)),
+                     ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (22, 3)), ("cell", ("t", 1), 2, r"\S", (25, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],    # 15 Nov 26: rows 21, 22, 25, one lower again - the gates box is 23 rows for 18 gates (S.242), the cell box 10
     "tool_keys": [("terminal", ("t", 1), 2, r"TERM \(SD\)", (2, 3)), ("terminal", ("t", 3), 2, r"Window\s+\d+ x \d+", (4, 3)), ("seen", ("t", 1), 2, r"\[ \] up", (2, 49)),
                   ("styles", ("t", 1), 2, r"normal\s+sample text", (19, 49)), ("styles", ("t", 18), 2, r"A style is drawn in itself\.", (36, 49)), ("styles", ("t", 19), 2, r"The theme changes with Ctrl-T\.", (37, 49)),
                   ("mouse", ("t", 1), 2, r"Last\s+none yet", (2, 96)), ("mouse", ("t", 6), 2, r"Click, drag or turn the wheel", (7, 96)), ("boxes", ("t", 12), 2, r"The borders are", (23, 96)),
