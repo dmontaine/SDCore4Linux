@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+15 Nov 26  THE HOME SCREEN SAYS WHY THE AI CANNOT BE USED: THE ACCOUNT, OR A COMPUTER WITH NO AI SET UP.
+
+             What        - F6 and AI > Ask the AI on the home screen said "the AI is not on for this account" whenever the AI
+                           could not be used.  They now say that only when the account's ai gate is off; when the computer has no
+                           AI provider, model or key set up (as on a fresh install), they say "the AI is not set up on this
+                           computer (the administrator sets it up in AI)".
+             Why         - on a fresh install with every gate of the account open, the message sent the person to the wrong
+                           place.  Found by SD Core for Windows, which has the same code.
+             Does NOT    - Change when the AI can be used, or what any other page says.
+
 14 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: ITS TWO SWITCHES, BOTH OFF AS DELIVERED (FIRST PART).
 
              What        - SD is gaining a way to move plain-text files (CSV, JSON, BASIC source, any text) into and out of an

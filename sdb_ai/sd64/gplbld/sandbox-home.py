@@ -271,7 +271,9 @@ def u9_rows():
     h.key("esc", idle=0.7)
     row("U9h ...and Esc again closes it: the page is whole, the session alive", h.home() and "Sign out" not in h.line(1) and h.alive(), repr(h.line(1)[:60]))
     h.key("f6", idle=0.6)
-    row("U9i F6 with the AI not on for the account changes nothing and says so on the status line", "the AI is not on for this account" in h.line(40) and h.focus() == ["Editor"], repr(h.line(40)))
+    # 15 Nov 26 (Windows row 303): a sandbox has no AI helper, so the reason is the computer, not the account - and the account is not blamed
+    row("U9i F6 with no AI set up on the computer changes nothing and says so on the status line, without blaming the account",
+        "the AI is not set up on this computer" in h.line(40) and "not on for this account" not in h.line(40) and h.focus() == ["Editor"], repr(h.line(40)))
     h.typed("/", idle=1.0)
     T = h.text()
     row("U9j / opens the pick window of the page's tiles, titled Find a tile, with its filter line ('filter:' and 'n of m', the window's own words)",
