@@ -417,6 +417,15 @@ def checks(src, voc, helps):
                "if u.lock = 0 and u.err = 0 and u.ref = 0 then", "uh<7> = 'undone'")
        and "void kernel(K$AUDIT, 'entries undo account=' : gcura : ' records=' : u.acct)" in txt
        and "if uh<1> = 'entries-undo' then" in txt and "if gkd = 3 then\ncopt = ''\ngosub compile.in.account" in dun and "'entries-undo' : @fm : date()" in dgl, "")
+    # 14 Nov 26 (Windows RELEASE_1.1 307): since S.176 (8 Nov) F6 / Shift-F6 change the box on every page and Tab does not, yet the help lines and refusals of three pages
+    # still told the person to Tab.  The three pages are read from the page's own directory; comments are left out (the history lines say what Tab no longer does).
+    tabtalk = []
+    for nm in ("tool_entries", "tool_jobs", "tool_sessions"):
+        p = os.path.join(os.path.dirname(PAGE), nm)
+        with open(p, encoding="utf-8", errors="replace") as f:
+            body = "\n".join(s for n, s in code(f.read()))
+        tabtalk += [nm + ": " + m for m in re.findall(r"[^\n']*\bTab\b[^\n']*", body)]
+    ck("T29 no page tells the person to use Tab to change box (F6 does it, S.176): tool_entries, tool_jobs and tool_sessions say F6", tabtalk == [], "; ".join(tabtalk)[:300])
     return out
 
 
@@ -492,8 +501,8 @@ MUTANTS = [
     ("the pointer is left after the IDE", "src", "   execute sent\n   gosub drop.pointer\n", "   execute sent\n"),
     ("the page runs anything", "src", "   if field(sent, ' ', 1) # 'ide' then\n", "   if 0 then\n"),
     ("the data path is judged for an item", "src", "that has a dictionary'\n            return\n         end\n         tp = parse.pathname.tokens(trim(fr<3>))\n", "that has a dictionary'\n            return\n         end\n         tp = parse.pathname.tokens(trim(fr<2>))\n"),
-    ("E refuses the programs again", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n",
-     "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n   if kind = 3 then\n      return\n   end\n"),
+    ("E refuses the programs again", "src", "   if pane # 2 then\n      msg = 'F6 to the entries first, then E'\n      return\n   end\n",
+     "   if pane # 2 then\n      msg = 'F6 to the entries first, then E'\n      return\n   end\n   if kind = 3 then\n      return\n   end\n"),
     ("a program's own file is not judged", "src", "   if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)", "   in.ok = in.ok"),
     ("a link that leads nowhere is judged a new name (kernel)", "opsh", "    if ((lstat(work, &lst) == 0) && S_ISLNK(lst.st_mode))\n      return FALSE;\n", ""),
     ("the program pointer reaches a dictionary", "src", "   if isprog then qrec = 'F' : @fm : tp ", "   if isprog then qrec = qrec "),
@@ -508,7 +517,7 @@ MUTANTS = [
     ("the pointer holds an unchecked path", "src", "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)", "qrec = 'F' : @fm : ap.f : @fm : (if efl = '' then '' else tp)"),
     ("the audit line is lost", "src", "   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : akind : ' file=' : qf : ' id=' : eid : ' new=' : enw)\n", ""),
     ("a slash is a word character", "src", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'\n   for cwq", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-/'\n   for cwq"),
-    ("E works in Accounts", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n", ""),
+    ("E works in Accounts", "src", "   if pane # 2 then\n      msg = 'F6 to the entries first, then E'\n      return\n   end\n", ""),
     ("the pointer is left when SD cannot follow it", "src", "   open dfl, qn to tf else\n      gosub drop.pointer\n", "   open dfl, qn to tf else\n"),
     ("D deletes without the id typed", "src", "call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, dlines, '', res, cmsg, sysmsg(11953))"),
     ("D deletes on Cancel", "src", "   if res # 'run' then\n      close tf", "   if 0 then\n      close tf"),

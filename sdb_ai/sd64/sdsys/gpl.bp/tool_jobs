@@ -555,7 +555,7 @@ draw.effect:
          end case
       end
       if pane = 1 and an > 0 then
-         lines<-1> = 'Selected: ' : anm<ai> : ' may run ' : dcount(alist<ai>, @vm) : ' command(s) from the command line.  Enter or Tab goes to its commands.'
+         lines<-1> = 'Selected: ' : anm<ai> : ' may run ' : dcount(alist<ai>, @vm) : ' command(s) from the command line.  Enter or F6 goes to its commands.'
       end
       if outopen and ((pane = 1 and an > 0) or (pane = 2 and cn > 0)) then
          nl = dcount(lines, @fm)
@@ -607,7 +607,7 @@ draw.help:
       screen text 'F5 reads the jobs again.  A goes back to the account commands.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
       return
    end
-   screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Commands allows or stops allowing.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
+   screen text 'Up and Down move, PgUp and PgDn a page.  F6 changes box.  Enter in Commands allows or stops allowing.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
    screen text 'Each change is shown as its command; you answer Run or Cancel.' at h.x + 2,h.y + 2 width h.tw
    screen text 'F5 reads the lists again.  J shows the administrator' : "'s scheduled jobs.  Ctrl-Q leaves." at h.x + 2,h.y + 3 width h.tw
    return

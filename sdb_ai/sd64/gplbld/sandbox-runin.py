@@ -51,8 +51,8 @@ BOX = SYS = None
 
 # name: (the program of gpl.bp it edits, the text, what replaces it); the text must occur in that program exactly once
 MUTANTS = {
-    "no-safety-net": ("cproc", "         if ri.active then\n            gosub revert.account\n            display sysmsg(11242, ri.account)",
-                      "         if 0 then\n            gosub revert.account\n            display sysmsg(11242, ri.account)"),
+    "no-safety-net": ("cproc", "         if ri.active then\n            gosub revert.account\n            display sysmsg(11242, ri.who)",
+                      "         if 0 then\n            gosub revert.account\n            display sysmsg(11242, ri.who)"),
     "no-logto-switches": ("cproc", "   gosub load.account.switches   ;* the account-scoped switches, from the new account's own register record",
                           "   null   ;* the account-scoped switches, from the new account's own register record"),
     "no-nocatalog": ("cproc", "   if ri.cmd = 'basic' then ri.sentence := ' no.catalog'\n", ""),
@@ -335,7 +335,8 @@ def main():
     say("\n--- D. the way back after an ABORT, a quit and a nested call: the reason the verb is built as it is -------------")
     out, w, p = run(["RUN.IN zzoff debug bp zzabort", "R"])
     row("D1: the program aborts INSIDE zzoff (its own line is printed)", sg.has(out, r"^ZZABORT ran: who=zzoff") and sg.has(out, r"zzabort aborting"), "output %r" % (out,))
-    row("D1b: the safety net says so (the session is back in account zzoff)", sg.has(out, r"the command did not finish; the session is back in account zzoff"), "output %r" % (out,))
+    row("D1b: the safety net says so and names the account the session went BACK to (sdsys, the one it left), not the one the command ran in (zzoff) - Windows 308, 14 Nov 26",
+        sg.has(out, r"(?i)the command did not finish; the session is back in account sdsys\b") and not sg.has(out, r"the session is back in account zzoff"), "output %r" % (out,))
     back(w, p, "D1c: after the abort")
     out, w, p = run(["RUN.IN zzoff debug bp zzprog", "Q"])
     row("D2: the debugger's Q (quit) did not run the program on", not sg.has(out, r"^ZZPROG ran"), "output %r" % (out,))

@@ -196,6 +196,13 @@ def checks(src, msgs):
     add_arm = c[c.find("\nadd.delete.arm:\n"):]
     ck("M8 ADD and DELETE are as they were: a word after the user name is refused with 11714, and no other path reads extra.word",
        add_arm.count("stop sysmsg(11714, extra.word)") == 1 and c.count("extra.word") == 2, "extra.word lines: %d" % c.count("extra.word"))
+    # 14 Nov 26 (Windows RELEASE_1.1 306): the ADD / DELETE arm left @system.return.code at the -ER$ARGS preset after a SUCCESS, so a caller that EXECUTEd
+    # modify.account and read the code was told the change failed.  Every outcome message now follows the code that says what happened.
+    outcome = {10017: "0", 10018: "0", 10021: "0", 10023: "0", 10019: "-ER\\$FAILED", 10020: "-ER\\$FAILED", 10022: "-ER\\$FAILED"}
+    seen = {n: len(re.findall(r"@system\.return\.code = %s[^\n]*\n\s+crt sysmsg\(%d," % (code, n), add_arm)) for n, code in outcome.items()}
+    ck("M8b the ADD / DELETE arm sets the return code before every outcome message: 0 for already a member (10017), added (10018), removed (10021) and not a member (10023); -ER$FAILED for 10019 (twice), 10020 and 10022 (twice)",
+       all(seen[n] == (2 if n in (10019, 10022) else 1) for n in outcome) and all(add_arm.count("sysmsg(%d," % n) == (2 if n in (10019, 10022) else 1) for n in outcome),
+       "found %s" % seen)
     ck("M9 the usage says that several actions may be given together, with an example",
        "may be given together in one command" in usage and "modify.account <account> sh-on os-on voc-on bp-on" in usage)
 

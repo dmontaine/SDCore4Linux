@@ -150,6 +150,17 @@ def main():
     row("CONTROL  a LOGTO that is refused (no such account) leaves the session where it was, whatever follows",
         any(re.match(r"^PROBE PATH .*/zzoff$", l) for l in out), show(out))
 
+    # 14 Nov 26 (owner ruling relayed by Windows 275): "when sdsys logs to another account it always needs to be at the prompt not taken into home".  An ADMINISTRATOR session's
+    # LOGTO runs no LOGIN paragraph of the account it enters (the row above is the control: the plain session's LOGTO runs it) and the session is in that account at the prompt.
+    out = g.adm(["LOGTO zzon", "ZZKF"])
+    fl = g.flags(out)
+    row("275  an administrator's LOGTO runs NO LOGIN paragraph of zzon (the plain session's does: the control above) and the session carries on, still the administrator",
+        not g.has(out, r"LOGIN RAN") and fl is not None and fl[0] == "1", show(out))
+    out = g.adm(["LOGTO zzon RESET ALL", "ZZKF"])
+    fl = g.flags(out)
+    row("275  ...and LOGTO ... RESET ALL by the administrator runs none either",
+        not g.has(out, r"LOGIN RAN") and fl is not None and fl[0] == "1", show(out))
+
     for acct_dir, names in ((off, ("zzraa1", "zzraa2", "zzrab1", "zzrab2", "zzra3", "zzra4")), (on, ("zzlg", "zzra3", "zzra4"))):
         for p in names:
             for q in (os.path.join(acct_dir, "bp", p), os.path.join(acct_dir, "bp.out", p)):

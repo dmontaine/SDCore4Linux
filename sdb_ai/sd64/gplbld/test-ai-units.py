@@ -169,7 +169,7 @@ def check_a(t):
     k = code_only(t["ctl"])
     kb = between(k, 'elif cmd == "key" and len(rest) == 1:', "if req is None:")
     row("sd-ai-ctl never takes a key as an argument: in the key branch the key comes from getpass or stdin only (rest holds the provider and nothing else), and it is never printed",
-        'key = getpass.getpass("Key for %s (not shown): " % rest[0])' in kb and "key = sys.stdin.readline().rstrip" in kb and "rest[1]" not in kb and "sys.argv" not in kb
+        'key = read_key_stars("Key for %s (shown as *): " % rest[0])' in kb and "key = sys.stdin.readline().rstrip" in kb and "rest[1]" not in kb and "sys.argv" not in kb
         and not re.search(r'print\([^)]*key["\']?\s*\)|print\(.*req\b', k) and 'rest[0] not in PROVIDERS' in k, "")
 
 
@@ -210,7 +210,7 @@ def check_b(t):
     h, cr, ca2, ai, rs, hd = (t[k] for k in ("modifya", "createa", "create_account", "acc_os_info", "restorea", "createacc.h"))
     row("createacc.h defines CA$AI as 41, once; create.account's AI-ON sets it and nothing else does; the syntax line and the audit gates= list name it", re.search(r"\$define\s+CA\$AI\s+41\b", hd) is not None
         and len(re.findall(r"\$define\s+\S+\s+41\b", hd)) == 1 and re.search(r"case upcase\(token\) = 'AI-ON'\s*\n\s*settings<CA\$AI> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$AI>\s*=", cr)) == 1
-        and "{ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}" in cr and "if settings<CA$AI> = 1 then gates<-1> = 'ai-on'" in cr, "")        # 26 Oct 26: the home screen's words (S.75) stand between {ai-on} and {no.query}; 28 Oct 26: and {recovery-on} (S.88 plan 2.9)
+        and "{ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {xfer-on} {no.query}" in cr and "if settings<CA$AI> = 1 then gates<-1> = 'ai-on'" in cr, "")        # 26 Oct 26: the home screen's words (S.75) stand between {ai-on} and {no.query}; 28 Oct 26: and {recovery-on} (S.88 plan 2.9)
     cab = bas(ca2)
     row("!create_account: ai.want is exactly 1; the group sdaiusers is looked for BEFORE the Linux user is made and joined AFTER, a group or other account is refused as for FILES-ON, and the state line 11606 is read off /etc/group",
         "ai.want = (settings<CA$AI> = 1)" in cab and ordered(cab, "if ai.want then", "files.grp.name = 'sdaiusers'", "gosub check.files.group", "if not(create_user(acc.uname)) then", "if ai.want then", "files.grp.name = 'sdaiusers'",
@@ -449,7 +449,7 @@ GROUP_A_MUTANTS = [
     ("helper", "the result of a setting is not checked before it is written", "        selected(new, table)", "        pass  #"),
     ("providers", "an http URL in the table", "url=https://api.openai.com", "url=http://api.openai.com"),
     ("providers", "a model in the table", "[openai]\n", "[openai]\nmodel=gpt\n"),
-    ("ctl", "the key is taken from the command line", "key = getpass.getpass(", "key = rest[1] if len(rest) > 1 else getpass.getpass("),
+    ("ctl", "the key is taken from the command line", "key = read_key_stars(", "key = rest[1] if len(rest) > 1 else read_key_stars("),
 ]
 GROUP_B_MUTANTS = [
     ("installer", "sdaiusers is not made", "sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do"),

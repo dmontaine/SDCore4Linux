@@ -49,6 +49,7 @@ MESSAGES = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "messages"))
 END_MARKER = "# --- END SD ssh-only model ---"
 NARROW_ARM = "Match Group sdusers,!sdsys,!sdssh User *,!root"     # 7 Nov 26 S.157: root is in sdusers, and named out
 GENERAL_ARM = "Match Group sdusers,!sdsys User *,!root"
+SFTP_PATH = "/usr/local/sdsys/bin/sd-sftp"                         # S.242 stage 2: the helper's SFTP_CMD default
 
 # A stub sshd: `sshd -t -f FILE`.  Exits 0, or 1 when STUB_FAIL=1, so the
 # rollback path can be driven without a config sshd would genuinely reject.
@@ -162,6 +163,34 @@ def main():
                       "AllowAgentForwarding no", "PermitTunnel no"):
         record("state", f"no ssh route also means no tunnel: {directive}",
                directive in read(cfg))
+
+    # 1c. 15 Nov 26 (S.242 stage 2): the sftp subsystem line.  It belongs to the
+    #     ORDINARY arm only - not the sdsys arm (the administrator gets no
+    #     transfer door) and not the refusal arm (no ssh route, no transfer) -
+    #     and there is exactly one.  The arm is cut out line by line, because
+    #     the general arm's header is a prefix of the narrow one's.
+    sftp_line = f"    Subsystem sftp {SFTP_PATH}"
+    arms = {}
+    cur = None
+    for ln in read(cfg).splitlines():
+        if ln.startswith("Match "):
+            cur = ln.strip()
+            arms[cur] = []
+        elif cur is not None and ln == END_MARKER:
+            cur = None
+        elif cur is not None:
+            arms[cur].append(ln)
+    in_block = read(cfg).split("# --- BEGIN SD", 1)[1]
+    record("state", "exactly one Subsystem line in the block (the machine's own is outside it)",
+           sum(1 for ln in in_block.splitlines() if ln.lstrip().startswith("Subsystem")) == 1)
+    record("state", "the ordinary arm carries Subsystem sftp with the name sd recognises",
+           sftp_line in arms.get(GENERAL_ARM, []))
+    record("state", "the refusal arm carries no Subsystem line",
+           not any(ln.lstrip().startswith("Subsystem") for ln in arms.get(NARROW_ARM, ["Subsystem"])))
+    record("state", "the sdsys arm carries no Subsystem line",
+           not any(ln.lstrip().startswith("Subsystem") for ln in arms.get("Match User sdsys", ["Subsystem"])))
+    record("state", "the machine's own global Subsystem line is left alone",
+           "Subsystem sftp /usr/lib/openssh/sftp-server" in read(cfg).split("# --- BEGIN SD")[0])
 
     # 2. Idempotent: a second install does not stack a second block.
     code, out = run("--install", cfg, sshd=stub)
@@ -311,6 +340,33 @@ def main():
                 print(f"  ({real_sshd} -T reported: {lines[0]})")
                 record("order", "sshd takes the FIRST matching arm's ForceCommand",
                        lines[0] == "ForceCommand /bin/sd-first")
+
+            # 14b. S.242 stage 2, the assumption under the Subsystem line: a Subsystem
+            #      inside a Match arm is ACCEPTED by this sshd (-t exits 0) and, for a
+            #      user the arm matches, REPLACES the global line, while a user it does
+            #      not match keeps the global one.  Match User again, for the same reason
+            #      as above; the second probe names a user that is not this one.
+            sub = os.path.join(tmp, "subsys.conf")
+            write(sub, f"HostKey {hostkey}\n"
+                       "Subsystem sftp /usr/lib/openssh/sftp-server\n"
+                       f"Match User {who}\n    ForceCommand /bin/sd-first\n"
+                       f"    Subsystem sftp {SFTP_PATH}\n")
+            t = subprocess.run([real_sshd, "-t", "-f", sub], capture_output=True, text=True)
+            record("order", "this sshd accepts a Subsystem line inside a Match arm (-t)",
+                   t.returncode == 0)
+
+            def subsystem_for(user):
+                r = subprocess.run([real_sshd, "-T", "-f", sub, "-C", f"user={user},host=h,addr=127.0.0.1"],
+                                   capture_output=True, text=True)
+                got = [ln.strip() for ln in (r.stdout or "").splitlines() if ln.lower().startswith("subsystem ")]
+                return r.returncode, got
+            rc_in, got_in = subsystem_for(who)
+            rc_out, got_out = subsystem_for(who + "-not-a-user")
+            print(f"  (-T for {who}: {got_in}; for another user: {got_out})")
+            record("order", "a matching user's Subsystem is the arm's, not the global one",
+                   rc_in == 0 and got_in == [f"Subsystem sftp {SFTP_PATH}"])
+            record("order", "a user the arm does not match keeps the global Subsystem line",
+                   rc_out == 0 and got_out == ["Subsystem sftp /usr/lib/openssh/sftp-server"])
     else:
         skip("sshd takes the FIRST matching arm's ForceCommand",
              "no sshd binary and/or no ssh-keygen on this machine")

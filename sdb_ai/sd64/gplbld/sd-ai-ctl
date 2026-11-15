@@ -19,6 +19,7 @@
 # printed), 2 the helper could not be reached or the command line is wrong.
 #
 # START-HISTORY:
+# 14 Nov 26 dm  Windows 309: key shows one * for each character typed (the key itself stays unseen) and says nothing on success (set.ai prints the one line, after it reads the key back).
 # 8 Nov 26 dm   S.170: models PROVIDER, the provider's own list of model names ("models: N", then one name to a line, indented).
 # 7 Nov 26 dm   S.160: context HEX | - (the standing text); show says whose it is and its length.
 # 23 Oct 26 dm  New.
@@ -38,6 +39,58 @@ def usage():
     sys.stderr.write("usage: sd-ai-ctl [--socket PATH] show [--json] | provider NAME|none | model PROVIDER NAME|- | custom NAME URL FORMAT AUTH VERSION|- MAXPARAM |\n"
                      "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|- | models PROVIDER\n")
     return 2
+
+
+def read_key_stars(prompt):
+    """The key from the terminal, shown as one * for each byte typed or pasted (14 Nov 26, Windows 309: a long key pasted into a prompt that shows nothing gives no
+    sign it arrived).  The key itself is never shown, only its length.  Backspace and Delete take one back, Ctrl-U all; an escape sequence (an arrow key, a
+    bracketed paste's markers) is dropped; Ctrl-C ends it with the terminal given back.  Falls back to getpass where the terminal cannot be set up."""
+    try:
+        import select
+        import termios
+        import tty
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+    except Exception:
+        return getpass.getpass(prompt)
+    out = sys.stderr
+    out.write(prompt)
+    out.flush()
+    buf = b""
+    try:
+        tty.setcbreak(fd)
+        while True:
+            ch = os.read(fd, 1)
+            if ch == b"":          # the input ended: what was typed so far (nothing is an empty key, which the helper refuses)
+                break
+            if ch in (b"\r", b"\n"):
+                break
+            if ch in (b"\x7f", b"\x08"):
+                if buf:
+                    buf = buf[:-1]
+                    out.write("\b \b")
+            elif ch == b"\x15":
+                out.write("\b \b" * len(buf))
+                buf = b""
+            elif ch == b"\x1b":
+                if select.select([fd], [], [], 0.05)[0]:
+                    nxt = os.read(fd, 1)
+                    if nxt in (b"[", b"O"):
+                        while select.select([fd], [], [], 0.05)[0]:
+                            fin = os.read(fd, 1)
+                            if fin and 0x40 <= fin[0] <= 0x7e:
+                                break
+            elif ch < b" ":
+                pass
+            else:
+                buf += ch
+                out.write("*")
+            out.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        out.write("\n")
+        out.flush()
+    return buf.decode("utf-8", "replace")
 
 
 def talk(path, req):
@@ -122,7 +175,7 @@ def main(argv):
             sys.stderr.write("sd-ai-ctl: the provider is one of %s\n" % ", ".join(PROVIDERS))
             return 2
         if sys.stdin.isatty():
-            key = getpass.getpass("Key for %s (not shown): " % rest[0])
+            key = read_key_stars("Key for %s (shown as *): " % rest[0])
         else:
             key = sys.stdin.readline().rstrip("\n")
         req = {"v": 1, "op": "keyset", "provider": rest[0], "key": key}
@@ -143,7 +196,7 @@ def main(argv):
         for m in reply.get("models", []):
             print("  " + m)
     elif cmd == "key":
-        print("The key for %s is set." % rest[0])
+        pass     # 14 Nov 26 (Windows 309): says nothing on success - set.ai reads the key back and prints its own line (11615), so two lines said the same
     elif cmd == "key-clear":
         print("The key for %s is cleared." % rest[0])
     else:

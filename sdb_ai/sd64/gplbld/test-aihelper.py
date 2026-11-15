@@ -24,6 +24,8 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import pty
+import select
 import shutil
 import socket
 import stat
@@ -655,8 +657,50 @@ def rows_ctl(env, fm):
         row("model openai gpt-test: ok", rc == 0 and out.strip() == "ok", repr((rc, out, err)))
         rc, out, err = run("key", "openai", stdin=KEY + "\n")
         kp = os.path.join(env.state, "keys", "openai")
-        row("key openai, the key on stdin (not a terminal): 'The key for openai is set.', the file holds it, mode 0600, and the key is in neither stdout nor stderr",
-            rc == 0 and out.strip() == "The key for openai is set." and open(kp).read().strip() == KEY and stat.S_IMODE(os.stat(kp).st_mode) == 0o600 and KEY not in out + err, repr((rc, out, err)))
+        row("key openai, the key on stdin (not a terminal): says nothing (set.ai prints the one line after it reads the key back - Windows 309), the file holds it, mode 0600, and the key is in neither stdout nor stderr",
+            rc == 0 and out.strip() == "" and open(kp).read().strip() == KEY and stat.S_IMODE(os.stat(kp).st_mode) == 0o600 and KEY not in out + err, repr((rc, out, err)))
+
+        # 14 Nov 26 (Windows 309): on a TERMINAL the key is shown as one * for each character, never itself.  The client runs on a pseudo-terminal; Backspace takes one back.
+        def run_tty(keys):
+            m, s = pty.openpty()
+            pr = subprocess.Popen([sys.executable, ctl, "--socket", sock, "key", "openai"], stdin=s, stdout=s, stderr=s, close_fds=True)
+            os.close(s)
+            seen = b""
+            sent = False
+            end = time.time() + 30
+            while time.time() < end:
+                if select.select([m], [], [], 0.2)[0]:
+                    try:
+                        d = os.read(m, 4096)
+                    except OSError:
+                        break
+                    if not d:
+                        break
+                    seen += d
+                    if not sent and b"): " in seen:
+                        os.write(m, keys)
+                        sent = True
+                elif pr.poll() is not None:
+                    break
+            try:
+                rc2 = pr.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                pr.kill()
+                rc2 = -9
+            os.close(m)
+            return rc2, seen.decode("utf-8", "replace")
+        long_key = "k" + "0123456789" * 10                       # 101 characters, pasted in one write
+        rc, shown = run_tty(b"abcX\x7fdefghijklmnopqrst\r")      # abcX, one Backspace, then 17 more: the key is abcdefghijklmnopqrst (20 characters)
+        tail = shown.split("): ", 1)[1] if "): " in shown else ""
+        stars = tail.replace("\x08 \x08", "<BS>")
+        row("key on a terminal: the prompt says the key is shown as *, each character typed shows one * and Backspace takes one back (****, <BS>, 17 *), the key itself is never shown, and the stored key is what was left",
+            rc == 0 and shown.startswith("Key for openai (shown as *): ") and stars.strip() == "****<BS>" + "*" * 17 and "abc" not in tail and "def" not in tail
+            and open(kp).read().strip() == "abcdefghijklmnopqrst", repr((rc, shown)))
+        rc, shown = run_tty(long_key.encode() + b"\r")
+        tail = shown.split("): ", 1)[1] if "): " in shown else ""
+        row("key on a terminal: a 101-character key pasted in one go shows 101 *, nothing else, and is stored whole",
+            rc == 0 and tail.strip() == "*" * 101 and open(kp).read().strip() == long_key, repr((rc, tail[:200])))
+        rc, out, err = run("key", "openai", stdin=KEY + "\n")      # put the file back for the rows after
         rc, out, err = run("show")
         row("show now: openai is [x] with its model, key set, and the key is not printed", rc == 0 and "[x] openai" in out and "model: gpt-test" in out and "key: set" in out and KEY not in out, repr(out))
         rc, out, err = run("show", "--json")

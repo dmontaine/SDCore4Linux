@@ -732,7 +732,7 @@ $endif
 *   rest of the session, and LOGTO SDSYS is refused for everybody.
          if ri.active then
             gosub revert.account
-            display sysmsg(11242, ri.account)   ;* run.in: the command did not finish; the session is back in account %1
+            display sysmsg(11242, ri.who)   ;* run.in: the command did not finish; the session is back in account %1 - the account it LEFT (ri.who), not the one it visited (14 Nov 26, Windows 308)
             void kernel(K$AUDIT, 'run.in revert account=' : ri.account : ' reason=abort')
             ri.active = 0
          end
@@ -3092,6 +3092,13 @@ logto.unwind:
       read voc.rec from voc, login.voc.id else login.voc.id = ""
    end
 
+* 14 Nov 26 dm - OWNER RULING (relayed by Windows, RELEASE_1.1 275): "when sdsys logs to another account it always needs to be at the prompt not taken into home".  A LOGTO
+*   made by an ADMINISTRATOR session runs NO LOGIN paragraph of the account it enters and does not open the home screen: the session lands at the command prompt.  None of the
+*   account's own start-up code runs in the administrator's session (the tighter behaviour).  An ordinary user's LOGTO is unchanged.  K$ADMINISTRATOR is the administrator's, the
+*   session of SDSYS (and a scheduled administrator job); run.in never reaches here (it refuses LOGTO, and runs no LOGIN).
+   logto.admin = kernel(K$ADMINISTRATOR, -1)
+   if logto.admin then login.voc.id = ''
+
 * 16 Oct 26 dm - QM4 Fixes item 30: RESET ALL.  The account has been entered and ON.LOGTO has run; what is left is the LOGIN of the
 *   new account and the start of the command prompt.  Every stacked command processor is cast off first (the kernel does it at
 *   the end of this opcode and calls the bottom one again), and the bottom one runs LOGIN, so a menu LOGIN starts is not itself
@@ -3116,7 +3123,7 @@ logto.unwind:
 
 * 22 Oct 26 dm - S.75: the account entered by a LOGTO typed at the prompt starts as its setting says (the home screen, or the prompt).  !HOME_ENTRY returns at once for a LOGTO run
 *   by a program (the command processor is not the bottom one) and for the one the home screen runs itself.
-   if @tty[1, 5] = '/dev/' then call !home_entry('logto')
+   if @tty[1, 5] = '/dev/' and not(logto.admin) then call !home_entry('logto')   ;* 14 Nov 26: an administrator's LOGTO stays at the prompt (owner ruling, above)
 
    return
 

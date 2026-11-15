@@ -3,6 +3,7 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 15 Nov 26 dm S.242 stage 2: the ordinary Match arm also writes "Subsystem sftp $SFTP_CMD" (a name sd recognises; nothing need exist there), so an sftp client reaches sd through the arm's ForceCommand.  Not in the sdsys or the refusal arm.  Kernel side: stage 3.
 # 07 Nov 26 dm S.162: validate() makes /run/sshd (root, 0755) when it is missing, as Debian's unit does: on a socket-activated ssh `sshd -t` failed without it.
 # 07 Nov 26 dm S.157: both Match Group arms end "User *,!root", so root's ssh is the machine's own again (root is in sdusers; see "ROOT IS NAMED OUT").
 # 02 Nov 26 dm S.106 (owner, 2 Nov 2026: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release").  THE
@@ -64,6 +65,7 @@
 #         PermitTunnel no
 #     Match Group sdusers,!sdsys
 #         ForceCommand /usr/local/sdsys/bin/sd
+#         Subsystem sftp /usr/local/sdsys/bin/sd-sftp       (S.242 stage 2; see SFTP_CMD)
 #
 # MEMBERSHIP OF sdssh IS THE ssh ROUTE (S.29, the owner's ruling of 18/19 Sep
 # 2026 relayed by the port).  CREATE.ACCOUNT joins the group by default and
@@ -209,6 +211,13 @@ EFFECTIVE_SPEC="user=sdsys,host=sdcheck,addr=192.0.2.1"
 # used so the block does not depend on PATH at ssh-login time.
 SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}
 
+# S.242 stage 2 (file transfer): the name the ordinary arm gives the sftp subsystem.  Nothing need exist at this path: the arm's ForceCommand
+# replaces the subsystem, so sd runs and is handed this exact string as SSH_ORIGINAL_COMMAND, which is how it knows an sftp request from a login
+# (measured 14 Nov 26, OpenSSH 10.5).  Only the ordinary arm carries it: the sdsys arm and the refusal arm get no transfer door, and the
+# machine's own global Subsystem line is left alone (a Match-scoped line overrides it for the matching users only, measured the same day).
+# It stays off until the administrator sets XFER and turns an account's switch on; sd refuses every other request for it.
+SFTP_CMD=${SD_SSH_SFTP_CMD:-/usr/local/sdsys/bin/sd-sftp}
+
 # Where the refusal arm's command lives - this same script, as the installer
 # puts it (installsdcore.sh installs gplbld/ssh-forcecommand.sh there before it
 # writes the block).  Named rather than derived from $0 on purpose: the block
@@ -293,6 +302,7 @@ block_lines() {
     "    PermitTunnel no" \
     "Match Group sdusers,!sdsys User *,!root" \
     "    ForceCommand $SD_BIN" \
+    "    Subsystem sftp $SFTP_CMD" \
     "$END"
 }
 

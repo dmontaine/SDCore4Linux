@@ -445,9 +445,9 @@ draw.row:
       screen text lines<r> at rwb.x + 2,rwb.y + r width rtw
    next r
    if pane = 1 then
-      s = 'L asks the selected session to end.  Tab changes to the locks.'
+      s = 'L asks the selected session to end.  F6 changes to the locks.'
    end else
-      s = 'U releases the selected lock.  Tab changes to the sessions.'
+      s = 'U releases the selected lock.  F6 changes to the sessions.'
    end
    screen text s at rwb.x + 2,rwb.y + rwb.h - 2 attr 'bold' width rtw
    return

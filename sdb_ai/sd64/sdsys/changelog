@@ -1,6 +1,48 @@
 Next release - in progress
 --------------------------
 
+15 Nov 26  AN ADMINISTRATOR'S LOGTO LANDS AT THE PROMPT: NO LOGIN PARAGRAPH, NO HOME SCREEN.
+
+             What        - when the administrator (SDSYS) entered another account with LOGTO, the account's own LOGIN paragraph ran
+                           and, if the account starts in the menu, the home screen opened.  Now neither happens: the session is in
+                           the account at the command prompt.  An ordinary user's LOGTO is unchanged.
+             Why         - the owner's ruling: "when sdsys logs to another account it always needs to be at the prompt not taken into
+                           home".  It is also the tighter behaviour: none of an account's own start-up code runs in the
+                           administrator's session.  Seen on SD Core for Windows, where a HOME in a LOGIN paragraph cleared the
+                           screen and hid a warning.
+             Does NOT    - Change what an ordinary account does at sign-on or LOGTO, or whether the administrator may enter an
+                           account.
+
+15 Nov 26  SET.AI KEY SHOWS A * FOR EACH CHARACTER OF THE KEY, AND SAYS "SET" ONCE.
+
+             What        - typing "set.ai key anthropic" showed nothing at all while the key was typed or pasted, so a long key
+                           gave no sign that it had arrived.  The prompt now shows one * for each character (Backspace takes
+                           one back, Ctrl-U clears the line) and never the key itself.  The confirmation "The key for anthropic
+                           is set" was also printed twice, once by the helper's client and once by the verb after it read the key
+                           back; only the verb's line is left.
+             Why         - reported by the owner on SD Core for Windows, which had the same two faults.
+             Does NOT    - Show the key.  The stars show its length, which anyone looking at the screen can count.  Nor does it
+                           change how the setup dialog on the page takes the key.
+
+15 Nov 26  THE MASTER PAGES NOW SAY F6, NOT TAB, FOR CHANGING BOX.
+
+             What        - tool.entries, tool.jobs and tool.sessions still told the person "Tab changes box", "Tab to the entries
+                           first, then E" and "Tab changes to the locks".  Since 8 Nov F6 and Shift-F6 change the box on every
+                           page and Tab does not, so the text sent people to a key that did nothing.  The help lines, the
+                           refusals and the sessions page's hints now say F6.
+             Why         - seen by the owner on SD Core for Windows, which had the same text.
+             Does NOT    - Change which keys do what.
+
+15 Nov 26  MODIFY.ACCOUNT ADD AND DELETE NOW REPORT SUCCESS TO A PROGRAM THAT CALLS THEM.
+
+             What        - after "modify.account <group> add <user>" or "delete <user>" a program that ran the verb with EXECUTE
+                           and read @system.return.code was always told it had failed (-1), even though the user was added or
+                           removed.  The code is now 0 when the change was made, or when there was nothing to change (already a
+                           member; not a member), and a failure code when the user is not in sdusers or the change failed.
+             Why         - found by SD Core for Windows, whose remote administrator read the code and reported a change that had
+                           been made as failed.
+             Does NOT    - Change what is printed, the audit line, or any other modify.account action.
+
 15 Nov 26  THE HOME SCREEN SAYS WHY THE AI CANNOT BE USED: THE ACCOUNT, OR A COMPUTER WITH NO AI SET UP.
 
              What        - F6 and AI > Ask the AI on the home screen said "the AI is not on for this account" whenever the AI

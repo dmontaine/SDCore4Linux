@@ -559,12 +559,14 @@ add.delete.arm:
             * this user looks legit, add to group
             * first check to see if user is already a member of the group
                if is_grp_member(user.name,group.name) THEN
+                  @system.return.code = 0  ;* 14 Nov 26 (Windows 306): nothing to change, as run.actions counts it
                   crt sysmsg(10017,user.name,group.name)  ;* %1 is already a member of group %2
                end else
                   * Modified by Composer AI - 2026/06/10.
                   * Use shared !valid_os_name before os.execute (phase 2).
                   * if convert(os.name.chars, '', user.name) # '' ...
                   if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
+                     @system.return.code = -ER$FAILED
                      crt sysmsg(10019,user.name,group.name,2) ;* Unable to add user %1 to group %s status: %2
                   end else
 * 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
@@ -575,14 +577,17 @@ add.delete.arm:
                   stat = OS.ERROR()
                   if stat = 0 then
                      void kernel(K$AUDIT, 'modify.account add account=' : acc.name : ' to=' : user.name)  ;* 07 Oct 26 PAL-24: lower case
+                     @system.return.code = 0
                      crt sysmsg(10018,user.name,group.name)  ;* %1 added to group %2
                   end else
+                     @system.return.code = -ER$FAILED
                      crt sysmsg(10019,user.name,group.name,stat) ;* Unable to add user %1 to group %s status: %2
                   end
                   end
                end 
             end else
                crt user.name
+               @system.return.code = -ER$FAILED
                crt sysmsg(10020,user.name) ;* %1 is not a member of sdusers, not allowed
             end 
          
@@ -592,6 +597,7 @@ add.delete.arm:
                * Modified by Composer AI - 2026/06/10.
                * Use shared !valid_os_name before os.execute (phase 2).
                if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
+                  @system.return.code = -ER$FAILED
                   crt sysmsg(10022,user.name,group.name,2) ;* Unable to remove user %1 from group %s status: %2
                end else
 * 09 Sep 26 dm - PRE_RELEASE 14, AND THIS ONE IS A BUG FIX AS WELL AS A
@@ -604,12 +610,15 @@ add.delete.arm:
                stat = OS.ERROR()
                   if stat = 0 then
                      void kernel(K$AUDIT, 'modify.account delete account=' : acc.name : ' from=' : user.name)  ;* 07 Oct 26 PAL-24: lower case
+                     @system.return.code = 0
                      crt sysmsg(10021,user.name,group.name) ;*  %1 removed from group %2
                   end else
+                     @system.return.code = -ER$FAILED
                      crt sysmsg(10022,user.name,group.name,stat) ;* Unable to remove user %1 from group %s status: %2
                   end
                end
             end else
+               @system.return.code = 0  ;* 14 Nov 26 (Windows 306): nothing to remove
                crt sysmsg(10023,user.name,group.name) ;* %1 is not a member of  %2
             end 
          
