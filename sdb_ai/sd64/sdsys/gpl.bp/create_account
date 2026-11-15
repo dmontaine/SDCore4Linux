@@ -22,6 +22,8 @@
 *              modify.account <name> sdsys-on repairs it.  No code changed.
 * 02 Nov 26 dm S.96 M6: the master-file copies (S.67) are retired; a new account is no longer copied into them.  The sdsys user still joins a user
 *              account's group (join.sdsys, S.103): tool.entries writes into the account's own files.
+* 14 Nov 26 dm S.242 stage 1: CA$XFER (exactly 1) writes ACC$XFER 'yes' for a user account ('no' otherwise, written explicitly) and is said with 14074; a group or
+*              other account is refused (14075) before anything is made.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): CA$RECOVERY (exactly 1) writes ACC$RECOVERY 'yes' for a user account ('no' otherwise, written explicitly like the gates) and is said with 11770;
 *              a group or other account is refused (11771) before anything is made.
 * 26 Oct 26 dm S.75, home: CA$START (menu, terminal or blank) is written to ACC$START and CA$PINS (exactly 1) to ACC$PINS 'yes', for every type of account, and said with 11868 and 11885; a start
@@ -195,6 +197,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
    ai.want = (settings<CA$AI> = 1)
 * 28 Oct 26 dm - S.88 plan 2.9 (D2): RECOVERY-ON, the account's editors keep a recovery copy of unsaved text; the same rule, exactly 1 to be a request; a user account only.
    recovery.want = (settings<CA$RECOVERY> = 1)
+* 14 Nov 26 dm - S.242: XFER-ON, file transfer over the ssh login; the same rule, exactly 1 to be a request; a user account only.
+   xfer.want = (settings<CA$XFER> = 1)
 * 18 Oct 26 dm - S.66: the shared-account gates.  Read is ON by default (a blank field means yes), so its setting is inverted: exactly 1 withdraws it.
 *   Write is OFF by default: exactly 1 grants it.
    shared.read.off = (settings<CA$SHARED.READ.OFF> = 1)
@@ -412,6 +416,12 @@ PW.TRY.AGAIN:
        err = 11771:@vm:acc.name ;* %1 is not a user account, and a recovery copy is kept only in a user account, for its own person; nothing was changed
        goto exit.create
      end
+* 14 Nov 26 dm - S.242: nor file transfer: a slot belongs to one person's session (14075).
+     if xfer.want then
+       @system.return.code = -ER$ARGS
+       err = 14075:@vm:acc.name ;* %1 is not a user account, and file transfer is only for a user account, for its own person; nothing was changed
+       goto exit.create
+     end
 
    case acc.type = 'OTHER'
      if upcase(acc.name) = 'SDUSERS' then
@@ -434,6 +444,12 @@ PW.TRY.AGAIN:
      if recovery.want then
        @system.return.code = -ER$ARGS
        err = 11771:@vm:acc.name ;* %1 is not a user account, and a recovery copy is kept only in a user account, for its own person; nothing was changed
+       goto exit.create
+     end
+* 14 Nov 26 dm - S.242: nor file transfer (14075), as for a group account.
+     if xfer.want then
+       @system.return.code = -ER$ARGS
+       err = 14075:@vm:acc.name ;* %1 is not a user account, and file transfer is only for a user account, for its own person; nothing was changed
        goto exit.create
      end
      pathname = trim(settings<CA$PATH>)
@@ -646,6 +662,8 @@ PW.TRY.AGAIN:
      acc.rec<ACC$SHARED.WRITE> = if shared.write.want then 'yes' else 'no'
 * 28 Oct 26 dm - S.88 plan 2.9 (D2): the recovery copy, written explicitly for a user account ('no' unless asked).
      acc.rec<ACC$RECOVERY> = if recovery.want then 'yes' else 'no'
+* 14 Nov 26 dm - S.242: file transfer, written explicitly for a user account ('no' unless asked).  Fields 20-21 are Solo's (keys.h) and stay blank here.
+     acc.rec<ACC$XFER> = if xfer.want then 'yes' else 'no'
    case acc.type = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
@@ -682,6 +700,8 @@ PW.TRY.AGAIN:
      crt sysmsg(11606, acc.name, if is_grp_member(acc.uname, 'sdaiusers') then 'yes' else 'no')  ;* Account %1 has ai %2
 *    28 Oct 26, S.88 plan 2.9 (D2): the recovery copy, in the words MODIFY.ACCOUNT says it with.
      crt sysmsg(11770, acc.name, acc.rec<ACC$RECOVERY>)  ;* Account %1 keeps a recovery copy of unsaved editor text: %2
+*    14 Nov 26, S.242: file transfer, in the words MODIFY.ACCOUNT says it with.
+     crt sysmsg(14074, acc.name, acc.rec<ACC$XFER>)  ;* Account %1 may move files over its ssh login (receive / send): %2
    end
 *  26 Oct 26, S.75, home: the two settings are said when they were asked for, in the words MODIFY.ACCOUNT says them with.
    if start.want # '' then crt sysmsg(11868, acc.name, start.want)  ;* Account %1 starts at: %2

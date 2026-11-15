@@ -16,6 +16,7 @@
 * 26 Oct 26 dm S.75, home: CA$START (42) and CA$PINS (43), Linux only, where the new account starts and whether it may add programs of its own to its home screen.  The Linux block
 *              ran past 40 on 23 Oct (CA$AI, 41) and is 31-50 here.  Same deferral: mail the Windows agent when the Linux side is stable.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): CA$RECOVERY (44), Linux only, whether a new user account's editors keep a recovery copy of unsaved text.  Same block, same deferral.
+* 14 Nov 26 dm S.242: CA$XFER (45), Linux only, whether a new user account may move files over the ssh login (RECEIVE / SEND).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -88,5 +89,9 @@ $define CA$PINS            43    ;* 1 = the new account starts with ACC$PINS 'ye
 * Linux only (28 Oct 26, S.88 plan 2.9, D2): 1 = the new USER account starts with ACC$RECOVERY 'yes' (its editors keep a recovery copy of unsaved text).  Blank or 0 leaves it off.
 *   Refused for a group or other account (11771).
 $define CA$RECOVERY        44    ;* 1 = the new account starts with ACC$RECOVERY 'yes'
+
+* Linux only (14 Nov 26, S.242): 1 = the new USER account starts with ACC$XFER 'yes' (file transfer over the ssh login, RECEIVE / SEND).  Blank or 0 leaves it off.
+*   Refused for a group or other account (14075).
+$define CA$XFER            45    ;* 1 = the new account starts with ACC$XFER 'yes'
 
 * END-CODE

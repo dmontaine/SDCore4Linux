@@ -3,6 +3,7 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 14 Nov 26 dm - S.242 stage 1: conf-set knows the file transfer parameters (XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX, XFERKIND) as fixed: it never writes them.
 # 02 Nov 26 dm - S.102 stage 4 (review): job-run refuses a definition that job-list would show as damaged (job_run_state, the list's own agreement test), before
 #                systemd is asked; the kernel's K$JOB.MARK refused such a run anyway, and now root starts no unit for it.
 # 02 Nov 26 dm - S.102 stage 4: job-run <name> starts a defined job's service now (systemctl start --no-block), for the jobs page's "run now"; it checks the
@@ -1670,11 +1671,12 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 #
 #   THE LIST.  14 parameters, the TUNING ones: CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT.  Each is a parameter
 #   config.c itself range-checks (rangecheck() in read_config), so the range here is the range SD enforces at start-up and the helper cannot accept what SD would refuse.  The other
-#   38 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
+#   45 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
 #   SDCLIENT), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR), the log, dump and
 #   diagnostic settings (DEBUG, DEADLOCK, ERRLOG, PDUMP), the security throttle PWDELAY, the sizing and combining parameters config.c does not range-check or checks against each other
 #   (CMDSTACK, FDS, MAXIDLEN, NUMFILES, NUMUSERS, OBJECTS, OBJMEM, PHANTOMS, SORTMEM, USERPOOL) and the ones that change what existing programs compute or how files are
-#   written (FLTDIFF, FSYNC, INTPREC, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME).  (27 Oct 26, S.87: APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR were removed from the parser.)
+#   written (FLTDIFF, FSYNC, INTPREC, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME), and (14 Nov 26, S.242) the file transfer door XFER with its limits XFERFILE, XFERSLOT,
+#   XFERWAIT, XFERIDLE, XFERMAX and XFERKIND, which the administrator sets by hand.  (27 Oct 26, S.87: APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR were removed from the parser.)
 #   sdsys/config.table has the same split in its 'write' column with one reason per parameter; gplbld/test-confset-elevate-units.py holds this list to config.c and to that table.
 #   ***AN UNRECOGNISED NAME IN sd.conf STOPS SD AND EVERY NEW SESSION FROM STARTING (config.c)***: that is why the name is checked against a list and never against a pattern.
 #   THE VALUE is a whole number of up to 7 digits, no sign, no leading zero, inside the range - so no byte of it can be a second line, a quote or a comment.
@@ -1696,6 +1698,7 @@ confset_fixed() {   # confset_fixed KEY - true when KEY is a parameter config.c 
     BACKUPDIR|CMDSTACK|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|FDS|FLTDIFF|FSYNC|GRPDIR|INTPREC|MAXIDLEN|MUSTLOCK|NETFILES) return 0 ;;
     NUMFILES|NUMUSERS|OBJECTS|OBJMEM|PDUMP|PHANTOMS|PWDELAY|SAFEDIR|SCREENTHEME|SDCLIENT|SDSYS|SH|SH1|SORTMEM|SORTWORK|SPOOLER) return 0 ;;
     STARTUP|TEMPDIR|TERMINFO|USERPOOL|USRDIR|YEARBASE) return 0 ;;
+    XFER|XFERFILE|XFERSLOT|XFERWAIT|XFERIDLE|XFERMAX|XFERKIND) return 0 ;;   # 14 Nov 26, S.242: file transfer - a door and its limits, set by hand
   esac
   return 1
 }

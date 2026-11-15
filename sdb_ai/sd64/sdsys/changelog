@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+14 Nov 26  FILE TRANSFER OVER THE SSH LOGIN: ITS TWO SWITCHES, BOTH OFF AS DELIVERED (FIRST PART).
+
+             What        - SD is gaining a way to move plain-text files (CSV, JSON, BASIC source, any text) into and out of an
+                           account with an sftp client such as WinSCP, FileZilla or OpenSSH's sftp, over the person's usual ssh login.
+                           This first part adds the two switches that decide who may: XFER in sd.conf for the whole system (0 as
+                           delivered), and "modify.account <account> xfer-on | xfer-off" (or xfer-on on create.account) for one user
+                           account.  The limits are in sd.conf as well: XFERFILE (10 MB a file), XFERSLOT (100 MB a slot), XFERWAIT,
+                           XFERIDLE, XFERMAX (60 minutes) and XFERKIND (blank: any plain-text file).  The config verb and config()
+                           show them; a value out of range stops SD starting, as for every parameter.  A backup of the account keeps
+                           its switch and a restore gives it back.
+             Why         - testers and programmers send CSV, JSON and source files to SD, and pasting them into a terminal is
+                           unreliable.  Like every door into SD it ships closed, and the administrator opens it account by account.
+             Does NOT    - Transfer anything yet: the receive and send commands and the transfer itself come in the following parts
+                           of this release.  It is not offered to a group or other account (one person's slot), and neither the
+                           tool.config page nor set.config changes these parameters (edit /etc/sd.conf by hand).
+
 14 Nov 26  A SCRIPT THAT CAPTURES THE OUTPUT OF "sd -start" NO LONGER WAITS UNTIL SD IS STOPPED.
 
              What        - x=$(sd -start), or "sd -start | tee log", printed SD's start message and then never finished: the

@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 14 Nov 26 dm  S.242: ACC$XFER (22), file transfer over the ssh login (off as delivered; fields 20-21 are Solo's).
       * 28 Oct 26 dm  S.88: SD_USER_HOME (112), mirrored from gplsrc/keys.h: the user's home and a trusted directory below it.
       * 28 Oct 26 dm  S.88 2.9 (D2): ACC$RECOVERY (19), whether the editors keep a recovery copy of unsaved text (off as delivered).
       * 18 Oct 26 dm  S.66: ACC$SHARED.READ (13) and ACC$SHARED.WRITE (14), the shared-account gates.
@@ -452,6 +453,12 @@
       $define ACC$RECOVERY     19    ;* the editors keep a recovery copy of unsaved text (yes/no; blank = no)
       * 11 Nov 26 dm - FIELDS 20 AND 21 ARE RESERVED FOR SD CORE FOR LINUX SOLO (S.211): its MCP door (ACC$MCP, ACC$MCP.WRITE).  SD Core for Linux has no MCP door (dropped 21 Oct 26) and
       *   must not use these two for anything else without moving Solo's: the two products keep one numbering of the register record's fields so that a record can be read by both.
+      * 14 Nov 26 dm - FIELD 22: file transfer over the ssh login (S.242; owner, 14 Nov: in this release, delivered off).  yes/no; BLANK MEANS NO.  With it, and with XFER=1 in
+      *   sd.conf, the account's person may open a slot with RECEIVE or SEND and move plain-text files in or out with an sftp client over their usual ssh login; the slot is
+      *   confined to the account's xfer.in / xfer.out.  A USER ACCOUNT ONLY, for its own person (a group or other account is refused, 14075).  SDSYS switches it
+      *   (MODIFY.ACCOUNT XFER-ON / XFER-OFF; CREATE.ACCOUNT takes XFER-ON).  Read by the transfer server itself at each connection, never loaded into a session.
+      *   No upgrade walk: existing accounts stay off.
+      $define ACC$XFER         22    ;* may move files in and out over ssh with RECEIVE / SEND (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
