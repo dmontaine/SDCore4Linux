@@ -283,6 +283,12 @@ sdsys/messages/1409?         : sftp
 sdsys/messages/1410?         : sftp
 sdsys/messages/1411[0-3]     : sftp
 sdsys/gpl.bp/xfer            : sftp
+# S.256 (16 Nov 26): remote administration through the API.  The address rule runs in sandbox-addrmatch.py; the doors themselves need an
+# sdsys login and another computer, so they are the VM witness's, and the messages are free text checks (test-sdsysapi-units.py).
+sdsys/gpl.bp/addrmatch       : addrmatch
+gplbld/sandbox-addrmatch.py  : addrmatch
+sdsys/messages/1411[6-9]     : none
+sdsys/messages/14120         : none
 sdsys/newvoc/receive         : sftp
 sdsys/newvoc/send            : sftp
 sdsys/voc_template/receive   : sftp pack-examples

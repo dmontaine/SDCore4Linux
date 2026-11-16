@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 16 Nov 26 dm  S.256: a Unix-socket connection also records whose login started the peer process (peer_login_user, /proc/<pid>/loginuid).
  * 14 Nov 26 dm  The build's warnings: socket_byte() gives a NUL on an ended read (it returned an unset byte), the key written
  *               to a child's pipe is tested, and the Unix-socket path is copied with its terminator always set.
  * 28 Oct 26 dm  S.88 review of L2: keyin_idle_ms() gives the inactivity clock (idle_waited, 0 unless the last wait ended by its own timeout) to kernel(K$AUTOLOGOUT, -2), so the
@@ -245,6 +246,28 @@ bool start_connection(int unused) {
             peer_user[MAX_USERNAME_LEN] = '\0';
             syslog(LOG_INFO, "Connection over Unix socket %s from uid %d (%s)",
                    ip_addr, (int)cr.uid, peer_user);
+            /* 16 Nov 26 dm - S.256: AND WHOSE LOGIN STARTED THAT PROCESS (peer_login_user, kernel.h).  Read now, while the peer is still
+               waiting in connect(), from the pid the credential names.  An unset login uid (4294967295: no PAM login, a service) or a
+               file that cannot be read leaves it EMPTY, and empty is refused by the caller, as it is for peer_user. */
+            {
+              char lpath[64];
+              char lbuf[16];
+              FILE *lf;
+              unsigned long int lu;
+              struct passwd *lpw;
+
+              snprintf(lpath, sizeof(lpath), "/proc/%d/loginuid", (int)cr.pid);
+              if ((lf = fopen(lpath, "r")) != NULL) {
+                if (fgets(lbuf, sizeof(lbuf), lf) != NULL) {
+                  lu = strtoul(lbuf, NULL, 10);
+                  if (lu != 4294967295UL && (lpw = getpwuid((uid_t)lu)) != NULL) {
+                    strncpy(peer_login_user, lpw->pw_name, MAX_USERNAME_LEN);
+                    peer_login_user[MAX_USERNAME_LEN] = '\0';
+                  }
+                }
+                fclose(lf);
+              }
+            }
           } else {
             syslog(LOG_INFO, "Connection over Unix socket %s; no peer "
                              "credential (SO_PEERCRED failed)", ip_addr);

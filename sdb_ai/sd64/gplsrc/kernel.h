@@ -73,6 +73,12 @@ Public char ip_addr[MAX_SOCKET_ADDR_STR_LEN] init("");   /* IP address or AF_UNI
    authenticate to sshd at all (DenyUsers, ssh-forcecommand.sh).  Read by
    system(43).                                                              */
 Public char peer_user[MAX_USERNAME_LEN + 1] init("");
+/* 16 Nov 26 dm - S.256: THE UNIX-SOCKET PEER'S LOGIN USER, "" when there is none.  peer_user is the user the connecting process RUNS as; this is
+   whose LOGIN started it, from the kernel's audit login uid of that process (/proc/<SO_PEERCRED pid>/loginuid, set once by PAM at login and not
+   writable without root).  It is the question CPROC asks of a console session before it makes sdsys the administrator (K$LOGIN.UID, message
+   10195), asked of the process at the other end of the socket, so that "sudo -u sdsys" or "su sdsys" cannot become the administrator through the
+   API.  Read by system(44).                                                                                                                    */
+Public char peer_login_user[MAX_USERNAME_LEN + 1] init("");
 Public int port_no init(0);             /* ...port number for telnet */
 Public char port_name[20 + 1] init(""); /* Port name for serial connection */
 

@@ -540,6 +540,14 @@ done
 sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service
 sudo systemctl daemon-reload >/dev/null 2>&1 || true
 sudo rm -rf /etc/sdcore/jobs.d
+# 16 Nov 26 dm - S.256: the administrator's remote-API setting (remote.sdsys api) goes with the configuration and is kept with it, as the sdsys ssh
+#            door's state is kept by an upgrade (14 Nov 26): an upgrade must not shut or open a door the administrator set.
+# SDSYSAPI-BEGIN
+if [ "$conf_deleted" = yes ] && sudo test -e /etc/sdcore/sdsys-api; then
+    sudo rm -f /etc/sdcore/sdsys-api
+    echo "Removed /etc/sdcore/sdsys-api (remote.sdsys api: SDSYS over the API from other computers)."
+fi
+# SDSYSAPI-END
 sudo rmdir /etc/sdcore 2>/dev/null || true
 echo "Removed /etc/sdcore/totp and totp.public (the sdsys authenticator secret, recovery codes and status), the scheduled jobs' timers and units, and /etc/sdcore/jobs.d (their definitions)."
 if [ "$ssh_fences_out" = 1 ]; then

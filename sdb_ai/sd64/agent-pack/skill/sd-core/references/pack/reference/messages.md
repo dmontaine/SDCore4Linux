@@ -843,14 +843,15 @@ update.accounts does not take '%1', so nothing has been changed.\n\nThe only wor
 cited by: `cproc`
 
 ### msg:10174
-> kind=message tier=reference since=- src=sdsys/messages/10174:1#19aff066
+> kind=message tier=reference since=- src=sdsys/messages/10174:1#f3ccbb1d
 
 ```
-SDSYS may be reached through the API only from this machine.
+SDSYS may be reached through the API from another computer only when the
+administrator has opened it.
 
 SDSYS can change every account on this system, and the API admits a
-connection on the SD password alone.  Run sd as the sdsys OS user on
-this machine instead.
+connection on the SD password alone.  It is shut as delivered; the
+administrator opens it for chosen addresses with remote.sdsys api on.
 ```
 
 cited by: `apisrvr`
@@ -1040,7 +1041,7 @@ machine's keyboard (or a desktop-sharing view of it) and run sd
 from there.
 ```
 
-cited by: `cproc`
+cited by: `apisrvr`, `cproc`
 
 ### msg:1020
 > kind=message tier=reference since=- src=sdsys/messages/1020:1#68046ac2
@@ -6278,10 +6279,10 @@ Tokens used: %1 in, %2 out (%3)
 cited by: `ai`, `tk_ai`
 
 ### msg:11635
-> kind=message tier=reference since=- src=sdsys/messages/11635:1#a42ca92a
+> kind=message tier=reference since=- src=sdsys/messages/11635:1#9c049032
 
 ```
-You help a person who is using %1, a full-screen application of SD Core, a multivalue database. Answer with ONE JSON object and nothing else: {"say": your answer for the person, whole: one plain sentence when the request only asks for something the page offers, and a full answer to a question, its paragraphs separated by \n, "action": one id from the list below or "none", "arg": a short text for the action or "", "command": one SD TCL command line or ""}. Give an action only when the request asks for something the list offers; give a command only when no action fits and the request is about running something. Plain ASCII only.
+You help a person who is using %1, a full-screen application of SD Core, a multivalue database. Answer with ONE JSON object and nothing else: {"say": your answer for the person, whole: one plain sentence when the request only asks for something the page offers, and a full answer to a question, its paragraphs separated by \n, "action": one id from the list below or "none", "arg": a short text for the action or "", "command": one SD TCL command line or ""}. Answer a question as you would anywhere, whatever its subject: the answer itself first and plainly (the name, the number, the address), then anything else; do not begin with what SD does or does not hold. Give an action only when the request asks for something the list offers; give a command only when no action fits and the request is about running something. Plain ASCII only.
 ```
 
 cited by: `tk_ai`
@@ -8604,10 +8605,10 @@ Passages of SD's own documentation follow, each with its id in brackets. Use the
 cited by: `tk_ai`
 
 ### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#d7b2d81f
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#ed63822b
 
 ```
-remote.sdsys on | off\n\nON        opens ssh for sdsys: it can sign in from other computers with its\n          password.\nOFF       shuts ssh for sdsys again, as delivered.\n\nWith no keyword it reports the state and changes nothing.
+remote.sdsys {on | off}\nremote.sdsys ssh {on | off}\nremote.sdsys api {on address ... | off}\n\nON, SSH ON     opens ssh for sdsys: it can sign in from other computers with\n               its password.\nOFF, SSH OFF   shuts ssh for sdsys again, as delivered.\nAPI ON a ...   lets an API client at one of the addresses sign in as sdsys\n               with its SD password and be the administrator.  An address is\n               IPv4 or IPv6, or a range such as 192.168.1.0/24; at most 32.\nAPI ON ANY     the same from every address on the internet (a VPN into a\n               listed range is safer).\nAPI OFF        shuts the API to sdsys from other computers, as delivered.\n\nWith no keyword it reports the state and changes nothing.
 ```
 
 cited by: `remotesdsys`
@@ -10903,12 +10904,57 @@ cited by: `tk_form`
 
 cited by: `tool_ai`, `tool_backups`, `tool_bulk`
 
+### msg:14116
+> kind=message tier=reference since=- src=sdsys/messages/14116:1#b2bc1430
+
+```
+SDSYS may use the API from another computer only from an address the\nadministrator listed with remote.sdsys api on, and %1 is not one of them.
+```
+
+cited by: `apisrvr`
+
+### msg:14117
+> kind=message tier=reference since=- src=sdsys/messages/14117:1#334504fb
+
+```
+The API is open for sdsys from %1: a client there can sign in as sdsys with\nits SD password and is the administrator, and nothing else stands between\nthose addresses and the administrator.  Shut it again with remote.sdsys api off.
+```
+
+cited by: `remotesdsys`
+
+### msg:14118
+> kind=message tier=reference since=- src=sdsys/messages/14118:1#64278c90
+
+```
+remote.sdsys api: %1 is not an address or a range (an IPv4 or IPv6 address,\nor a range such as 192.168.1.0/24).
+```
+
+cited by: `remotesdsys`
+
+### msg:14119
+> kind=message tier=reference since=- src=sdsys/messages/14119:1#61f7b7df
+
+```
+remote.sdsys api on needs at least one address or range, and takes at most 32;\nor the word any, alone.
+```
+
+cited by: `remotesdsys`
+
 ### msg:1412
 > kind=message tier=reference since=- src=sdsys/messages/1412:1#d559e762
 
 ```
 Error %d in READNEXT
 ```
+
+### msg:14120
+> kind=message tier=reference since=- src=sdsys/messages/14120:1#d3b14e5c
+
+```
+The API is open for sdsys from EVERY address: anyone who can reach this\ncomputer's API port, from anywhere on the internet, can sign in as sdsys with\nits SD password alone and be the administrator.  A VPN into a listed range is\nthe safer way to travel.  Shut it again with remote.sdsys api off.
+```
+
+cited by: `remotesdsys`
 
 ### msg:1413
 > kind=message tier=reference since=- src=sdsys/messages/1413:1#5333f220

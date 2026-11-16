@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Nov 26 dm  S.256: SYSTEM(44), the Unix-socket peer's login user.
  * 27 Oct 26 dm  S.87 batch 14: SYSTEM(1001), case inversion on?, is no longer a key.
  * 24 Oct 26 dm  W.11 F9: the administrator answer is MY_ADMIN() (the process's own word), not the user table entry.
  * 18 Oct 26 dm  SYSTEM(1057): the parent's user NUMBER was tested against max_users, the count of user table cells; user numbers run
@@ -288,6 +289,13 @@ void op_system() {
        every caller must treat that as remote.                               */
     case 43: /* Unix-socket peer's OS user */
       k_put_c_string(peer_user, descr);
+      break;
+
+    /* 16 Nov 26 dm - S.256: THE UNIX-SOCKET PEER'S LOGIN USER (kernel.h peer_login_user), "" when there is none.  43 says which user the
+       connecting process runs as; this says whose login started it, so that APISRVR can ask of an SDSYS API session what CPROC asks of a
+       console one before it is the administrator.  Empty is the refusing answer. */
+    case 44: /* Unix-socket peer's login user */
+      k_put_c_string(peer_login_user, descr);
       break;
 
     case 91: /* Windows? */

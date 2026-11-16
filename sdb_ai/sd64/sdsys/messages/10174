@@ -1,5 +1,6 @@
-SDSYS may be reached through the API only from this machine.
+SDSYS may be reached through the API from another computer only when the
+administrator has opened it.
 
 SDSYS can change every account on this system, and the API admits a
-connection on the SD password alone.  Run sd as the sdsys OS user on
-this machine instead.
+connection on the SD password alone.  It is shut as delivered; the
+administrator opens it for chosen addresses with remote.sdsys api on.

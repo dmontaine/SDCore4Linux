@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 16 Nov 26 dm - S.256: sdsys-api on ADDR... | off | status, the administrator's remote-API door.  "on" checks every address or CIDR range with python3's
+#                ipaddress (a /0 range is refused: it is every address), writes them in standard network/length form under the line "on" to
+#                /etc/sdcore/sdsys-api (root, 0600, one rename), which APISRVR reads while it is still root; "off" removes the file.
 # 14 Nov 26 dm - S.242 stage 1: conf-set knows the file transfer parameters (XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX, XFERKIND) as fixed: it never writes them.
 # 02 Nov 26 dm - S.102 stage 4 (review): job-run refuses a definition that job-list would show as damaged (job_run_state, the list's own agreement test), before
 #                systemd is asked; the kernel's K$JOB.MARK refused such a run anyway, and now root starts no unit for it.
@@ -215,6 +218,9 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] remote-ssh on | off | show
   sd-elevate [--dry-run] sdsys-ssh on | off | status
                                   (the sdsys arm of sshd, shut as delivered; on opens it for sdsys's password, through ssh-forcecommand)
+  sd-elevate [--dry-run] sdsys-api on <address|range>... | on any | off | status
+                                  (SDSYS over the API from other computers, shut as delivered; on lists the client addresses or CIDR ranges, at most 32,
+                                  or the word any alone for every address)
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
   sd-elevate [--dry-run] netcred-dir            (makes the caller's own /var/lib/sd-net/<user>, mode 0700, for
@@ -658,6 +664,83 @@ sdsys_ssh() {   # sdsys_ssh on|off|status - runs ssh-forcecommand for it and exi
   "$SSH_FC" "$arg" || rc=$?
   [[ $want == status ]] || logger -t sd-elevate "sdsys-ssh $want: ssh-forcecommand $arg exited $rc" 2>/dev/null || true
   exit $rc
+}
+
+# 16 Nov 26 dm - S.256.  SDSYS OVER THE API FROM OTHER COMPUTERS (owner, 16 Nov 2026: "deliver closed and secure and let the admin decide to loosen";
+# listed client addresses only, and ranges too for a DHCP address that changes).  Shut as delivered: no file.  "on" REPLACES the list; each entry
+# is an IPv4 or IPv6 address or CIDR range, checked and put in standard form by python3's ipaddress (host bits cleared, an exact address /32 or
+# /128); a /0 range is refused, since it is every address and the owner chose listed ones.  The file is root's, 0600, written by one rename into
+# /etc/sdcore; APISRVR reads it while its process is still root and treats anything but a first line "on" as off.  Asked of the caller sudo names
+# (sdsys_login_gate has run).  The system log gets the verb, the entries and the result.
+SDSYS_API_FILE=/etc/sdcore/sdsys-api
+SDSYS_API_PY='
+import ipaddress, sys
+out = []
+for a in sys.argv[1:]:
+    try:
+        n = ipaddress.ip_network(a, strict=False)
+    except ValueError:
+        print("not an address or a range: " + a, file=sys.stderr)
+        sys.exit(1)
+    if n.prefixlen == 0:
+        print("a /0 range is every address, and is refused: " + a, file=sys.stderr)
+        sys.exit(1)
+    s = str(n)
+    if s not in out:
+        out.append(s)
+print("\n".join(out))
+'
+sdsys_api() {   # sdsys_api on <entry>... | off | status
+  local want=$1 dir tmp norm
+  shift
+  case $want in
+    status)
+      if [[ $DRY -eq 1 ]]; then printf '%s: would report %s\n' "$PROG" "$SDSYS_API_FILE"; exit 0; fi
+      need_root
+      if [[ -f $SDSYS_API_FILE && ! -L $SDSYS_API_FILE ]] && [[ $(head -n 1 "$SDSYS_API_FILE") == on ]]; then
+        printf 'sdsys over the API from other computers: on, from %s\n' "$(tail -n +2 "$SDSYS_API_FILE" | paste -sd ' ')"
+      else
+        printf 'sdsys over the API from other computers: off\n'
+      fi
+      exit 0
+      ;;
+    off)
+      if [[ $DRY -eq 1 ]]; then printf '%s: rm -f %s\n' "$PROG" "$SDSYS_API_FILE"; exit 0; fi
+      need_root
+      rm -f -- "$SDSYS_API_FILE" || die "could not remove $SDSYS_API_FILE"
+      logger -t sd-elevate "sdsys-api off" 2>/dev/null || true
+      printf 'sdsys over the API from other computers: off\n'
+      exit 0
+      ;;
+    on)
+      [[ $# -ge 1 && $# -le 32 ]] || die "sdsys-api on takes one to 32 addresses or ranges, or the word any alone"
+      # 16 Nov 26 (owner, asked about an administrator who travels: "Yes, as an explicit word"): "any" admits every address.  Only alone,
+      # never implied by a range (a /0 range is still refused), so it cannot be typed by accident inside a list.
+      if [[ $1 == any ]]; then
+        [[ $# -eq 1 ]] || die "sdsys-api on any takes no other address"
+        norm=any
+      else
+        norm=$(python3 -I -c "$SDSYS_API_PY" "$@") || die "sdsys-api on: nothing was changed"
+      fi
+      if [[ $DRY -eq 1 ]]; then
+        printf '%s: would write %s: on, then %s\n' "$PROG" "$SDSYS_API_FILE" "$(printf '%s' "$norm" | paste -sd ' ')"
+        exit 0
+      fi
+      need_root
+      dir=$(dirname -- "$SDSYS_API_FILE")
+      mkdir -p -m 0755 -- "$dir" || die "could not make $dir"
+      [[ -d $dir && ! -L $dir ]] || die "$dir is not a plain directory"
+      [[ ! -L $SDSYS_API_FILE ]] || die "$SDSYS_API_FILE is a link: refused"
+      tmp=$(mktemp -- "$dir/.sdsys-api.XXXXXX") || die "could not make a file in $dir"
+      chmod 0600 -- "$tmp" || { rm -f -- "$tmp"; die "could not set the mode of $tmp"; }
+      { printf 'on\n'; printf '%s\n' "$norm"; } > "$tmp" || { rm -f -- "$tmp"; die "could not write $tmp"; }
+      mv -f -- "$tmp" "$SDSYS_API_FILE" || { rm -f -- "$tmp"; die "could not put $SDSYS_API_FILE in place"; }
+      logger -t sd-elevate "sdsys-api on: $(printf '%s' "$norm" | paste -sd ' ')" 2>/dev/null || true
+      printf 'sdsys over the API from other computers: on, from %s\n' "$(printf '%s' "$norm" | paste -sd ' ')"
+      exit 0
+      ;;
+    *) die "internal: no sdsys-api word '$want'" ;;
+  esac
 }
 
 # ---------------------------------------------------------------- validation
@@ -2687,6 +2770,16 @@ case $verb in
     [[ $# -eq 1 ]] || usage
     case $1 in on|off|status) ;; *) die "sdsys-ssh takes on, off or status - not '$1'" ;; esac
     sdsys_ssh "$1"
+    ;;
+
+  sdsys-api)
+    [[ $# -ge 1 ]] || usage
+    case $1 in
+      on)         [[ $# -ge 2 ]] || die "sdsys-api on takes one to 32 addresses or ranges" ;;
+      off|status) [[ $# -eq 1 ]] || usage ;;
+      *) die "sdsys-api takes on, off or status - not '$1'" ;;
+    esac
+    sdsys_api "$@"
     ;;
 
   *)

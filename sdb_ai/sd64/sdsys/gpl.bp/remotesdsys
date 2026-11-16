@@ -9,21 +9,33 @@
 * 2 Nov 26 dm  S.101 stage D: LOCAL ON | OFF.
 * 2 Nov 26 dm  S.106: the authenticator code is removed (owner: password only for this release).  The verb is ON | OFF: ssh for sdsys is shut as delivered, ON opens it
 *              for sdsys's password, OFF shuts it.  RECOVERY, LOCAL and everything that handled a secret or a code are gone.
+* 16 Nov 26 dm  S.256: the API door (owner, 16 Nov 2026: "the ability for the admin to turn on remote management through the API ... as we now do through SSH.  Again,
+*              deliver closed and secure and let the admin decide to loosen").  API ON names the client addresses or ranges SDSYS may sign in from; API OFF shuts it;
+*              SSH ON | OFF is the ssh door by name, and a bare ON | OFF keeps meaning ssh, so nothing anyone typed before changes.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
 *    REMOTE.SDSYS {ON | OFF}
+*    REMOTE.SDSYS SSH {ON | OFF}
+*    REMOTE.SDSYS API {ON address ... | OFF}
 *
-*    Whether the sdsys login may come in over ssh (S.95).  Shut as delivered.
+*    Whether the sdsys login may come in from another computer.  Both doors are shut as delivered.
 *
-*       ON        sd-elevate sdsys-ssh on opens the sdsys arm of sshd: sdsys can sign in over ssh from other computers with its PASSWORD, with no
-*                 forwarding, straight into SD.  Nothing but that password then stands between the network and the administrator.
-*       OFF       sd-elevate sdsys-ssh off shuts the arm again.  It tightens, so nothing is asked.
+*       ON, SSH ON    sd-elevate sdsys-ssh on opens the sdsys arm of sshd: sdsys can sign in over ssh from other computers with its PASSWORD, with no
+*                     forwarding, straight into SD.  Nothing but that password then stands between the network and the administrator.
+*       OFF, SSH OFF  sd-elevate sdsys-ssh off shuts the arm again.  It tightens, so nothing is asked.
+*       API ON a ...  sd-elevate sdsys-api on a ... lets an API client at one of the addresses sign in as SDSYS with sdsys's SD PASSWORD and be the
+*                     administrator (S.256).  Each is an IPv4 or IPv6 address or a range in CIDR form (192.168.1.0/24); at most 32.  The list REPLACES
+*                     the one before.  The API must also be open to other computers (remote.api) for a client to reach it at all.
+*       API ON ANY    every address (owner, 16 Nov 2026, for an administrator who travels: "Yes, as an explicit word").  Only alone; a /0 range is
+*                     refused, so a list cannot open it by accident.  The confirmation says the login is then reachable from the whole internet.
+*       API OFF       sd-elevate sdsys-api off shuts it.  From this machine SDSYS keeps the API either way.
 *
-*    With no keyword it prints what the root helper reports (whether sshd lets sdsys in) and changes nothing.
+*    With no keyword it prints both doors' state (SSH or API alone prints that one) and changes nothing.
 *
-*    ADMINISTRATOR ONLY, and audited (the keyword and the helper's status).
+*    ADMINISTRATOR ONLY, and audited (the keywords, the addresses and the helper's status).  Each address is checked here, character by character,
+*    before it is put on the helper's command line, and checked again, and put in its standard form, by the helper.
 *
 * END-DESCRIPTION
 *
@@ -35,7 +47,6 @@ $catalog $remotesdsys
 
 $include keys.h
 $include int$keys.h
-$include parser.h
 $include err.h
 
 $define HELPER     'sudo -n /usr/local/sbin/sd-elevate'
@@ -46,48 +57,122 @@ $define HELPER     'sudo -n /usr/local/sbin/sd-elevate'
       stop sysmsg(2001)  ;* Command requires administrator privileges
    end
 
-   action = ''
-   extra = ''
+* 16 Nov 26 dm - S.256: the words are read from the sentence as plain words, not through !PARSER: an address range (192.168.1.0/24, fd00::/64)
+*   must reach the checks below whole, whatever the parser would make of its dots, colons and slash.
+   words = trim(@sentence)
+   convert ' ' to @fm in words
+   nwords = dcount(words, @fm)
 
-   parser = "!PARSER"
-   call @parser(PARSER$RESET, 0, @sentence, 0)
-   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* Verb remote.sdsys
-   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)  ;* ON | OFF
-
-   if token.type = PARSER$END or action = '' then
-      os.execute HELPER : ' sdsys-ssh status'
-      rc = os.error()
-      if rc # 0 then
-         @system.return.code = -ER$FAILED
-         crt sysmsg(11924, 'report', rc)
-      end
+   if nwords < 2 then
+      gosub ssh.status
+      gosub api.status
       stop
    end
 
-   action = downcase(trim(action))
-   if action # 'on' and action # 'off' then
-      @system.return.code = -ER$ARGS
-      stop sysmsg(11923)  ;* remote.sdsys on | off
+   door = 'ssh'
+   argn = 2
+   word1 = downcase(words<2>)
+   if word1 = 'ssh' or word1 = 'api' then
+      door = word1
+      argn = 3
+      if nwords < 3 then
+         if door = 'ssh' then gosub ssh.status else gosub api.status
+         stop
+      end
    end
 
-   call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
-   if token.type # PARSER$END then
+   action = downcase(words<argn>)
+   if action # 'on' and action # 'off' then
       @system.return.code = -ER$ARGS
-      stop sysmsg(11923)
+      stop sysmsg(11923)  ;* the syntax
+   end
+
+   addrs = ''
+   for i = argn + 1 to nwords
+      a = words<i>
+      if door = 'ssh' or action = 'off' then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(11923)
+      end
+      * 16 Nov 26 (owner: "Yes, as an explicit word"): ANY, alone, admits every address
+      if downcase(a) = 'any' then
+         if nwords # argn + 1 then
+            @system.return.code = -ER$ARGS
+            stop sysmsg(14119)
+         end
+         addrs = 'any'
+      end else
+         * Only the characters an address or a range is made of, so nothing else can reach the shell
+         chk = a
+         convert '0123456789abcdefABCDEF.:/' to '' in chk
+         if chk # '' or len(a) < 1 or len(a) > 64 then
+            @system.return.code = -ER$ARGS
+            stop sysmsg(14118, a)  ;* not an address or a range
+         end
+         addrs<-1> = a
+      end
+   next i
+
+   if door = 'api' and action = 'on' then
+      if addrs = '' or dcount(addrs, @fm) > 32 then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(14119)  ;* at least one address or range, at most 32
+      end
    end
 
 * The helper's words go straight to the terminal.  Nothing secret passes here.
-   os.execute HELPER : ' sdsys-ssh ' : action
-   rc = os.error()
-   if rc # 0 then
-      crt sysmsg(11924, action, rc)
+   if door = 'ssh' then
+      os.execute HELPER : ' sdsys-ssh ' : action
+      rc = os.error()
+      if rc # 0 then
+         crt sysmsg(11924, action, rc)
+      end else
+         if action = 'on' then crt sysmsg(11929)  ;* ssh is open for sdsys
+      end
+      void kernel(K$AUDIT, 'remote.sdsys ' : action : ' status=' : rc)
    end else
-      if action = 'on' then crt sysmsg(11929)  ;* ssh is open for sdsys
+      arglist = addrs
+      convert @fm to ' ' in arglist
+      os.execute HELPER : ' sdsys-api ' : action : (if arglist = '' then '' else ' ' : arglist)
+      rc = os.error()
+      if rc # 0 then
+         crt sysmsg(11924, 'api ' : action, rc)
+      end else
+         if action = 'on' then
+            if arglist = 'any' then
+               crt sysmsg(14120)  ;* the API is open for sdsys from every address
+            end else
+               convert ' ' to ',' in arglist
+               crt sysmsg(14117, arglist)  ;* the API is open for sdsys from ...
+            end
+         end
+      end
+      audit.from = addrs
+      convert @fm to ',' in audit.from
+      void kernel(K$AUDIT, 'remote.sdsys api ' : action : (if audit.from = '' then '' else ' from=' : audit.from) : ' status=' : rc)
    end
 
-   void kernel(K$AUDIT, 'remote.sdsys ' : action : ' status=' : rc)
    @system.return.code = (if rc = 0 then 0 else -ER$FAILED)
    stop
+
+* What each door is now, as the root helper reports it.  Nothing is changed.
+ssh.status:
+   os.execute HELPER : ' sdsys-ssh status'
+   rc = os.error()
+   if rc # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(11924, 'report', rc)
+   end
+   return
+
+api.status:
+   os.execute HELPER : ' sdsys-api status'
+   rc = os.error()
+   if rc # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(11924, 'api report', rc)
+   end
+   return
 
 end
 

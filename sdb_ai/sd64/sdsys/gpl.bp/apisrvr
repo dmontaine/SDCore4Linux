@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 16 Nov 26 dm  S.256: remote administration through the API.  SDSYS from another computer is admitted only when the root-owned setting
+*               (remote.sdsys api on ADDR ...) lists the client's address (14116 names an unlisted one); from this machine the peer's LOGIN must
+*               be sdsys's too (system(44), 10195).  An admitted SDSYS session is the administrator, given after the identity and audited.
 * 11 Nov 26 dm  Request 72 reserved for Solo's ssh-key request (comment on the dispatch list only).  Solo had used 49 for it since 30 Sep 26;
 *               the owner ruled that Solo follows this template (49 is QMRevision here) and moves it to 72.  Core's next request is 73.
 * 11 Nov 26 dm  S.215: a refused SDLogto put the session back in its old directory but left @PATH (account.path) naming the account that was refused,
@@ -174,6 +177,8 @@ $define APILOGGING 0    ;* 0 = no log, 1 = log
 
 $define SEQ.BASE  10000 ;* A sequential file's number is this plus its slot, so it cannot be taken for a file of vb.open
 $define SEQ.MAX    1000 ;* Sequential files open at once in one session
+
+$define SDSYS.API.FILE '/etc/sdcore/sdsys-api'   ;* S.256: root's, written only by sd-elevate sdsys-api; "on" then one client address a line
 
 $internal
 program apisrvr
@@ -588,7 +593,7 @@ ent.refused = @false
 *
 *   IT REUSES 10003, AND THAT IS THE RULE HERE.  Every refusal in this routine gives the same text, so a caller cannot tell "no such
 *   account" from "not a member" from "suspended", and the API does not enumerate the register for anyone probing it.  No administrator
-*   exemption: an API session carries none.
+*   exemption, SDSYS's own session included (it is the administrator since S.256, and this test does not ask).
 if ent.suspended then
 * 06 Oct 26 dm - PAL-17 (parity audit): the refusal is on the audit trail, in the Windows port's words (its ACCOUNT REFUSED branch=2),
 *   with the account asked for appended.  The CALLER still sees only 10003.
@@ -730,14 +735,15 @@ end
 *   such flag and the sdsys register record holds no edit fields (modify.account refuses sdsys), so the record above leaves all three off
 *   and SDSYS over the local door would be refused at its first save to a VOC, a dictionary or a program file and at BASIC / CATALOG.
 *   So the sdsys account entered by the OS user sdsys - the pair vb.account's group test already exempts, and the only user the door
-*   (10174 / 10922, in the SCRAM handler) admits as sdsys: a process running as sdsys, on the Unix socket - has all three on.  These
+*   (10174 / 10922 / 10195 / 14116, in the SCRAM handler) admits as sdsys: a process of a sdsys login on the Unix socket, or, since S.256, a
+*   client at an address remote.sdsys api listed - has all three on.  These
 *   are variables only: they are loaded into the kernel with the other gates below, at the first entry to an account and never again, and
 *   only after every refusal in this routine has passed.  No other user and no other account gets more than its own record gives.
 if downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys' then
    api.voc.grant = @true
    api.bp.grant = @true
    api.dict.grant = @true
-   api.shared.read.grant = @true    ;* 18 Oct 26, S.66: an API session of sdsys follows shared and can write its records (it has no administrator flag, so no structure change)
+   api.shared.read.grant = @true    ;* 18 Oct 26, S.66: an API session of sdsys follows shared and can write its records (and, being the administrator since S.256, change its structure)
    api.shared.write.grant = @true
    api.net.grant = @true    ;* 17 Oct 26, S.65 slice 1: the administrator passes the NET gate too (it does nothing yet)
 end
@@ -788,8 +794,9 @@ end
 i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 
 * 13 Oct 26 dm - S.63: every way out of this routine that keeps the new account has passed; load its
-*   switches now (see where they were read, above).  The administrator flag is not touched: an API session
-*   carries none, so SDSYS over the local socket is held to its own switches like anybody else.
+*   switches now (see where they were read, above).  The administrator flag is not touched here: only an SDSYS
+*   session admitted by the SCRAM handler's doors holds it (S.256), given there; every other API session has
+*   these switches and nothing more.
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
 void kernel(K$SD.ACCOUNTS, api.sd.grant)
@@ -1810,14 +1817,50 @@ vb.scram.final:
 *   an administrator reading a log needs to know which.  Keeping 10174 on the
 *   remote arm also leaves §13e E4 measuring what it has always measured, and
 *   leaves no message record without a caller - tonight's other lesson.
+*
+* 16 Nov 26 dm - S.256, REMOTE ADMINISTRATION THROUGH THE API (owner, 16 Nov 2026: "we will need the ability for the admin to turn on remote
+*   management through the API in Core as we now do through SSH.  Again, deliver closed and secure and let the admin decide to loosen"; "Full
+*   admin rights only if API into SDSYS, and normal limited rights if API into other accounts").  His choices, warned first that it is
+*   password-only from the network: the switch is remote.sdsys api on ADDR ... | off, LISTED CLIENT ADDRESSES ONLY, and the local door has the
+*   administrator's rights always ("Local always, remote by switch").  Asked about a DHCP address that changes, he chose ranges too ("Allow
+*   ranges too"): an entry is an address or a range in CIDR form, and an exact address is the range /32 or /128.  Asked about an
+*   administrator who travels, he chose an explicit word ("Yes, as an explicit word"): the entry "any", which the helper writes only alone,
+*   admits every address; a /0 range is never matched.  So:
+*   - THE REMOTE DOOR is shut (10174) unless the root-owned SDSYS.API.FILE says on and one of its ranges holds this connection's address, and
+*     an address none holds is refused by name (14116).  The address is the TCP peer the kernel saw at accept (system(42), getpeername()
+*     before the TLS relay takes the socket); an IPv4-mapped IPv6 address is compared as its IPv4 form.  The file is read here, while this
+*     process is still root; no SD session can write it, only the administrator's verb through the root helper (sd-elevate sdsys-api), which
+*     writes every entry as network/length.  The comparison is of BITS (!addrmatch), so no spelling of an address can slip past it.
+*   - THE LOCAL DOOR keeps both of its tests (the Unix socket, the peer process running as sdsys: 10922) and gains the console's own: the
+*     LOGIN that started the peer process must be sdsys's (system(44), the peer's audit login uid), exactly what CPROC asks before a console
+*     session is the administrator, with the same refusal 10195.  Without it "sudo -u sdsys" or "su sdsys" plus the SD password would be the
+*     administrator through the socket now that this door gives the administrator's rights.
+*   - Either door, once admitted, sets sdsys.api.from; the administrator's rights are given AFTER the Linux identity is assumed (below) and
+*     audited there, so a refused session never holds them.
+               sdsys.api.from = ''
                if downcase(scram.user) = 'sdsys' and not(api.peer.local) then
-                  scram.refuse.reason = 'sdsys on a remote API session from ' : api.peer.addr
-                  abort.message = sysmsg(10174)
-                  * SDSYS may be reached through the API only from this machine
-                  server.error = SV$ON.ERROR
-                  goto exit.vb.scram.fail
+                  gosub read.sdsys.api
+                  if not(sdsys.api.on) then
+                     scram.refuse.reason = 'sdsys on a remote API session from ' : api.peer.addr
+                     abort.message = sysmsg(10174)
+                     * SDSYS may be reached through the API from another computer only when the administrator has opened it
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+                  sdsys.api.peer = downcase(trim(api.peer.addr))
+                  if sdsys.api.peer[1,7] = '::ffff:' and index(sdsys.api.peer, '.', 1) then sdsys.api.peer = sdsys.api.peer[8,999]
+                  sdsys.api.listed = @false
+                  call !addrmatch(sdsys.api.peer, sdsys.api.list, sdsys.api.listed)   ;* the rule, in one routine a test can run
+                  if not(sdsys.api.listed) then
+                     scram.refuse.reason = 'sdsys on a remote API session from an address not listed by remote.sdsys api: ' : api.peer.addr
+                     abort.message = sysmsg(14116, api.peer.addr)
+                     * SDSYS may use the API from another computer only from an address listed with remote.sdsys api on
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+                  sdsys.api.from = sdsys.api.peer
                end
-               if downcase(scram.user) = 'sdsys' then
+               if downcase(scram.user) = 'sdsys' and sdsys.api.from = '' then
                   api.peer.user = downcase(trim(system(43)))
                   sdsys.api.ok = @true
                   if api.peer.addr[1,1] # '/' then sdsys.api.ok = @false
@@ -1833,6 +1876,15 @@ vb.scram.final:
                      server.error = SV$ON.ERROR
                      goto exit.vb.scram.fail
                   end
+                  api.peer.login = downcase(trim(system(44)))
+                  if api.peer.login # 'sdsys' then
+                     scram.refuse.reason = 'sdsys API session from a process whose login is ' : (if api.peer.login = '' then 'unknown' else api.peer.login)
+                     abort.message = sysmsg(10195)
+                     * This session runs as sdsys but the machine was not logged in as sdsys
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+                  sdsys.api.from = 'this machine'
                end
 
                * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no
@@ -1864,6 +1916,14 @@ vb.scram.final:
                   goto exit.vb.scram.fail
                end
 
+* 16 Nov 26 dm - S.256: AN SDSYS SESSION ADMITTED BY EITHER DOOR ABOVE IS THE ADMINISTRATOR (owner: "Full admin rights only if API into SDSYS").
+*   Given here, after the identity, and written AFTER the grant (PORT_ADOPTION 13's order: a trail must not record rights not yet given).  An
+*   API session into any other account is never given it: it has that account's rights and nothing more.
+               if sdsys.api.from # '' then
+                  void kernel(K$ADMINISTRATOR, 1)
+                  void kernel(K$AUDIT, 'elevation granted reason=sdsys api from=' : sdsys.api.from)
+               end
+
 * 17 Oct 26 dm - S.65 slice 2c: THE FILES-ONLY MARK, set once here, after every refusal and before logged.in, and never cleared.  It is
 *   in the common block (see its declaration), so an abort does not lose it.  The login is audited as a login by this route.
                if api.files.login then
@@ -1878,6 +1938,26 @@ vb.scram.final:
                response = 'v=' : scram.ssig
                logged.in = @true
 
+               return
+
+* 16 Nov 26 dm - S.256: the administrator's remote-API setting, read from SDSYS.API.FILE while this process is still root.  The first line is
+*   "on"; each line after it is one client address, as the root helper wrote it (lower case, IPv6 in its standard short form).  A missing or
+*   unreadable file, or any first line but "on", is OFF: the delivered state, and the refusing answer.
+read.sdsys.api:
+               sdsys.api.on = @false
+               sdsys.api.list = ''
+               osread sdsys.api.text from SDSYS.API.FILE then
+                  convert char(13) to '' in sdsys.api.text
+                  convert char(10) to @fm in sdsys.api.text
+                  if downcase(trim(sdsys.api.text<1>)) = 'on' then
+                     sdsys.api.on = @true
+                     for sdsys.api.i = 2 to dcount(sdsys.api.text, @fm)
+                        sdsys.api.line = downcase(trim(sdsys.api.text<sdsys.api.i>))
+                        if sdsys.api.line # '' then sdsys.api.list<-1> = sdsys.api.line
+                     next sdsys.api.i
+                  end
+               end
+               sdsys.api.text = ''
                return
 
                * ----------------------------------------------------------------------
