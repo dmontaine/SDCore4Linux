@@ -93,7 +93,7 @@ def checks(s):
        "audited (never the text) and nothing sent; it goes FIRST in the system text; and it is INVISIBLE in the preview (the owner, 7 Nov 26): no line of the preview reads it",
        ordered(ask, "next hi", "cx.text = cxj{'context'}", "gosub clean.nl", "call $tk_aiwall('request', cx.text, why)",
                "void kernel(K$AUDIT, 'ai refused why=context app=' : downcase(app) : ' name=' : why)", "sysmsg(14013, why)", "return", "call $tk_aidocs('find', req, dres)",
-               "if cx.text # '' then cx.send = 'Standing information from the administrator of this SD system:' : char(10) : cx.text", "ks = cx.send : sysx : @fm : 600")
+               "if cx.text # '' then cx.send = 'Standing information from the administrator of this SD system:' : char(10) : cx.text", "ks = cx.send : sysx : @fm : 100000")
        and not re.search(r"body<-1>[^\n]*\bcx\.(text|send)\b", ai) and not re.search(r"wr\.text = [^\n]*\bcx\.", ai), "")
     ck("A12 the app's words are cleaned like the person's: every offered action line goes through clean before the preview or the prompt", ordered(ask, "for i = 1 to dcount(a<4>, @vm)", "gosub clean", "acts<1, i> = ", "sysx = sysmsg(11635, app)"), "")
     ck("A13 the line is not drawn at all when the AI is not usable (the gate, a provider, a model and a key): read.status sets ai.on only after all four tests, and the other ops do nothing when it is 0",
@@ -210,7 +210,7 @@ def checks(s):
     ck("FU3 the preview shows every earlier question and answer IN FULL (wrap.exact, no line limit) before the request, and its size counts them; the earlier exchanges go to K$AI.START as "
        "maxtokens VM n then the questions and answers, the prompt last, and there is still ONE call of it",
        ordered(ask, "size = len(cx.send) + len(sysx) + len(prompt) + h.bytes", "if h.n > 0 then", "A follow-up: ", "wr.text = h.q<i>", "gosub wrap.exact", "wr.text = h.a<i>", "gosub wrap.exact", "sysmsg(11643, len(req))",
-               "ks = cx.send : sysx : @fm : 600", "ks := @vm : h.n", "ks := @fm : h.q<i> : @fm : h.a<i>", "ks := @fm : prompt", "rq = kernel(K$AI.START, ks)") and ai.count("K$AI.START") == 1, "")
+               "ks = cx.send : sysx : @fm : 100000", "ks := @vm : h.n", "ks := @fm : h.q<i> : @fm : h.a<i>", "ks := @fm : prompt", "rq = kernel(K$AI.START, ks)") and ai.count("K$AI.START") == 1, "")
     ck("FU4 what is kept: this request and the AI's answer after the exchanges this one carried, the last 3 at most, with the app, the account and the time",
        ordered(keep, "nq = h.q ; na = h.a", "nq<h.n + 1> = req", "na<h.n + 1> = atext[1, 2000]", "while dcount(nq, @fm) > 3", "nq = field(nq, @fm, 2, 999)", "ai.fq = nq", "ai.fapp = app",
                "ai.ft = date() * 86400 + time()", "ai.fwho = @who"), "")
@@ -281,7 +281,7 @@ M_S160 = len(MUTANTS)           # 7 Nov 26 (S.160, the standing text): --selftes
 MUTANTS += [
     ("the standing text is shown in the preview", "tk_ai", "   body<-1> = sysmsg(11640, len(sysx))", "   body<-1> = cx.text\n   body<-1> = sysmsg(11640, len(sysx))", "CX1"),
     ("the standing text is not screened", "tk_ai", "      call $tk_aiwall('request', cx.text, why)\n", "      why = ''\n", "CX1"),
-    ("the standing text is not sent", "tk_ai", "   ks = cx.send : sysx : @fm : 600", "   ks = sysx : @fm : 600", "CX1"),
+    ("the standing text is not sent", "tk_ai", "   ks = cx.send : sysx : @fm : 100000", "   ks = sysx : @fm : 100000", "CX1"),
 ]
 M_S176 = len(MUTANTS)           # 8 Nov 26 (S.176, F6 the box key of every page): --selftest --from=M_S176
 MUTANTS += [

@@ -61,6 +61,7 @@
 *               prompt stays one after the Terminal tile and EXIT (hflag 2), so Ctrl-Q still goes back to the prompt; Alt-X is gone: Ctrl-Q is the one key that leaves.
 * 15 Nov 26 dm  S.242 stage 6 (owner: "Home screen tile"): Receive files, in the person's own tools, only where RECEIVE would open a transfer (xfer.usable asks what RECEIVE
 *               asks, in its order); it runs RECEIVE and waits for a key after.  Not on the administrator's page (SDSYS has no transfer).
+* 16 Nov 26 dm  Windows row 327: after Follow up in the answer's box the AI line keeps the focus, so the person types the next question at once.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1290,6 +1291,7 @@ ask.ai:
    call $tk_ai('ask', ctx, actx, res)
    call $tk_ai('clear', ctx, '', '')
    aif = 0
+   if res<1> = 'follow' then gosub ai.focus.on           ;* 16 Nov 26 (Windows row 327): after Follow up the line keeps the focus, ready to type
    msg = res<5>
    begin case
       case res<1> = 'action'

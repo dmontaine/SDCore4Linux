@@ -12,6 +12,7 @@
 * 8 Nov 26 dm  S.176 (the owner, 8 Nov 26: one key moves between the boxes on every page, "F6 for boxes is fine"): the op 'ring', F6 / Shift-F6 round a page's boxes with
 *              the AI line as the stop after the last; 'key' leaves F6 and Shift-F6 to the page while the line has the focus; the rows are a menu-only AI > Ask the AI (the
 *              page sees it as act:ai) and an F6 'box' row for a page that has no F6 row of its own ($tk_fkeys shows a key once).
+* 16 Nov 26 dm Windows row 327: after Follow up the AI line keeps the focus (it was given back to the page, so the person had to click the line).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -125,7 +126,7 @@ ask:
    actx<12> = ai.edits                                                        ;* S.97 stage 4: the actions that make or compile something: Enter alone rejects a proposal of one of them
    call $tk_ai('ask', ctx, actx, res)
    call $tk_ai('clear', ctx, '', '')
-   call $tk_ai('focus', ctx, 0, '')                                           ;* the line gives the focus back to the page
+   call $tk_ai('focus', ctx, (if res<1> = 'follow' then 1 else 0), '')       ;* the line gives the focus back to the page, but keeps it after Follow up (16 Nov 26, Windows row 327)
    out = 'taken' : @fm : '' : @fm : 1 : @fm : res<5>
    if res<1> = 'action' then
       call $tk_keys('keyof', keys, res<2>, pane, kk, '', '')

@@ -357,7 +357,11 @@ def sec_follow():
     h.typed("f", idle=1.5)
     arow("L16b", "Follow up applies nothing: the home screen is back and the AI line says a follow-up is waiting", h.home() and "follow-up" in line_row(h).lower(), repr(line_row(h)[:80]))
     n0, a0 = len(fm.log), audit_off()
-    ask(h, "second question [[plain]]")
+    # 16 Nov 26 (Windows row 327): after Follow up the line KEEPS the focus, so the second question is typed straight in (no F6: F6 would move
+    # the focus away from the line)
+    h.typed("second question [[plain]]", idle=0.6)
+    arow("L16b2", "after Follow up the AI line has the focus: what is typed goes into it", "second question" in line_row(h), repr(line_row(h)[:100]))
+    h.key("enter", idle=1.5)
     T = h.text()
     arow("L16c", "the follow-up's preview shows the earlier question; nothing is sent yet", "earlier exchange" in T and "first question [[sayonly]]" in T and len(fm.log) == n0, T[-1200:])
     h.typed("s", idle=4.0)

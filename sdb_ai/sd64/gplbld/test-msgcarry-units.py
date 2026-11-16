@@ -35,6 +35,7 @@ CORE = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 SOLO = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 CITE = re.compile(r"sysmsg\(\s*(\d+)")
 ALLOWED = {
+    ("tk_ai", "11635"): "16 Nov 26: Core asks for a whole answer (Windows row 325, the owner's ruling); Solo takes it at its next carry (S.248)",
     ("login", "10002"): "SDSYS is entered by sudo in Core; Solo has no sdsys and says type admin",
     ("login", "10172"): "update.accounts all: Core says log in as sdsys, Solo says the installer runs it",
     ("backupa", "13006"): "the syntax line: Solo has one account, so no names",

@@ -7,6 +7,8 @@
 * 23 Oct 26 dm  New.
 * 7 Nov 26 dm   S.160: the standing text goes first in the system text, after the wall's screen; it is not shown in the preview.
 * 8 Nov 26 dm   S.175 (the owner: "it is showing the standard prefix text, it is not supposed to"): the fixed sentence is not shown either; the preview is the question.
+* 16 Nov 26 dm   Windows row 326 (the owner: "Yes, follow it"): the request asks the kernel's ceiling, 100000 tokens, so the administrator's set.ai limit
+*                max-tokens decides how long an answer may be (it could only shorten one below 1024).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -127,7 +129,7 @@ $include err.h
    end
 
 *  The request
-   reply = kernel(K$AI.START, system.text : @fm : 1024 : @fm : question)
+   reply = kernel(K$AI.START, system.text : @fm : 100000 : @fm : question)    ;* 16 Nov 26 (Windows row 326, the owner: "Yes, follow it"): the kernel's ceiling, so set.ai limit max-tokens decides
    if reply<1> # 'OK' then
       @system.return.code = -ER$FAILED
       if reply<2> = 'nohelper' then stop sysmsg(11607)

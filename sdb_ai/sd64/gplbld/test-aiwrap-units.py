@@ -99,7 +99,8 @@ def checks(src):
        and "(if pk = 'edit' then ed.list else pcmd)" in ask, cm[:300])
     ac = ask.split("case pk = 'action'")[1].split("case pk = 'command'")[0] if "case pk = 'action'" in ask else ""
     ck("W8 the action line (the label and the argument) is wrapped by $tk_wrap, not left to the box", "call $tk_wrap(sysmsg(11647, plabel" in ac and "body<-1> = pieces" in ac, ac[:300])
-    ck("W9 the answer's own words are still wrapped by $tk_wrap (say), as they were", "call $tk_wrap(say, wrapw, pieces)" in ask, "")
+    ck("W9 the answer's own words are wrapped by $tk_wrap one paragraph at a time (16 Nov 26, Windows row 325): the answer is cut at its line feeds, an empty paragraph stays an empty line",
+       "para = field(say, char(10), pa)" in ask and "call $tk_wrap(para, wrapw, pieces)" in ask and "if para = '' then" in ask, "")
     # the model
     rng = random.Random(20261028)
     bad = 0

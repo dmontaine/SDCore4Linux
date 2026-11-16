@@ -41,6 +41,10 @@
 * 8 Nov 26 dm   S.175 (the owner: "it is showing the standard prefix text, it is not supposed to"): the preview no longer shows SD's own text (the fixed instruction,
 *               the actions, the form's fields, the page's description, the documentation passages); the size still counts it; the person's data and request are shown.
 * 10 Nov 26 dm  S.138: 'Waiting for the answer' no longer stays on the row behind the answer on a page with no AI line.
+* 16 Nov 26 dm  From Windows (its rows 324 and 325, the same code here): the line's cursor follows what is typed (entry.cursor sets SL.S.CUR before
+*               each put); the answer is kept whole with its line feeds, up to 65536 characters, each paragraph wrapped on its own, and message
+*               11635 asks for a whole answer (the owner on the Windows VM: "it should display the whole response"); 100000 tokens are asked, the
+*               ceiling, so the administrator's max-tokens decides (Windows row 326, the owner: "Yes, follow it").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -367,9 +371,17 @@ paint:
       ai.w{'focused'} = (if ai.focus then 1 else 0)
       call $sl_scr('get', scr)
       call $sl_entry('draw', ai.w, scr, '', r)
+      gosub entry.cursor
       call $sl_scr('put', scr)
    end
    if not(ai.focus) then call $sl_curat('back', keep.cur)
+   return
+
+* 16 Nov 26 (Windows row 324): the context's cursor is where the entry put the terminal's, while the line has the focus.  SCREEN TEXT of the label left
+* SL.S.CUR just after the label, and the put that follows the entry's own $sl_curat wrote that back, so the typed characters appeared with the cursor
+* on the line's first cell.  In: scr (from $sl_scr 'get'), ai.w, ai.focus
+entry.cursor:
+   if ai.focus then scr<SL.S.CUR> = (ai.w{'ax'} + ai.w{'pos'} - ai.w{'pan'}) : @vm : (ai.w{'ay'} + 0)
    return
 
 on.key:
@@ -388,6 +400,7 @@ on.key:
          ai.w{'focused'} = 1
          call $sl_scr('get', scr)
          call $sl_entry('key', ai.w, scr, nm, r)
+         gosub entry.cursor
          call $sl_scr('put', scr)
    end case
    return
@@ -668,7 +681,7 @@ run.ask:
 
    * the request goes: the kernel writes the audit line first, then connects.  A follow-up (3 Nov 26) is  maxtokens VM n, then n questions and n answers, each a field, before the
    *   prompt, which stays last (they hold no mark: each was cleaned)
-   ks = cx.send : sysx : @fm : 600                         ;* S.160: the standing text goes first in the system text
+   ks = cx.send : sysx : @fm : 100000                      ;* S.160: the standing text goes first in the system text; 16 Nov 26 (Windows row 326, the owner: "Yes, follow it"): the ceiling, so the administrator's max-tokens decides
    if h.n > 0 then
       ks := @vm : h.n
       for i = 1 to h.n
@@ -740,12 +753,21 @@ run.ask:
    tok.out = hj{'out'}
    gosub read.proposal
 
-   * the popup: what the AI said, the proposal if there is one, and Accept / Reject
-   call $tk_wrap(say, wrapw, pieces)
+   * the popup: what the AI said, the proposal if there is one, and Accept / Reject.  16 Nov 26 (Windows row 325): each paragraph of the answer
+   *   is wrapped on its own and an empty line stays empty
    body = ''
-   for p = 1 to dcount(pieces, @fm)
-      body<-1> = pieces<p>
-   next p
+   n.para = dcount(say, char(10))
+   for pa = 1 to n.para
+      para = field(say, char(10), pa)
+      if para = '' then
+         body<-1> = ''
+      end else
+         call $tk_wrap(para, wrapw, pieces)
+         for p = 1 to dcount(pieces, @fm)
+            body<-1> = pieces<p>
+         next p
+      end
+   next pa
    if note.p # '' then
       body<-1> = ''
       body<-1> = note.p
@@ -887,13 +909,16 @@ read.proposal:
       if not(status()) then obj.ok = 1
    end
    if not(obj.ok) then
-      say = atext[1, 600]
+      say = atext[1, 65536]
       note.p = sysmsg(11651)
       return
    end
+   * 16 Nov 26 (Windows row 325, the owner: "that is supposed to be a scrolling field, so it should display the whole response"): the answer is kept
+   *   whole, its line feeds with it (clean.nl), up to 65536 characters (the delivered reply, Windows row 326: the page does not shorten it again);
+   *   the popup wraps each paragraph and the message box scrolls
    raw = obj{'say'}
-   gosub clean
-   say = clean.out[1, 600]
+   gosub clean.nl
+   say = clean.out[1, 65536]
    if say = '' then say = ' '
    act = trim(obj{'action'})
    if act # '' and downcase(act) # 'none' then
