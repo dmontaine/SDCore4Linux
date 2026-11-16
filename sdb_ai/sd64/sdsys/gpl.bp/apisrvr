@@ -1960,7 +1960,7 @@ read.sdsys.api:
                         repeat
                      end
                   end
-                  closeseq sdsys.api.f
+                  close sdsys.api.f
                end else
                   close sdsys.api.f
                end

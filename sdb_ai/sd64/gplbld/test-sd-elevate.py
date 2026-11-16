@@ -1411,6 +1411,19 @@ def login_rows(helper=None):
             rows.append((f"REFUSE (S.102): no login, and the cgroup is {why}: refused for the login", refused(code, out), detail(code, out)))
         code, out = go(job(unit, lu="1000"))
         rows.append(("REFUSE (S.102): the job's cgroup does not excuse a BORROWED login (uid 1000): only a process with no login at all is asked about jobs", refused(code, out), detail(code, out)))
+        # ---- S.256 (16 Nov 26): an SDSYS API session - no login at all, systemd's per-connection unit of sdclient.socket
+        api_unit = "0::/system.slice/system-sdclient.slice/sdclient@3-10.0.2.15:4247-10.0.2.2:51234.service\n"
+        code, out = go(job(api_unit))
+        rows.append(("ALLOW (S.256): no login at all, in the cgroup of an sdclient@ API unit: an SDSYS API session the doors admitted, admitted", accepted(code, out), detail(code, out)))
+        for cg, why in (("0::/user.slice/user-979.slice/user@979.service/app.slice/system-sdclient.slice/sdclient@3.service\n", "under sdsys's OWN user manager"),
+                        ("0::/system.slice/sdclient@3.service\n", "an sdclient@ unit outside its slice"),
+                        ("0::/system.slice/system-sdclient.slice/sdclient@3.service\n1:name=systemd:/\n", "two lines (a hybrid cgroup layout)"),
+                        ("0::/system.slice/system-sdclient.slice/sdclient@3.service/child\n", "a child cgroup below the unit"),
+                        ("0::/system.slice/system-sdclientx.slice/sdclientx@3.service\n", "a look-alike unit name")):
+            code, out = go(job(cg))
+            rows.append((f"REFUSE (S.256): no login, and the cgroup is {why}: refused for the login", refused(code, out), detail(code, out)))
+        code, out = go(job(api_unit, lu="1000"))
+        rows.append(("REFUSE (S.256): the API unit's cgroup does not excuse a BORROWED login (uid 1000)", refused(code, out), detail(code, out)))
         for text, mode, why in (("name=nightly\ncommand=update.accounts all\n", 0o664, "writable by its group"), ("name=other\ncommand=update.accounts all\n", 0o644, "naming another job")):
             put_def(text, mode)
             code, out = go(job(unit))

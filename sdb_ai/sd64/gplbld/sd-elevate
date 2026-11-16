@@ -5,7 +5,8 @@
 # START-HISTORY:
 # 16 Nov 26 dm - S.256: sdsys-api on ADDR... | off | status, the administrator's remote-API door.  "on" checks every address or CIDR range with python3's
 #                ipaddress (a /0 range is refused: it is every address), writes them in standard network/length form under the line "on" to
-#                /etc/sdcore/sdsys-api (root, 0600, one rename), which APISRVR reads while it is still root; "off" removes the file.
+#                /etc/sdcore/sdsys-api (root, 0600, one rename), which APISRVR reads while it is still root; "off" removes the file.  And
+#                sdsys_api_gate: an sdsys caller with no login uid is admitted when it runs in an sdclient@ API unit's cgroup (an SDSYS API session).
 # 14 Nov 26 dm - S.242 stage 1: conf-set knows the file transfer parameters (XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX, XFERKIND) as fixed: it never writes them.
 # 02 Nov 26 dm - S.102 stage 4 (review): job-run refuses a definition that job-list would show as damaged (job_run_state, the list's own agreement test), before
 #                systemd is asked; the kernel's K$JOB.MARK refused such a run anyway, and now root starts no unit for it.
@@ -362,8 +363,29 @@ sdsys_login_gate() {
   if [[ $lu == 4294967295 ]] && sdsys_job_gate; then   # S.102 stage 3: no login at all, and systemd started this as an SD scheduled job
     return 0
   fi
+  if [[ $lu == 4294967295 ]] && sdsys_api_gate; then   # S.256: no login at all, and systemd started this as an SD API session that its doors admitted as SDSYS
+    return 0
+  fi
   [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys's" 2>/dev/null || true
   die "the caller is the user sdsys but did not log in as sdsys: the login behind this session is uid ${lu:-unknown}, not sdsys's (${want:-unknown}). su, sudo -u and a service keep the login of whoever started them; log in as sdsys itself and run it from there. Nothing was done."
+}
+
+# 16 Nov 26 dm - S.256.  AN SDSYS API SESSION runs as sdsys with no login uid too: systemd starts the API server per connection (sdclient.socket, Accept=true)
+# in its own unit, and the server takes the sdsys identity (K$ASSUME.USER) only after APISRVR's doors admitted an SDSYS login - from a listed address
+# (remote.sdsys api), or from this machine's socket by a process of a real sdsys login.  The owner: "Full admin rights only if API into SDSYS", so such a
+# session is the administrator and its verbs must reach this helper.  It is admitted when the helper's own cgroup is exactly one line
+# "0::/system.slice/system-sdclient.slice/sdclient@<instance>.service" - only systemd puts a process there, and the sdsys user can neither move a process
+# there nor start a system unit - and the caller is sdsys (the gate above is asked only then).  An API session of any other account is that account's
+# Linux user, never sdsys, so it is not admitted by this.  A dry run asks it only with SD_CGROUP_FIXTURE (a file).
+sdsys_api_gate() {
+  local cg
+  if [[ $DRY -eq 1 ]]; then
+    [[ -n ${SD_CGROUP_FIXTURE:-} ]] || return 1
+    cg=$(cat -- "$SD_CGROUP_FIXTURE" 2>/dev/null) || return 1
+  else
+    cg=$(cat /proc/self/cgroup 2>/dev/null) || return 1
+  fi
+  [[ $cg =~ ^0::/system\.slice/system-sdclient\.slice/sdclient@[A-Za-z0-9._:-]+\.service$ ]]
 }
 
 # 02 Nov 26 dm - S.102 stage 3.  A SCHEDULED ADMINISTRATOR JOB runs as sdsys with no login uid (a systemd unit sets none), so the test above cannot admit it.

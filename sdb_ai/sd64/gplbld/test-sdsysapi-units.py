@@ -173,7 +173,7 @@ def checks(raw):
        "$define SDSYS.API.FILE '/etc/sdcore/sdsys-api'" in raw["apisrvr"]
        and ordered(api, "read.sdsys.api:", "sdsys.api.on = @false", "openseq SDSYS.API.FILE readonly to sdsys.api.f then",
                    "readseq sdsys.api.line from sdsys.api.f then", "if downcase(trim(sdsys.api.line)) = 'on' then", "sdsys.api.on = @true",
-                   "closeseq sdsys.api.f", "end else", "close sdsys.api.f", "return"), "")
+                   "close sdsys.api.f", "end else", "close sdsys.api.f", "return") and "closeseq" not in api.lower(), "")
     # 16 Nov 26: OSREAD is a call of !osread, an ordinary program held to the account's OS gate, and a session that has not entered an account
     # does not pass it: on the VM every login read the setting as off.  The apisrvr itself must open the file.
     ck("A5", "the setting is NOT read with OSREAD (which is gated, and read nothing on a real install), only by this $internal program's OPENSEQ",
