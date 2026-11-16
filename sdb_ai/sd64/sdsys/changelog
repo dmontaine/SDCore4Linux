@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  SDSYS CAN BE ADMINISTERED THROUGH THE API FROM ANOTHER COMPUTER, ONCE THE ADMINISTRATOR OPENS IT.
+
+             What        - remote.sdsys api on <address or range> ... opens the API to sdsys from those addresses: an
+                           administration program there signs in as sdsys with sdsys's SD password and has every right of
+                           the administrator.  An entry is an IPv4 or IPv6 address or a range such as 192.168.1.0/24 (for a
+                           computer whose DHCP address changes); remote.sdsys api on any, alone, opens it to every address
+                           (for an administrator who travels; a VPN into a listed range is safer).  remote.sdsys api off
+                           shuts it; remote.sdsys with no word reports both doors, ssh and the API.  remote.sdsys on | off
+                           still means ssh.  From this machine's Unix socket sdsys keeps the API as before, now with the
+                           administrator's rights, and only from a real sdsys login.
+             Why         - a free API administration program, a Windows client that works with every SD version, is to be
+                           distributed with SD; the owner: deliver it closed and secure and let the administrator decide to
+                           loosen it, with full rights for SDSYS and an account's own rights for every other account.
+             Does NOT    - Open anything as delivered, open the API port (remote.api does that), give any account but
+                           SDSYS more than its own rights, accept a key or a second factor, or let su sdsys or sudo -u
+                           sdsys become the administrator through the API.
+
 16 Nov 26  THE AI LINE SHOWS THE WHOLE ANSWER, AND ITS CURSOR FOLLOWS WHAT IS TYPED.
 
              What        - the answer of the AI line on a full-screen page is shown whole, in paragraphs, in a box that
