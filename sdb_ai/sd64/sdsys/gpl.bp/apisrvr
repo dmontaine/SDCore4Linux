@@ -1943,21 +1943,27 @@ vb.scram.final:
 * 16 Nov 26 dm - S.256: the administrator's remote-API setting, read from SDSYS.API.FILE while this process is still root.  The first line is
 *   "on"; each line after it is one client address, as the root helper wrote it (lower case, IPv6 in its standard short form).  A missing or
 *   unreadable file, or any first line but "on", is OFF: the delivered state, and the refusing answer.
+*   OPENSEQ, NOT OSREAD (measured on the VM, 16 Nov 26: every login read the setting as off).  OSREAD compiles to a call of !osread, an
+*   ordinary program held to the account's OS gate, which a session that has not entered an account does not pass; this program is
+*   $internal and the kernel trusts it with an OPENSEQ by pathname.  READONLY, closed on every path (an OPENSEQ that fails keeps the lock).
 read.sdsys.api:
                sdsys.api.on = @false
                sdsys.api.list = ''
-               osread sdsys.api.text from SDSYS.API.FILE then
-                  convert char(13) to '' in sdsys.api.text
-                  convert char(10) to @fm in sdsys.api.text
-                  if downcase(trim(sdsys.api.text<1>)) = 'on' then
-                     sdsys.api.on = @true
-                     for sdsys.api.i = 2 to dcount(sdsys.api.text, @fm)
-                        sdsys.api.line = downcase(trim(sdsys.api.text<sdsys.api.i>))
-                        if sdsys.api.line # '' then sdsys.api.list<-1> = sdsys.api.line
-                     next sdsys.api.i
+               openseq SDSYS.API.FILE readonly to sdsys.api.f then
+                  readseq sdsys.api.line from sdsys.api.f then
+                     if downcase(trim(sdsys.api.line)) = 'on' then
+                        sdsys.api.on = @true
+                        loop
+                           readseq sdsys.api.line from sdsys.api.f else exit
+                           sdsys.api.line = downcase(trim(sdsys.api.line))
+                           if sdsys.api.line # '' then sdsys.api.list<-1> = sdsys.api.line
+                        repeat
+                     end
                   end
+                  closeseq sdsys.api.f
+               end else
+                  close sdsys.api.f
                end
-               sdsys.api.text = ''
                return
 
                * ----------------------------------------------------------------------

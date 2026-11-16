@@ -171,8 +171,13 @@ def checks(raw):
        repr(api.count("kernel(K$ADMINISTRATOR, 1)")))
     ck("A4", "the setting is read from /etc/sdcore/sdsys-api and only a first line 'on' turns it on",
        "$define SDSYS.API.FILE '/etc/sdcore/sdsys-api'" in raw["apisrvr"]
-       and ordered(api, "read.sdsys.api:", "sdsys.api.on = @false", "osread sdsys.api.text from SDSYS.API.FILE then",
-                   "if downcase(trim(sdsys.api.text<1>)) = 'on' then", "sdsys.api.on = @true", "return"), "")
+       and ordered(api, "read.sdsys.api:", "sdsys.api.on = @false", "openseq SDSYS.API.FILE readonly to sdsys.api.f then",
+                   "readseq sdsys.api.line from sdsys.api.f then", "if downcase(trim(sdsys.api.line)) = 'on' then", "sdsys.api.on = @true",
+                   "closeseq sdsys.api.f", "end else", "close sdsys.api.f", "return"), "")
+    # 16 Nov 26: OSREAD is a call of !osread, an ordinary program held to the account's OS gate, and a session that has not entered an account
+    # does not pass it: on the VM every login read the setting as off.  The apisrvr itself must open the file.
+    ck("A5", "the setting is NOT read with OSREAD (which is gated, and read nothing on a real install), only by this $internal program's OPENSEQ",
+       not re.search(r"^\s*osread\b", api, re.M | re.I), "")
 
     # R - remotesdsys
     ck("R1", "remote.sdsys asks for the administrator before it reads a word", ordered(rem, "if not(kernel(K$ADMINISTRATOR, -1)) then", "words = trim(@sentence)"), "")
@@ -221,7 +226,8 @@ MUTANTS = [
     ("the local arm forgets the login test", "A2", sub("apisrvr", "                  if api.peer.login # 'sdsys' then\n", "                  if @false then\n")),
     ("the flag for every API login", "A3", sub("apisrvr", "               if sdsys.api.from # '' then\n                  void kernel(K$ADMINISTRATOR, 1)",
                                                  "               if @true then\n                  void kernel(K$ADMINISTRATOR, 1)")),
-    ("any first line turns it on", "A4", sub("apisrvr", "if downcase(trim(sdsys.api.text<1>)) = 'on' then", "if @true then")),
+    ("any first line turns it on", "A4", sub("apisrvr", "if downcase(trim(sdsys.api.line)) = 'on' then", "if @true then")),
+    ("the gated OSREAD comes back", "A5", sub("apisrvr", "               sdsys.api.list = ''\n               openseq", "               sdsys.api.list = ''\n               osread x from SDSYS.API.FILE else null\n               openseq")),
     ("an address reaches the shell unchecked", "R2", sub("remote", "      if chk # '' or len(a) < 1 or len(a) > 64 then", "      if @false then")),
     ("any is taken with others", "R3", sub("remote", "         if nwords # argn + 1 then", "         if @false then")),
     ("the helper accepts a /0", "H4", sub("elevate", "    if n.prefixlen == 0:", "    if False:")),
