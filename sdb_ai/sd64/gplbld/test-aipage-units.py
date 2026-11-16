@@ -47,6 +47,8 @@ FILES = {
     "aipg": os.path.join(GPL, "tool_ai"),
     "menus": os.path.join(GPL, "tool_menus"),
     "mymenu": os.path.join(GPL, "mymenu"),
+    "jobs": os.path.join(GPL, "tool_jobs"),
+    "entries": os.path.join(GPL, "tool_entries"),
     "m43": os.path.join(SDSYS, "messages", "11943"),
     "m44": os.path.join(SDSYS, "messages", "11944"),
     "fake": os.path.join(HERE, "fakemodel.py"),
@@ -202,6 +204,17 @@ def checks(raw):
        "\n" not in m43 and "\n" not in m44 and "F6" in m43 and "%1" in m44 and len(m43) < 80 and len(m44) < 80, repr((len(m43), len(m44))))
     ck("AP14", "the fake provider answers act_refresh, act_type and act_delete with the action of that id, and the suite's own page has delete as a key it did NOT opt in",
        all(re.search(r'"act_%s": \'\{"say": "[^"]+", "action": "%s"' % (w, w), raw["fake"]) for w in ("refresh", "type", "delete")) and "'delete'" in voc and "$tk_keys('ai', keys, 'delete'" not in voc, "")
+    # 16 Nov 26 (Windows row 328): the cursor is in the AI line while it has the focus.  Every page's key loop asks $tk_aipage 'cursor' just before SCREEN KEY, and none parks
+    # the cursor on the status line itself there (it sat in column 0 of the status line while the person typed into the line)
+    ck("AP16", "$tk_aipage 'cursor' draws the line (which puts the cursor at the entry) when it has the focus, else parks the cursor at the start of the status line",
+       ordered(ap, "case op = 'cursor'", "if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('focused', ctx, foc, '')", "if foc then", "call $tk_ai('draw', ctx, 1, '')", "end else",
+               "call $sl_curat(0, ctx<TK.C.YSTAT>)", "case op = 'mouse'"), "")
+    CURSOR_PAGES = ("voc", "files", "catalog", "mygates", "dict", "test", "query", "bulk", "accounts", "audit", "backups", "config", "gates", "remote", "sessions", "aipg", "menus",
+                    "mymenu", "jobs", "entries")
+    PARK = re.compile(r"call \$sl_curat\(0, ctx<TK\.C\.YSTAT>\)\s*\n\s*nm = ''\s*\n\s*screen key")
+    miss = [k for k in CURSOR_PAGES
+            if not ordered(strip_bas(raw[k]), "call $tk_aipage('cursor', ctx, '', '', '', '')", "screen key") or PARK.search(strip_bas(raw[k])) or len(raw[k]) < 200]
+    ck("AP16a", "every page with the AI line (%d) asks $tk_aipage 'cursor' before its SCREEN KEY and none parks the cursor on the status line there" % len(CURSOR_PAGES), not miss, repr(miss))
     return rows
 
 
@@ -269,6 +282,10 @@ MUTANTS = [
     ("my.menu offers an action", "AP11t", sub("mymenu", "   call $tk_aipage('init', ctx, keys, '', '', aout)", "   call $tk_keys('ai', keys, 'remove', '', '', '', '')\n   call $tk_aipage('init', ctx, keys, '', '', aout)")),
     ("tool.ai's bar sees a key the line used", "AP12r", sub("aipg", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
     ("the keys op adds the rows without a line", "AP8", sub("page", "         if ctx<TK.C.AIROW> then gosub add.rows", "         gosub add.rows")),
+    # 16 Nov 26 (Windows row 328)
+    ("the cursor op never puts the cursor in the line", "AP16", sub("page", "         if foc then\n            call $tk_ai('draw', ctx, 1, '')\n", "         if 0 then\n            null\n")),
+    ("tool.files parks the cursor on the status line again", "AP16a", sub("files", "      call $tk_aipage('cursor', ctx, '', '', '', '')", "      call $sl_curat(0, ctx<TK.C.YSTAT>)")),
+    ("tool.entries does not ask the cursor op", "AP16a", sub("entries", "      call $tk_aipage('cursor', ctx, '', '', '', '')", "      null")),
 ]
 
 

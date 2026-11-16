@@ -13,6 +13,7 @@
 *              the AI line as the stop after the last; 'key' leaves F6 and Shift-F6 to the page while the line has the focus; the rows are a menu-only AI > Ask the AI (the
 *              page sees it as act:ai) and an F6 'box' row for a page that has no F6 row of its own ($tk_fkeys shows a key once).
 * 16 Nov 26 dm Windows row 327: after Follow up the AI line keeps the focus (it was given back to the page, so the person had to click the line).
+* 16 Nov 26 dm Windows row 328: the op 'cursor', which the pages' key loops call in place of $sl_curat: the cursor sat at the start of the status line while the AI line had the focus.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -37,6 +38,7 @@
 *                               a<1> = the key, a<2> = how many boxes the page (or its view) has.  The boxes and then the AI line, where the page has one, are a ring: F6 is the
 *                               next stop, Shift-F6 the one before, act:ai the line itself.  The line is focused or given up here; out<1> is the box that is to have the focus
 *                               (0: the line has it) and out<2> the status line's message.  A page with one box and no line gets its own box back.
+*   cursor (ctx)                the page's key loop calls it just before SCREEN KEY: the cursor goes into the AI line while it has the focus, else to column 0 of the status line.
 *   mouse  (ctx, keys, pane, a -> out)   a = the event of SCREEN MOUSE: a left press on the line gives it the focus; out is then its message, else null.
 *
 *   WHAT IS OFFERED TO THE MODEL is the page's key table, not a list typed again: the actions the page opted in ($tk_keys 'ai') that are available now for the pane and have a key.  The
@@ -82,6 +84,17 @@ $include tk.h
 
       case op = 'ring'
          gosub ring
+
+      case op = 'cursor'
+         * 16 Nov 26 (Windows row 328): the page's key loop calls this just before SCREEN KEY.  While the line has the focus the cursor goes to the entry's place
+         * ($tk_ai 'draw' puts it there); else it waits at the start of the status line, as every page did before
+         foc = 0
+         if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('focused', ctx, foc, '')
+         if foc then
+            call $tk_ai('draw', ctx, 1, '')
+         end else
+            call $sl_curat(0, ctx<TK.C.YSTAT>)
+         end
 
       case op = 'mouse'
          if ctx<TK.C.AIROW> and ctx<TK.C.AI> then

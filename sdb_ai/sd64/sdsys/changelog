@@ -5,12 +5,15 @@ Next release - in progress
 
              What        - the answer of the AI line on a full-screen page is shown whole, in paragraphs, in a box that
                            scrolls, where it used to be cut to one short sentence; and the cursor of the AI line now stands
-                           after what has been typed, and stays in the line after Follow up.  How long an answer may be,
+                           after what has been typed, and stays in the line after Follow up and after F6, on every page
+                           as on the home screen.  A question is answered as at the prompt: the answer itself first (a
+                           name, a number, an address), not after what SD does or does not hold.  How long an answer may be,
                            at the prompt and on every page, is now set.ai limit max-tokens (1024 as delivered); raising it
                            gives longer answers.
              Why         - a question at the AI line got a one-sentence answer where the same question at the prompt got
                            paragraphs; the owner: "it should display the whole response".  The cursor stayed on the line's
-                           first cell while the characters appeared after the label.  Raising max-tokens did nothing,
+                           first cell while the characters appeared after the label, and on every page but the home screen
+                           it sat at the start of the status line while the line had the focus.  Raising max-tokens did nothing,
                            because each request asked for a fixed, shorter length.
              Does NOT    - Change what an answer may propose: an action is still one the page offers, and a command is still
                            shown, never run, until it is accepted.
