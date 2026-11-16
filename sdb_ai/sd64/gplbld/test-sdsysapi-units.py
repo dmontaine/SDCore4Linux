@@ -128,6 +128,9 @@ def checks(raw):
         rc, out, c, mode = run_helper(fn, f, "on", "192.168.1.99/24", "2001:0DB8::0001", "10.0.0.5", "192.168.1.0/24")
         ck("H1", "on writes 'on' then each entry in standard form (host bits cleared, IPv6 short, an address /32 or /128, a repeat once), mode 0600",
            rc == 0 and c == "on\n192.168.1.0/24\n2001:db8::1/128\n10.0.0.5/32\n" and mode == 0o600, repr((rc, c, oct(mode or 0), out[-200:])))
+        rc, out, cm, _m = run_helper(fn, f + ".mapped", "on", "::ffff:192.168.1.5", "::ffff:10.1.2.0/120")
+        ck("H1b", "an IPv4-mapped IPv6 entry is written as its IPv4 form (a single address /32, a /120 as /24), the form a mapped peer is compared in",
+           rc == 0 and cm == "on\n192.168.1.5/32\n10.1.2.0/24\n", repr((rc, cm, out[-160:])))
         rc, out, c2, _m = run_helper(fn, f, "status")
         ck("H2", "status reports on and the entries", rc == 0 and "on, from 192.168.1.0/24 2001:db8::1/128 10.0.0.5/32" in out, out)
         for i, args, why in (("H3", ("on", "10.0.0.1", "not-an-address"), "an entry that is not an address"),
@@ -230,7 +233,8 @@ MUTANTS = [
     ("the gated OSREAD comes back", "A5", sub("apisrvr", "               sdsys.api.list = ''\n               openseq", "               sdsys.api.list = ''\n               osread x from SDSYS.API.FILE else null\n               openseq")),
     ("an address reaches the shell unchecked", "R2", sub("remote", "      if chk # '' or len(a) < 1 or len(a) > 64 then", "      if @false then")),
     ("any is taken with others", "R3", sub("remote", "         if nwords # argn + 1 then", "         if @false then")),
-    ("the helper accepts a /0", "H4", sub("elevate", "    if n.prefixlen == 0:", "    if False:")),
+    ("the helper accepts a /0", "H4", sub("elevate", "        sys.exit(1)\n    if n.prefixlen == 0:", "        sys.exit(1)\n    if False:")),
+    ("a mapped entry is kept in IPv6 form", "H1b", sub("elevate", "    if n.version == 6 and n.prefixlen >= 96 and n.network_address.ipv4_mapped is not None:", "    if False:")),
     ("the helper's file is readable by others", "H1", sub("elevate", '      chmod 0600 -- "$tmp" ||', '      chmod 0644 -- "$tmp" ||')),
     ("the helper follows a link", "H11", sub("elevate", '      [[ ! -L $SDSYS_API_FILE ]] || die "$SDSYS_API_FILE is a link: refused"\n', "")),
     ("the helper takes any with others", "H6", sub("elevate", '        [[ $# -eq 1 ]] || die "sdsys-api on any takes no other address"\n', "")),

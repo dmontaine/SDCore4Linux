@@ -107,9 +107,9 @@ def tools_has(e, text):
 
 
 def sed_ask(e, request):
-    """Tools > Ask the AI..., the request on the message row, Enter: the preview."""
-    e.keys(F10, TOOLS)
-    e.keys(ASK_KEY)
+    """The request in SED's AI line, Enter: the preview.  16 Nov 26 (S.252): SED is the IDE's editor on its own since S.184, with the IDE's AI line and
+    keys, and its old Tools > Ask the AI route typed the request into the text (the record showed changed); the line is reached as the IDE's is."""
+    ai.focus_entry(e)
     e.keys(request)
     e.keys(RET)
     return e.text()

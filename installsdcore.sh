@@ -274,7 +274,9 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
     # This script's IFS is $'\n\t': a SPACE DOES NOT SPLIT a word, so the list is split with a local IFS (the first real install of 19 Oct 2026 gave sd the
     # single argument "both sh-on os-on ..." and nothing opened).  Local to this function and its helpers.
     local IFS=' '
-    gate_words="both sh-on os-on sd-on voc-on bp-on dict-on recovery-on net-on shared-write-on files-on files-write-on files-admin-on ai-on pins-on"
+    # 16 Nov 26 dm - xfer-on (S.242's file transfer switch, register field 22) joins the list under the owner's "Every gate": test-install-opengates.sh S2 named it
+    #            as a gate added later.  The system's own switch, XFER=1 in sd.conf, stays off: the account's switch alone moves nothing.
+    gate_words="both sh-on os-on sd-on voc-on bp-on dict-on recovery-on net-on shared-write-on files-on files-write-on files-admin-on ai-on pins-on xfer-on"
     gate_missing=""
     echo "  Opening every access gate for ${user}, as you asked."
     for gate_word in $gate_words; do
@@ -300,6 +302,7 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
     gate_reg 15 net-on
     gate_reg 18 pins-on
     gate_reg 19 recovery-on
+    gate_reg 22 xfer-on
     gate_grp sdssh both
     gate_grp sdapi both
     gate_grp sdfiles files-on
@@ -309,7 +312,8 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
     if [ -z "$gate_missing" ]; then
         echo "  Opened every access gate for ${user}, read back from the register and the Linux groups:"
         echo "      ssh, the API, the shell, OS.EXECUTE, SD.ACCOUNTS, changing the VOC, programs and dictionaries, the recovery copy,"
-        echo "      SDNet, writing the shared account's files, the files-only login with its write and admin groups, the AI, and pins."
+        echo "      SDNet, writing the shared account's files, the files-only login with its write and admin groups, the AI, pins, and file transfer"
+        echo "      (file transfer also needs XFER=1 in sd.conf, which stays off)."
         echo "  The AI is used only once SDSYS has chosen a provider and given its key (tool.ai)."
         echo "  Signed in as sdsys, close any again with  modify.account ${acct} <word>-off  (ssh and the API: modify.account ${acct} none)."
     else
@@ -2626,6 +2630,18 @@ fix_gcat_modes() {
     sudo chown -R sdsys:sdusers "$sdsysdir/gcat"
 }
 # GCAT-MODE-END
+# 16 Nov 26 dm - S.240: THE COMPILED PROGRAMS ARE SDSYS'S, LIKE THE REST OF THE TREE.  Bootstrap pass 2 (sd -internal SECOND.COMPILE) and the
+#            final CPROC recompile run as root after the chown/chmod sweep, so every object in gpl.bp.out was root:root 0664 (sd's umask
+#            002).  No SD user could write them (the group was root), so it was never an exposure, but it was not what the sweep leaves
+#            everywhere else.  Run once, after the last compile.  Measured on Debian 13 before it went in: sessions as sdsys and as a user, and
+#            the S.256 API witness, all unchanged with the objects sdsys:sdusers 0644.
+# GPLBPOUT-MODE-BEGIN
+fix_gplbpout_modes() {
+    sudo chown -R sdsys:sdusers "$sdsysdir/gpl.bp.out"
+    sudo find "$sdsysdir/gpl.bp.out" -type f -exec chmod 644 {} +
+    sudo find "$sdsysdir/gpl.bp.out" -type d -exec chmod 755 {} +
+}
+# GPLBPOUT-MODE-END
 # 10 Nov 26 dm - S.198 (owner: "the gpl.bp and c source should never be installed just distributed with the installer"; "it applies to linux, as long is
 #            the source is available in the install zip package").  After this compile root can no longer run SD, so the VOC records that name the source
 #            go in the SAME session: the cproc in that session's memory is the installing one.  The records leave voc_template too, or the SDSYS account's
@@ -2654,6 +2670,7 @@ for source_item in gpl.bp gplsrc gplobj gplbld gpl.src Makefile voc_template/gpl
 done
 # SOURCE-GONE-END
 fix_gcat_modes
+fix_gplbpout_modes
 #
 echo
 echo Stopping sd

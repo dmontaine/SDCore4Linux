@@ -319,8 +319,10 @@ def wait_popup(e, tmax=15.0):
 
 
 def ask(e, request, go_send=False):
-    """The AI entry has the focus (F6 round the ring of panes from the editor: the messages, then the AI line), the request is typed, Enter shows the preview."""
-    e.keys(F6, F6)
+    """The AI entry has the focus (F6 round the ring until the status line names it), the request is typed, Enter shows the preview.
+    16 Nov 26 (S.252): it pressed F6 twice, for the messages box and then the line; since S.200 (10 Nov) F6 passes an EMPTY messages box, so on a
+    record with no messages the second F6 left the line again and the request was typed into the editor.  focus_entry stops at the line."""
+    focus_entry(e)
     e.keys(request)
     e.keys(RET)
 

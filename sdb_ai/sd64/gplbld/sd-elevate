@@ -707,6 +707,13 @@ for a in sys.argv[1:]:
     if n.prefixlen == 0:
         print("a /0 range is every address, and is refused: " + a, file=sys.stderr)
         sys.exit(1)
+    # an IPv4-mapped IPv6 entry is written as its IPv4 form, the form APISRVR compares a mapped peer in (found by Windows, 16 Nov 26: newer
+    # Pythons write it dotted, which !addrmatch cannot read, so it was accepted, reported open, and refused its client)
+    if n.version == 6 and n.prefixlen >= 96 and n.network_address.ipv4_mapped is not None:
+        n = ipaddress.ip_network("%s/%d" % (n.network_address.ipv4_mapped, n.prefixlen - 96), strict=False)
+        if n.prefixlen == 0:
+            print("a /0 range is every address, and is refused: " + a, file=sys.stderr)
+            sys.exit(1)
     s = str(n)
     if s not in out:
         out.append(s)

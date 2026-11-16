@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  THE INSTALLER'S "OPEN EVERY ACCESS GATE" ALSO OPENS FILE TRANSFER.
+
+             What        - a y to "Open every access gate for <you>'s SD account?" (default No, new accounts only) now also
+                           turns on the account's file transfer switch, and says so with the others.
+             Why         - the owner's ruling for that question is "every gate", and file transfer is a gate added after it.
+             Does NOT    - Turn on the system's own switch, XFER=1 in sd.conf: until the administrator sets it, no account
+                           moves a file, whatever its own switch says.
+
 16 Nov 26  SDSYS CAN BE ADMINISTERED THROUGH THE API FROM ANOTHER COMPUTER, ONCE THE ADMINISTRATOR OPENS IT.
 
              What        - remote.sdsys api on <address or range> ... opens the API to sdsys from those addresses: an

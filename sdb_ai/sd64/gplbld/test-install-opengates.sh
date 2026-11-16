@@ -75,10 +75,12 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant words-lose-net            '/^open_installer_gates() {/,/^}/ s/ net-on / /'
   mutant words-lose-shared-write   '/^open_installer_gates() {/,/^}/ s/ shared-write-on / /'
   mutant words-swap-files          '/^open_installer_gates() {/,/^}/ s/ files-on files-write-on / files-write-on files-on /'
-  mutant words-add-unknown         '/^open_installer_gates() {/,/^}/ s/ pins-on"/ pins-on suspended"/'
+  mutant words-add-unknown         '/^open_installer_gates() {/,/^}/ s/ xfer-on"/ xfer-on suspended"/'
+  mutant words-lose-xfer           '/^open_installer_gates() {/,/^}/ s/ pins-on xfer-on"/ pins-on"/'
+  mutant xfer-line-forgotten       '/^open_installer_gates() {/,/^}/{/gate_reg 22 xfer-on/d}'
   mutant words-lose-ai             '/^open_installer_gates() {/,/^}/ s/ ai-on / /'
   mutant words-lose-files-admin    '/^open_installer_gates() {/,/^}/ s/ files-admin-on / /'
-  mutant words-hold-sdsys          '/^open_installer_gates() {/,/^}/ s/ pins-on"/ pins-on sdsys-on"/'
+  mutant words-hold-sdsys          '/^open_installer_gates() {/,/^}/ s/ xfer-on"/ xfer-on sdsys-on"/'
   mutant ai-group-forgotten        '/^open_installer_gates() {/,/^}/{/gate_grp sdaiusers ai-on/d}'
   mutant recovery-line-forgotten   '/^open_installer_gates() {/,/^}/{/gate_reg 19 recovery-on/d}'
   mutant sdsys-never-given         's/^    open_installer_sdsys "\$tuser" "\$tuser_lc"$/    true/'
@@ -124,9 +126,10 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 ASK_T=$(printf '%s\n' "$ASK" | sed -e "s#/home/sd/#$T/home/sd/#g")
 printf '%s\n' "$ASK_T" | grep -q -F "$T/home/sd/user_accounts" || { echo "test-install-opengates: CANNOT RUN - the question block does not look at /home/sd/user_accounts"; exit 2; }
 
-WORDS="both sh-on os-on sd-on voc-on bp-on dict-on recovery-on net-on shared-write-on files-on files-write-on files-admin-on ai-on pins-on"
-NW=15
-ALLMISS="sh-on os-on sd-on voc-on bp-on dict-on shared-write-on net-on pins-on recovery-on both files-on files-write-on files-admin-on ai-on"
+# 16 Nov 26: xfer-on (S.242, register line 22) joined the list under the owner's "Every gate" (S2 named it as a gate added later)
+WORDS="both sh-on os-on sd-on voc-on bp-on dict-on recovery-on net-on shared-write-on files-on files-write-on files-admin-on ai-on pins-on xfer-on"
+NW=16
+ALLMISS="sh-on os-on sd-on voc-on bp-on dict-on shared-write-on net-on pins-on recovery-on xfer-on both files-on files-write-on files-admin-on ai-on"
 GRPMISS="both files-on files-write-on files-admin-on ai-on"
 SDSYSF=$(awk '/^open_installer_sdsys\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INST")
 [ -z "$SDSYSF" ] && { echo "test-install-opengates: CANNOT RUN - no function open_installer_sdsys in the installer"; exit 2; }
@@ -186,7 +189,7 @@ setline() { sed -i "$1s/.*/yes/" "$REG"; }
 add() { printf '%s,%s' "$(cat "$T/groups/$1")" "Don" > "$T/groups/$1"; }
 case "$word" in
   sh-on) setline 7;; os-on) setline 8;; sd-on) setline 9;; voc-on) setline 10;; bp-on) setline 11;; dict-on) setline 12;;
-  shared-write-on) setline 14;; net-on) setline 15;; pins-on) setline 18;; recovery-on) setline 19;;
+  shared-write-on) setline 14;; net-on) setline 15;; pins-on) setline 18;; recovery-on) setline 19;; xfer-on) setline 22;;
   both) add sdssh; [ -n "${HALFBOTH:-}" ] || add sdapi;;
   files-on) add sdfiles;; files-write-on) add sdfileswrite;; files-admin-on) add sdfilesadmin;; ai-on) add sdaiusers;;
   sdsys-on) printf '%s,%s' "$(cat "$T/groups/sdu_don")" "sdsys" > "$T/groups/sdu_don";;
@@ -201,7 +204,7 @@ run_open() {   # env knobs: REFUSE CRASH NOEFFECT HALFBOTH NOREG GRPBLIND ; prin
   : > "$T/sd.log"; : > "$T/sudo.log"
   local g; for g in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers sdu_don; do printf 'root' > "$T/groups/$g"; done
   if [ -z "${NOREG:-}" ]; then
-    printf '%s\n' "$T/home/sd/user_accounts/don" "" "sdu_don" "" "" "" no no "" no no no yes no no "" "" no no > "$T/reg/don"
+    printf '%s\n' "$T/home/sd/user_accounts/don" "" "sdu_don" "" "" "" no no "" no no no yes no no "" "" no no "" "" no > "$T/reg/don"
   fi
   ( cd "$T/work" && OPTS="$OPTS" FUNC="$FUNC" T="$T" SDLOG="$T/sd.log" REG="$T/reg/don" bash -c '
       eval "$OPTS"; RED=; NC=
@@ -239,8 +242,8 @@ row "O1d ...in the list's order, each as -internal modify.account <account in lo
     "$(ok "$([ "$(called_words)" = "$WORDS" ] && echo yes)")" "got: $(called_words)"
 row "O1e ...each with its input from /dev/null (a verb that asked a question would hang the install on a terminal)" \
     "$(ok "$([ "$(grep -c '^STDIN: /dev/null$' "$T/sd.log")" -eq $NW ] && echo yes)")" "stdin lines: $(grep '^STDIN' "$T/sd.log" | sort | uniq -c | tr '\n' ';')"
-row "O1f ...and the register and the groups were READ to judge it (sed on lines 7-19, getent on the six groups)" \
-    "$(ok "$(for n in 7 8 9 10 11 12 14 15 18 19; do grep -q "sed -n ${n}p " "$T/sudo.log" || exit 1; done; echo yes)")" "sudo.log: $(tr '\n' ';' < "$T/sudo.log")"
+row "O1f ...and the register and the groups were READ to judge it (sed on lines 7-22, getent on the six groups)" \
+    "$(ok "$(for n in 7 8 9 10 11 12 14 15 18 19 22; do grep -q "sed -n ${n}p " "$T/sudo.log" || exit 1; done; echo yes)")" "sudo.log: $(tr '\n' ';' < "$T/sudo.log")"
 
 for w in $WORDS; do
   OUT=$(REFUSE="$w" run_open)
@@ -307,7 +310,7 @@ row "S2c sdsys-on is a word modify.account accepts and is NOT in the list (open_
     "$(ok "$(case " $all_on_words " in *" sdsys-on "*) case " $mine " in *" sdsys-on "*) ;; *) echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
 row "S3 files-on comes before files-write-on" \
     "$(ok "$(case " $inst_words " in *" files-on files-write-on "*) echo yes;; esac)")" "list: $inst_words"
-declare -A ACCOF=( [sh-on]='ACC$SH' [os-on]='ACC$OS.EXEC' [sd-on]='ACC$SD.ACCOUNTS' [voc-on]='ACC$VOC.EDIT' [bp-on]='ACC$BP.EDIT' [dict-on]='ACC$DICT.EDIT' [shared-write-on]='ACC$SHARED.WRITE' [net-on]='ACC$NET' [pins-on]='ACC$PINS' [recovery-on]='ACC$RECOVERY' )
+declare -A ACCOF=( [sh-on]='ACC$SH' [os-on]='ACC$OS.EXEC' [sd-on]='ACC$SD.ACCOUNTS' [voc-on]='ACC$VOC.EDIT' [bp-on]='ACC$BP.EDIT' [dict-on]='ACC$DICT.EDIT' [shared-write-on]='ACC$SHARED.WRITE' [net-on]='ACC$NET' [pins-on]='ACC$PINS' [recovery-on]='ACC$RECOVERY' [xfer-on]='ACC$XFER' )
 n_reg=0
 for w in "${!ACCOF[@]}"; do
   want=$(sed -n "s/^ *\$define ${ACCOF[$w]//\$/\\$} *\([0-9][0-9]*\).*/\1/p" "$KEYS" | head -1)
@@ -315,7 +318,7 @@ for w in "${!ACCOF[@]}"; do
   n_reg=$((n_reg+1))
   row "S4 register line for $w is ${ACCOF[$w]} = ${want:-?} in keys.h" "$(ok "$([ -n "$want" ] && [ "$want" = "$have" ] && echo yes)")" "keys.h: '$want', installer: '$have'"
 done
-row "S4b ...all ten were checked (the null case)" "$(ok "$([ "$n_reg" -eq 10 ] && echo yes)")" "$n_reg"
+row "S4b ...all eleven were checked (the null case)" "$(ok "$([ "$n_reg" -eq 11 ] && echo yes)")" "$n_reg"
 for pair in "sdssh both" "sdapi both" "sdfiles files-on" "sdfileswrite files-write-on" "sdfilesadmin files-admin-on" "sdaiusers ai-on"; do
   set -- $pair
   row "S5 group $1 is judged and names $2" "$(ok "$(printf '%s\n' "$FUNC" | grep -q "^ *gate_grp $1 $2\$" && echo yes)")" "no 'gate_grp $1 $2' line"

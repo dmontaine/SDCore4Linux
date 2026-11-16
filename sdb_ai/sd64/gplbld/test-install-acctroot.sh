@@ -133,7 +133,9 @@ row "A3 no write bit for the group or others on any of the three (read from stat
 # A4 static
 bad=$(grep -n -E 'chmod[^#]*(ACCT_PATH|acct_path|/home/sd)' "$INST" | grep -v -E 'chmod 755 ' | grep -v -E '^\s*[0-9]+:\s*#' || true)
 row "A4 installsdcore.sh chmods an account root only to 755" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
-bad=$(grep -n -E 'chmod[^#]*(acct_path|/home/sd)' "$DELETER" | grep -v -F 'start.default.saved' || true)   # that file is the saved start setting, not an account root
+# 16 Nov 26: a chmod of a SAVED SETTING kept in /home/sd for the next install (start.default.saved, and since 14 Nov api-access.saved and
+# sdsys-ssh.saved, each 600) is not a chmod of the account root; the folder itself must never be chmodded.  It used to except only the first.
+bad=$(grep -n -E 'chmod[^#]*(acct_path|/home/sd)' "$DELETER" | grep -v -E '/[a-z.-]+\.saved"' || true)
 row "A4b deletesdcore.sh does not chmod /home/sd" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
 # A5 (24 Oct 26, W.11 F4): errlog is 664 - every session appends to it, nothing runs it
 el=$(grep -n -E '^[^#]*chmod[^#]*errlog' "$INST" || true)
