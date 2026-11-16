@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  UNINSTALLING WITH THE ACCOUNTS DELETED REMOVES EVERY ACCOUNT'S LINUX GROUP.
+
+             What        - when deletesdcore.sh is told to delete the accounts, it now also removes the Linux group of every
+                           account in the register: sdu_<name> for a user account, sdg_<name> for a group account.  It says
+                           each one it removed, and says so when the system refused one.
+             Why         - those groups were left behind, and the script only said they "may need to be manually removed".
+                           The owner: an uninstall asked to remove the accounts should remove everything that goes with them.
+             Does NOT    - Remove a group with an SD-like name that no account of the register names, remove the Linux users
+                           of user accounts (they hold people's own files), or touch anything when the accounts are kept.
+
 15 Nov 26  THE FULL-SCREEN PAGES' FIELDS OPEN EMPTY; FIXED CHOICES ARE CHOSEN, NOT TYPED; DELETING AN ACCOUNT IS ONE DIALOG.
 
              What        - every entry field of the administrator's and the person's own pages now opens empty.  Where a

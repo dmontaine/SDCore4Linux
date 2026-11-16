@@ -8,6 +8,13 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   16 Nov 2026 dm - S.249 (the owner, in the Windows chat 15 Nov: "uninstall
+#   should probably remove everything if asked to remove accounts"; a parity
+#   ruling, Windows row 322): on a full DELETE the Linux group of every account
+#   in the register (field 3, an sdu_* or sdg_* name) is removed, read from the
+#   register before the system directory goes.  A group named like SD's that no
+#   register record names is left alone.
+#
 #   26 Oct 2026 dm - W.11 F11: the immutable attribute the installer puts on
 #   bin (so that the sdsys user cannot replace the directory root runs
 #   sd, sdlnxd and sdidx from) is lifted before the system directory is removed.
@@ -236,6 +243,14 @@ fi
 # cd /usr/lib/systemd/system
 # stop services (was here, after rm)
 sudo "${sdsysdir}/bin/sd" -stop 2>/dev/null || true
+# ACCTGROUPS-READ-BEGIN
+# 16 Nov 26 dm - S.249: the accounts' own Linux groups, read now, while the register is still on disk; removed in the DELETE block below.  Only
+#   field 3 of a register record (ACC$GROUP), and only a name SD gives (sdu_ or sdg_ and the characters of an account name), so nothing else can be named.
+sd_acct_groups=""
+if [ "$keep_accts" = "DELETE" ] && sudo test -d "${sdsysdir}/accounts"; then
+    sd_acct_groups=$(sudo find "${sdsysdir}/accounts" -maxdepth 1 -type f -exec awk 'FNR == 3 && /^sd[ug]_[a-z0-9._-]+$/ { print }' {} + 2>/dev/null | sort -u || true)
+fi
+# ACCTGROUPS-READ-END
 # 25 Oct 26 dm - the audit daemon's own unit (sd-lnxd.service) first, so that it is not restarted while SD is being taken down.  It has no [Install] section
 #   (sd.service wants it), so there is nothing to disable.
 sudo systemctl stop sd-lnxd.service 2>/dev/null || true
@@ -649,7 +664,18 @@ if [ "$keep_accts" = "DELETE" ]; then
         sudo groupdel sdg_shared || true
         echo "Removed group sdg_shared."
     fi
-    echo "Note: for complete clean up groups sdu_* and sdg_* may need to be manually removed"
+    # ACCTGROUPS-DEL-BEGIN
+    # 16 Nov 26 dm - S.249: every account's own group the register named (read above, before the system directory went)
+    for g in $sd_acct_groups; do
+        if getent group "$g" &>/dev/null; then
+            if sudo groupdel "$g"; then
+                echo "Removed group $g."
+            else
+                echo "Group $g was not removed (groupdel refused it)."
+            fi
+        fi
+    done
+    # ACCTGROUPS-DEL-END
 else
     echo "sd ACCOUNTS were saved, therefore"
     echo "user sdsys and group sdusers not deleted"
