@@ -682,6 +682,19 @@ else
     echo "The assumption is sd will be reinstalled"
 fi
 
+# 16 Nov 26 dm - S.255: /home/sd is made again before the configuration question (PRE_RELEASE 26, so a kept sd.conf has somewhere to go), whatever the
+#            answer, so a delete that kept NOTHING left an empty /home/sd owned by root (found on the VM by the S.254 package test).  When the accounts
+#            and the configuration were both deleted it is removed here, and only when it is empty: rmdir never removes a file a step above saved.
+# HOMESD-TIDY-BEGIN
+if [ "$keep_accts" = "DELETE" ] && [ "$conf_deleted" = yes ] && [ -d "$acct_path" ]; then
+    if sudo rmdir "$acct_path" 2>/dev/null; then
+        echo "Removed $acct_path (empty: nothing was kept)."
+    else
+        echo "Kept $acct_path: something is still in it."
+    fi
+fi
+# HOMESD-TIDY-END
+
 
 printf "%b\n" "$GREEN"
 echo "----------------------------------------------------------------------"

@@ -35,6 +35,16 @@ Next release - in progress
              Does NOT    - Remove a group with an SD-like name that no account of the register names, remove the Linux users
                            of user accounts (they hold people's own files), or touch anything when the accounts are kept.
 
+16 Nov 26  AN UNINSTALL THAT KEEPS NOTHING NO LONGER LEAVES AN EMPTY /home/sd.
+
+             What        - when deletesdcore.sh is told to delete both the accounts and the configuration, it now removes
+                           /home/sd at the end, if it is empty, and says so.
+             Why         - the script makes /home/sd again before it asks about the configuration, so that a kept sd.conf
+                           has somewhere to go, and it did so whatever the answer: an uninstall that kept nothing left an
+                           empty folder owned by root behind.
+             Does NOT    - Remove /home/sd when anything is still in it (it says so instead), or when the accounts or the
+                           configuration are kept.
+
 15 Nov 26  THE FULL-SCREEN PAGES' FIELDS OPEN EMPTY; FIXED CHOICES ARE CHOSEN, NOT TYPED; DELETING AN ACCOUNT IS ONE DIALOG.
 
              What        - every entry field of the administrator's and the person's own pages now opens empty.  Where a
