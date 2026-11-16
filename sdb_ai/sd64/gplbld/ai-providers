@@ -20,7 +20,8 @@
 # deprecated there) and have NOT been tried against a real key.  A change at a provider is a change to this file.
 #
 # 8 Nov 2026 (S.170): DeepSeek retired deepseek-chat on 24 Jul 2026 (its change log; api-docs.deepseek.com/updates), so every request with the shipped default came back
-# HTTP 400.  Its list of models (GET /models) now names deepseek-v4-pro and deepseek-flash; the starting model is deepseek-flash, its balanced one, by the rule below.
+# HTTP 400.  Its list of models (GET /models) names deepseek-v4-pro and deepseek-v4-flash; the starting model is deepseek-v4-flash, its balanced one, by the rule below.
+# 16 Nov 2026: the name is deepseek-v4-flash, not deepseek-flash - measured by the owner with a real key (relayed by SD Core for Windows, its row 246).
 # The AI page now offers each provider's own list once a key is set, so a starting model that a provider retires is replaced by picking another.
 #
 # 1 Nov 2026 additions - READ FROM THE PROVIDERS' OWN PAGES THAT DAY, NONE TRIED AGAINST A REAL KEY, AND MODEL NAMES CHANGE FAST: Google's details are its
@@ -61,4 +62,4 @@ url=https://api.deepseek.com/chat/completions
 format=openai
 auth=bearer
 maxparam=max_tokens
-model=deepseek-flash
+model=deepseek-v4-flash

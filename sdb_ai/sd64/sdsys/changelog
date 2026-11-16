@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+16 Nov 26  THE DEEPSEEK STARTING MODEL IS deepseek-v4-flash.
+
+             What        - a new install's DeepSeek connection starts on the model deepseek-v4-flash.
+             Why         - it started on deepseek-flash, which is not a DeepSeek model name, so a first request with the default
+                           model was refused by the provider.  The name was checked with a real key.
+             Does NOT    - Change a model an administrator has already chosen with set.ai model.
+
 16 Nov 26  UNINSTALLING WITH THE ACCOUNTS DELETED REMOVES EVERY ACCOUNT'S LINUX GROUP.
 
              What        - when deletesdcore.sh is told to delete the accounts, it now also removes the Linux group of every
