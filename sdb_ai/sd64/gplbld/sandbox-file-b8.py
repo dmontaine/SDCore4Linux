@@ -11,6 +11,8 @@
 #
 # START-HISTORY:
 # 12 Oct 26 dm  Written for 1.2-0 bundle B-8: sheet 53, 107, 112, 197 and 380.
+# 17 Nov 26 dm  S.62 (P-4641): three CNAME rows after 107 - the new name stored lower case, a rename that differs only in case
+#               refused (6151), a fold twin refused (6151); the stored VOC ids read by a SELECT (zzb8cv).
 # END-HISTORY
 #
 # THE INSTRUMENT.  What a program prints is read back from the session's output, every pattern anchored to the start
@@ -97,6 +99,10 @@ PROGS = {
     # 107: holds the file open so that another session's CNAME must name the holder
     "zzb8ho": ("   execute 'DELETE.FILE zzb8hf' capturing j\n   execute 'CREATE.FILE zzb8hf' capturing j\n"
                "   open 'zzb8hf' to f else stop 'no f'\n   crt 'HO[':@userno:']'\n   sleep 25\n   crt 'HO DONE'\nend\n"),
+    # 17 Nov 26 (S.62, P-4641): the VOC ids AS STORED of the files the CNAME case rows rename (a READ of the VOC folds case; a SELECT does not)
+    "zzb8cv": ("   select @voc to 9\n   ids = ''\n   loop\n      readnext id from 9 else exit\n      u = upcase(id)\n"
+               "      if u = 'ZZB8HG' or u = 'ZZB8CN' or u = 'ZZB8TW' then ids<-1> = id\n   repeat\n"
+               "   crt 'CV[':change(ids, @fm, '/'):']'\nend\n"),
 }
 
 
@@ -336,6 +342,23 @@ def main():
         out = sess(box, "CNAME zzb8hf TO zzb8hg")
         row("107: CONTROL: once the holder has gone the same CNAME goes through",
             re.search(r"(?m)^'zzb8hf' renamed to 'zzb8hg'\s*$", out) is not None, out[-300:])
+
+        # 17 Nov 26 (S.62, P-4641): CNAME's new name is stored lower case, and a name that exists in ANY case is refused (6151).
+        say("\n--- P-4641 CNAME and case: the new name is lower case; a name that folds to one that exists is refused ------")
+        out = sess(box, "CNAME zzb8hg TO ZZB8CN", "RUN bp zzb8cv")
+        ids = set((tagged(out, "CV") or "").split("/")) - {""}
+        row("P-4641: CNAME zzb8hg TO ZZB8CN renames the file, says so in lower case, and the VOC stores the id zzb8cn (no ZZB8CN, no zzb8hg)",
+            re.search(r"(?m)^'zzb8hg' renamed to 'zzb8cn'\s*$", out) is not None and ids == {"zzb8cn"}, "ids=%r out=%r" % (ids, out[-300:]))
+        out = sess(box, "CNAME zzb8cn TO ZZB8CN", "RUN bp zzb8cv")
+        ids = set((tagged(out, "CV") or "").split("/")) - {""}
+        row("P-4641: a rename that differs only in case (zzb8cn TO ZZB8CN) is refused with 6151 and nothing moves: the VOC still holds zzb8cn alone",
+            re.search(r"(?mi)^zzb8cn is already defined in your VOC\s*$", out) is not None and "renamed to" not in out and ids == {"zzb8cn"},
+            "ids=%r out=%r" % (ids, out[-300:]))
+        out = sess(box, "CREATE.FILE zzb8tw", "CNAME zzb8tw TO ZZB8CN", "RUN bp zzb8cv")
+        ids = set((tagged(out, "CV") or "").split("/")) - {""}
+        row("P-4641: a FOLD TWIN (CNAME zzb8tw TO ZZB8CN while zzb8cn exists) is refused with 6151, and both files are still in the VOC as they were",
+            re.search(r"(?mi)^zzb8cn is already defined in your VOC\s*$", out) is not None and "renamed to" not in out and ids == {"zzb8cn", "zzb8tw"},
+            "ids=%r out=%r" % (ids, out[-300:]))
     finally:
         for lv in lives:
             lv.kill()

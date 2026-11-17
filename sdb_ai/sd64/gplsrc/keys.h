@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1013, P-1014 (the owner's decision): K_REAL_USER (90) removed - no program asked it and the kernel no longer answered it; 90 is retired, never reused.
  * 15 Nov 26 dm  S.242 stage 3: K_XFER (173), the file transfer slot and server.
  * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
  * 28 Oct 26 dm  S.88: SD_USER_HOME (112), the SDEXT test of the effective user's home and a directory below it (the recovery store).
@@ -255,15 +256,14 @@
 /* 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER ("this process's Windows user is the local account SDSYS", its
    row 310: the way back with LOGTO SDSYS, since Windows clears the administrator flag on leaving SDSYS).  Linux does not implement it - its
    K_ADMINISTRATOR already says it (cproc, S.246) - and does not give the number to anything else (agreed by mail 15 Nov).  */
-/* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
-   which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
    AND K_WINPID (its keys.h), so these three - which the port does not have -
    move to 90-92, a block clear of the port's 0-64.  A key number is compiled
    into every BASIC program that calls KERNEL, so the same number meaning two
    things in the two systems is drift of the same kind as a message number.
    GPL.BP/INT$KEYS.H must carry the same three numbers.                        */
-#define K_REAL_USER          90
+/* 90 was K_REAL_USER (PRE_RELEASE 20, the real person behind a sudo session) - the kernel stopped answering it with the
+   teardown (S.26) and nothing asked it; the definition was removed 17 Nov 26 (S.62 P-1013, the owner's decision): do not reuse */
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
    own Linux permissions, and the kernel no longer carries those keys.

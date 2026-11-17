@@ -31,7 +31,8 @@ PAIRS = [("CA$ROUTE.SSH", "ssh"), ("CA$ROUTE.API", "api"), ("CA$OS.SH", "sh-on")
          ("CA$SHARED.READ.OFF", "shared-read-off"), ("CA$SHARED.WRITE", "shared-write-on"),
          ("CA$PINS", "pins-on"),   # 26 Oct 26, S.75: the person may add programs of their own to their home screen
          ("CA$RECOVERY", "recovery-on"),   # 28 Oct 26, S.88 plan 2.9 (D2): the account's editors keep a recovery copy of unsaved text
-         ("CA$XFER", "xfer-on")]   # 14 Nov 26, S.242 stage 1: file transfer over the ssh login
+         ("CA$XFER", "xfer-on"),   # 14 Nov 26, S.242 stage 1: file transfer over the ssh login
+         ("CA$SSH.KEY", "ssh-key-on")]   # 17 Nov 26, S.62 LC3: a Linux user SD makes keeps key sign-in over ssh
 AUDIT = "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)"
 START_WORDS = {"START-MENU", "START-TERMINAL"}       # 26 Oct 26, S.75: where the account starts, not an access: they have a tail of their own (start=), not a place in gates=
 

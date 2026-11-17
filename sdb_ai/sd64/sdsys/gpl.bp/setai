@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm   S.62: set.ai key reads the client's exit status (os.error() straight after each of the two os.execute calls, before the hand-over file is
+*               dropped); a client that failed no longer reports an earlier key as set (11608, before show / check.key / the audit line / 11615).
 * 8 Nov 26 dm   S.170 (the owner: "is there any way to verify the model name entry, or provide a dropdown list of valid models", then "Instead of entering the model and key
 *               separately is there any way to do that in a single dialog with the key field displaying asterisks"; warned that the key would then pass through SD, he chose
 *               the single form): SET.AI MODELS provider lists the provider's own model names; SET.AI MODEL warns (14016, 14018) when the provider does not list the name;
@@ -141,7 +143,13 @@ $include err.h
 *        The helper's client reads the key from its standard input when that is not a terminal; the file is ITS input, so the key is on no command line.  The file is
 *        removed whatever the client said, and what happened is read back from the helper, as for the typed key.
          os.execute "'" : ctl : "' 'key' '" : prov : "' < '" : hand.f : "' > /dev/null 2>&1"
+         key.stat = os.error()
          gosub drop.handover
+*        17 Nov 26 dm - S.62: a client that FAILED set nothing, and a key stored earlier would make the listing below say 'key: set'; its exit status decides first.
+         if key.stat # 0 then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11608, 'nokey', 'the key was not set')                             ;* The AI helper refused: %1 (%2)
+         end
          qargs = "'show'"
          gosub run.ctl
          gosub check.key
@@ -168,6 +176,12 @@ $include err.h
          if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
 *        The terminal is handed to the helper's client and nothing is captured: the key is typed there, never read by SD.  What happened is then read back, not assumed.
          os.execute "'" : ctl : "' 'key' '" : prov : "' 2>&1"
+         key.stat = os.error()
+*        17 Nov 26 dm - S.62: a client that FAILED set nothing, and a key stored earlier would make the listing below say 'key: set'; its exit status decides first.
+         if key.stat # 0 then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11608, 'nokey', 'the key was not set')                             ;* The AI helper refused: %1 (%2)
+         end
          qargs = "'show'"
          gosub run.ctl
          gosub check.key

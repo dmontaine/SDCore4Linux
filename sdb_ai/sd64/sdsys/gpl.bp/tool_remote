@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (Q9, the owner's rule of 12 Nov 26, carried from the Windows port's RELEASE_1.1 243): read.all says 14150 (Reading the settings (a few
+*               seconds)...) on the status line before the three reports run, so the screen does not look frozen; the page's own message comes back after.
 * 02 Nov 26 dm  S.106: the authenticator code is removed (owner: password only for this release).  The sdsys login view reports whether sshd lets sdsys in; O opens it (REMOTE.SDSYS ON,
 *               after a box wanting the word OPEN) and F shuts it (OFF); R (recovery codes) and L (the code at the console) are gone.
 * 02 Nov 26 dm  S.101 stage D: L on the sdsys login view - REMOTE.SDSYS LOCAL ON or OFF after a box (the code at the console too, or not; off as delivered).
@@ -174,6 +176,12 @@ $include tk.h
 
 * Everything the five views show, read again: the doors' reports, the SDNet servers, the sessions, the accounts' routes and the TLS lines
 read.all:
+*  17 Nov 26 (S.62, Q9; the owner's rule of 12 Nov 26, a line before any wait over about 2 s, carried from the Windows port's RELEASE_1.1 243): the three reports
+*  run sd-elevate and the firewall tools, which can take a few seconds, so the status line says so first, and the page's own message comes back after.
+   held.msg = msg
+   msg = sysmsg(14150)                                          ;* Reading the settings (a few seconds)...
+   call $tk_frame(ctx, keys, panes<view>, msg)
+   msg = held.msg
    sel.t = ''
    if nrows > 0 and ci >= 1 and ci <= nrows then sel.t = rowtxt<ci>
    cmd = 'remote.api'

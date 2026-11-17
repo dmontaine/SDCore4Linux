@@ -3,6 +3,11 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 17 Nov 26 dm S.62 (LC3, the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes, and the administrator turns it on per account): a
+#           fourth arm, "Match Group sdsshnokey User *,!root,!sdsys" with "PubkeyAuthentication no" and nothing else, written directly AFTER the sdsys arm and BEFORE the two
+#           Match Group sdusers arms.  create.account puts a Linux user it MAKES in sdsshnokey; modify.account <name> ssh-key-on / ssh-key-off take it out and put it back.  A user
+#           who is not in the group (an attached user, the installing user, root, sdsys, anyone outside sdusers) gets from sshd exactly what it got before: no other arm of the
+#           block sets PubkeyAuthentication for them.  See "KEY SIGN-IN" below.
 # 15 Nov 26 dm S.242 stage 2: the ordinary Match arm also writes "Subsystem sftp $SFTP_CMD" (a name sd recognises; nothing need exist there), so an sftp client reaches sd through the arm's ForceCommand.  Not in the sdsys or the refusal arm.  Kernel side: stage 3.
 # 07 Nov 26 dm S.162: validate() makes /run/sshd (root, 0755) when it is missing, as Debian's unit does: on a socket-activated ssh `sshd -t` failed without it.
 # 07 Nov 26 dm S.157: both Match Group arms end "User *,!root", so root's ssh is the machine's own again (root is in sdusers; see "ROOT IS NAMED OUT").
@@ -51,12 +56,15 @@
 #
 # START-DESCRIPTION:
 #
-# WHAT THE BLOCK IS NOW.  Three arms: sdsys is denied network login outright,
-# an SD account WITHOUT the ssh route is refused as soon as it connects, and
-# every other SD account is ForceCommanded into sd.
+# WHAT THE BLOCK IS NOW.  Four arms: sdsys is denied network login outright,
+# a Linux user SD made is not offered key sign-in unless the administrator
+# turned it on, an SD account WITHOUT the ssh route is refused as soon as it
+# connects, and every other SD account is ForceCommanded into sd.
 #
 #     Match User sdsys
 #         DenyUsers sdsys
+#     Match Group sdsshnokey User *,!root,!sdsys                (17 Nov 26, S.62 LC3)
+#         PubkeyAuthentication no
 #     Match Group sdusers,!sdsys,!sdssh
 #         ForceCommand /usr/local/sbin/ssh-forcecommand --refuse
 #         AllowTcpForwarding no
@@ -77,6 +85,31 @@
 # BEFORE the general arm or every SD account gets sd and the route is bookkeeping
 # again.  The two arms are mutually exclusive in intent but not in sshd's
 # matching: both match a non-member, and only the order parts them.
+#
+# KEY SIGN-IN (17 Nov 26, S.62 LC3; the owner: key sign-in is forbidden as
+# delivered and is a documented loosening for the administrator, and ONLY THE
+# ACCOUNTS SD ITSELF MADE lose it - a Linux user who existed before SD keeps the
+# keys it set up outside SD).  Membership of sdsshnokey means "this Linux user
+# may NOT sign in with a key"; the arm sets PubkeyAuthentication no and nothing
+# else, so a member still signs in with its password and every other setting it
+# has comes from where it came before.  WHY A DENY GROUP HERE, when the route
+# groups are allow groups: an allow group for keys ("Match Group sdusers,
+# !sdsshkey") would take keys away from every member of sdusers that is not in
+# it - the installing user and every attached user, on a server that may allow
+# no password sign-in at all - which is the lock-out the owner was shown and
+# declined.  The price is the deny group's: if the group is missing or the
+# machine cannot read it, sshd matches nobody and keys are offered as the
+# machine's own settings say.  sd-elevate will not delete the group, and only a
+# user with SD's "SD account" stamp can be put in it.  WHERE IT GOES: directly
+# after the sdsys arm.  sshd takes the first value of a keyword; no other arm of
+# this block sets PubkeyAuthentication for anybody but sdsys (whose own arm,
+# first, sets it no when open), so the arm decides the keyword for its members,
+# and for everybody else nothing in the block changes.  root and sdsys are named
+# out, so the arm is harmless for them even if they were ever in the group.
+# WHAT IT CANNOT WIN AGAINST: a Match block of the administrator's own that sshd
+# reads first (sshd_config.d drop-ins come first on Debian and Ubuntu) and that
+# sets PubkeyAuthentication yes for the same user - that is the administrator's
+# policy, and the first value wins.
 #
 # AN ALLOW GROUP, SO A MISSING sdssh REFUSES EVERY SD ACCOUNT rather than
 # admitting every one: !sdssh matches when the group does not exist.  That is
@@ -218,6 +251,10 @@ SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}
 # It stays off until the administrator sets XFER and turns an account's switch on; sd refuses every other request for it.
 SFTP_CMD=${SD_SSH_SFTP_CMD:-/usr/local/sdsys/bin/sd-sftp}
 
+# 17 Nov 26 (S.62 LC3): the group whose members are not offered key sign-in.  A fixed name, never taken from the environment: the installer makes it, sd-elevate
+# addgroup puts only a stamped SD user in it (create.account, modify.account <name> ssh-key-off) and never deletes it.
+NOKEY_GROUP=sdsshnokey
+
 # Where the refusal arm's command lives - this same script, as the installer
 # puts it (installsdcore.sh installs gplbld/ssh-forcecommand.sh there before it
 # writes the block).  Named rather than derived from $0 on purpose: the block
@@ -290,10 +327,13 @@ sdsys_arm_lines() {
   fi
 }
 
+# 17 Nov 26 (S.62 LC3): the key arm sits between the sdsys arm and the two Match Group sdusers arms.  It sets ONE keyword; see "KEY SIGN-IN" above.
 block_lines() {
   printf '%s\n' "$BEGIN"
   sdsys_arm_lines
   printf '%s\n' \
+    "Match Group $NOKEY_GROUP User *,!root,!sdsys" \
+    "    PubkeyAuthentication no" \
     "Match Group sdusers,!sdsys,!sdssh User *,!root" \
     "    ForceCommand $REFUSE_BIN --refuse" \
     "    AllowTcpForwarding no" \
@@ -587,6 +627,7 @@ report_target() {
   say "config            $CONFIG"
   say "ForceCommand ->   $SD_BIN"
   say "no-sdssh arm ->   $REFUSE_BIN --refuse"
+  say "no-key arm ->     members of $NOKEY_GROUP: PubkeyAuthentication no"
   say "10074 read from   $MSG_DIR"
   if has_block; then say "SD block present  yes (before)"; else say "SD block present  no (before)"; fi
   say "sdsys arm         $(sdsys_mode_now) (before)"
@@ -706,6 +747,7 @@ case $MODE in
     else
       say "            an SD account without it is refused (10074); sdsys is denied network login"
     fi
+    say "            a member of $NOKEY_GROUP (a Linux user SD made, until ssh-key-on) is not offered key sign-in"
     say "original kept at $BACKUP"
     production && reload_sshd
     pam_has_block && remove_pam_block                      # S.106: the door is as it should be and sshd has it before the lines an older install put in sshd's PAM file go

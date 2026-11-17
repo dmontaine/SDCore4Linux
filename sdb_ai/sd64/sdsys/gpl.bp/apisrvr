@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-4638, P-4639): account.entry.check refuses an account whose register record has no group by its own test,
+*               audited 'account refused branch=3 no.group.in.register' (the Windows port's words); SDSYS's own entry is not asked.
 * 17 Nov 26 dm  S.62 (P-1277, P-1278, P-1275, P-1276): request 3 (SDLogto / the login's account) enters an account by its registered NAME only.
 *               A name holding a '/' was taken as a path, entered without a register read and judged on a stale acc.rec, so a suspended
 *               account could be entered by its path, and so could any directory holding a voc.  Every name is folded, acc.rec is cleared
@@ -603,6 +605,20 @@ if ent.suspended then
 * 06 Oct 26 dm - PAL-17 (parity audit): the refusal is on the audit trail, in the Windows port's words (its ACCOUNT REFUSED branch=2),
 *   with the account asked for appended.  The CALLER still sees only 10003.
    void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : ent.name)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   ent.refused = @true
+   return
+end
+
+* 17 Nov 26 dm - S.62 (P-4638, P-4639): AN ACCOUNT WITH NO GROUP IN THE REGISTER IS REFUSED BY ITS OWN TEST, as the Windows port
+*   does (its branch=3 no.group.in.register).  It was refused before as well, by is_grp_member() of an empty name, but audited as
+*   branch=4 not.in.group with "group=" empty.  The SDSYS exemption below is kept: SDSYS entering its own account is not asked.
+*   The caller still sees only 10003.
+ent.sdsys.own = (downcase(@logname) = 'sdsys' and ent.name = 'sdsys')
+if not(ent.sdsys.own) and ent.rec<ACC$GROUP> = '' then
+   void kernel(K$AUDIT, 'account refused branch=3 no.group.in.register account=' : ent.name)
    server.error = SV$ERROR
    error.msg = sysmsg(10003) ;* User not allowed in requested account
    abort.message = error.msg

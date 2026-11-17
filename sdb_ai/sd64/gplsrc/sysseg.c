@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 NETDIRS: start_sd() calls netdirs_report() after audit_rotate(), so each NETDIRS entry SD ignores is named once at start.
  * 14 Nov 26 dm  S.241: release_pipe_fds().  sdlnxd and the startup command kept the caller's fds 0-2 through daemon(1, 1), so a caller that
  *               captured "sd -start" through a pipe (x=$(sd -start)) never saw end of file until sd -stop (found by the Windows port).  After
  *               daemon() each of 0-2 that is a pipe is reopened on /dev/null; a file (a service's log) or a terminal is kept.
@@ -509,6 +510,11 @@ bool start_sd(bool with_daemon) {
      thing to avoid.  After bind_sysseg(), which makes sysseg->sysdir readable. */
 
   audit_rotate();
+
+  /* 17 Nov 26 dm - S.62: NETDIRS is judged here once and each entry it ignores is named in the error log and syslog.  A session reads the list
+     again itself (op_sh.c) and ignores the same entries without a word. */
+
+  netdirs_report();
 
   /* Start sdlnxd dameon */
 

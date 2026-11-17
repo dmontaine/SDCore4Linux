@@ -13,6 +13,7 @@
 # START-HISTORY:
 # 26 Oct 26 dm  New (S.75, home).
 # 2 Nov 26 dm   S.88 U9: C2c's expected function-key row follows the key table (F10 is the bar's and left the row; / find joined it).  NOT RUN after the change.
+# 17 Nov 26 dm  S.62 (P-3329): rows B7 / B7b - create.account's @system.return.code through EXECUTE: 0 when the account was made, non-zero when refused.
 # END-HISTORY
 #
 #   C  SUB-MENUS.  The delivered page has no folder tile, so the rows run on the sandbox's COPY of tool_home with one declared (the Develop group becomes the menu develop, a tile Develop in
@@ -440,7 +441,7 @@ def reg_field(a, n):
 
 def b_create():
     p = lambda n: os.path.join(sh.BOX, "user_accounts", n)
-    for n in ["zzco%d" % k for k in range(1, 10)]:         # a rerun on the same sandbox: the accounts an earlier run made are put away first, or 'already exists' would answer for them
+    for n in ["zzco%d" % k for k in range(1, 10)] + ["zzcoa", "zzcob"]:         # a rerun on the same sandbox: the accounts an earlier run made are put away first, or 'already exists' would answer for them
         if os.path.exists(os.path.join(sh.SYS, "accounts", n)):
             os.remove(os.path.join(sh.SYS, "accounts", n))
         if os.path.isdir(p(n)):
@@ -498,9 +499,24 @@ def b_create():
     out = run_create(["BASIC bp zzcab", "RUN bp zzcab"], internal=True)
     R("B_BOGUS", "!create_account called with a start word that is neither (bogus, MENU) refuses it with 2018 and makes NOTHING: no register record, no directory",
       has(out, r"^CAB1 err=2018/bogus$") and has(out, r"^CAB2 err=2018/MENU$") and reg_field("zzco6", 16) is None and reg_field("zzco7", 16) is None and not os.path.exists(p("zzco6")) and not os.path.exists(p("zzco7")), repr(out[-8:]))
+    # 17 Nov 26 (S.62, P-3329): createa sets @system.return.code to 0 when the account was made (it was left at the -ER$ARGS preset).  Read through EXECUTE by a
+    # program, which is how a paragraph or a caller sees it; the control is a create.account that is refused before anything is made, whose code stays non-zero.
+    g.put(os.path.join(sh.SYS, "bp", "zzcarc"), "\n".join([
+        "   execute 'create.account other zzcoa %s no.query' capturing junk" % p("zzcoa"),
+        "   crt 'CARC1[' : @system.return.code : ']'",
+        "   execute 'create.account other zzcob %s start-menu start-terminal no.query' capturing junk" % p("zzcob"),
+        "   crt 'CARC2[' : @system.return.code : ']'",
+        "end", ""]))
     R("B6", "...called with terminal and CA$PINS = 1 it makes the account (field 16 terminal, 18 yes); CA$PINS = 'yes' is not exactly 1 and leaves pins off",
       has(out, r"^CAB3 err=\[\]$") and reg_field("zzco8", 16) == "terminal" and reg_field("zzco8", 18) == "yes" and has(out, r"^CAB4 err=\[\]$") and reg_field("zzco9", 18) == "",
       repr((out[-4:], reg_field("zzco8", 16), reg_field("zzco8", 18), reg_field("zzco9", 18))))
+    out_rc = run_create(["BASIC bp zzcarc", "RUN bp zzcarc"])
+    rc1 = next((m.group(1) for m in (re.match(r"^CARC1\[(.*)\]$", ln) for ln in out_rc) if m), None)
+    rc2 = next((m.group(1) for m in (re.match(r"^CARC2\[(.*)\]$", ln) for ln in out_rc) if m), None)
+    R("B7", "P-3329: a create.account that MADE the account (its register record is on the disk) leaves @system.return.code 0, as EXECUTE reports it",
+      rc1 == "0" and reg_field("zzcoa", 1) is not None, repr((rc1, reg_field("zzcoa", 1), out_rc[-4:])))
+    R("B7b", "CONTROL: a create.account refused before anything is made (start-menu with start-terminal) leaves a non-zero code, and no record",
+      rc2 not in (None, "", "0") and reg_field("zzcob", 1) is None, repr((rc2, out_rc[-4:])))
 
 
 # ------------------------------------------------------------------------------------------------------------------------------- A  the Recent group

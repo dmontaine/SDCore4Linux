@@ -4,13 +4,23 @@
 #                    with OPENSEQ / OPENPATH, the embedded Python and micro), through ORDINARY sessions on a
 #                    private SD.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gates.py <dir> [--build]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gates.py <dir> [--build] [--only=NAME[,NAME]]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or
 # absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Only one private SD can exist on a machine
 # (shared memory keys 0x53434c91/92): stop it afterwards with sandbox-fromtree.py <dir> stop.
 #
+# SECTIONS (--only, 17 Nov 26; CLAUDE.md testing budget rule 7): ssh a b c d osrw d2 opentemp d5 d3 netdirs e f g h i.
+# The preparation (CPROC, the probes, the fixture accounts) and the controls 0a / 0b ALWAYS run.  Each section builds what
+# it needs itself, with two exceptions said here: h rewrites every fixture's register group to sdu_<name>, so a plain
+# session in a fixture fails AFTER it (only i follows it); and i uses MODIFY.ACCOUNT through mod() exactly as g does.
+#
 # START-HISTORY:
+# 17 Nov 26 dm  S.62 (round 1 fix cycle): --only=NAME[,NAME] (the sections above; main() now runs the preparation and the controls
+#               and hands each chosen section to its own function, the code of each unchanged); section netdirs, the sd.conf
+#               parameter NETDIRS (rows N1 to N12, every row with its control, judged on the disk and the error log).
+# 17 Nov 26 dm  S.62 (P-4645): two D3 rows, WRITTEN, NOT RUN - the administrator's LOGTO zzsusp is refused with 10107 and the session
+#               stays in zzoff; the administrator's LOGTO zzon is the control.
 # 17 Nov 26 dm  S.62 (P-1226, P-1228): rows B3 - SH sd --version in an SH-yes account is refused ("SD is already running in this
 #               session"), with two controls (sd --version outside SD answers; SH echo still runs and sees SD_SESSION=1).
 # 28 Oct 26 dm  Section E2 (one row, WRITTEN, NOT RUN): SED's PATH: form opens the name K$PATH.OK was asked about and no other.  CORRECTED (L2 review): since S.87 the
@@ -73,6 +83,8 @@ FIXTURES = {
 EXTRA_FIXTURES = {
     "zznolog": ("no", "no"),     # register group is one the sandbox user is NOT in: LOGTO would refuse it
     "zzsusp": ("no", "no"),      # SUSPENDED: LOGTO would refuse it
+    "zznd": ("no", "no"),        # section netdirs: held to its account, NETDIRS is what may widen it
+    "zzndon": ("no", "yes"),     # section netdirs: os-on, the control that a path is reachable at all
 }
 
 
@@ -295,8 +307,17 @@ def build_account(name):
 def main():
     global BOX, SYS, SD
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    names = [n for n, _ in SECTIONS]
     if len(args) != 1:
-        bail("usage: sandbox-gates.py <dir> [--build]")
+        bail("usage: sandbox-gates.py <dir> [--build] [--only=%s]" % ",".join(names))
+    only = None
+    for a in sys.argv[1:]:
+        if a.startswith("--only="):
+            only = [w.strip().lower() for w in a.split("=", 1)[1].split(",") if w.strip()]
+            bad = [w for w in only if w not in names]
+            if bad or not only:
+                bail("--only names no section, or one this suite does not have: %r (sections: %s)" % (bad, " ".join(names)))
+    say("sandbox-gates: sections %s" % ("ALL" if only is None else " ".join(n for n in names if n in only)))
     BOX = os.path.abspath(args[0])
     SYS = os.path.join(BOX, "sys")
     SD = os.path.join(SYS, "bin", "sd")
@@ -331,6 +352,22 @@ def main():
     row("0b: the same session with SDTEST_ADMIN=1 is an administrator (admin=1) - the control that the switch works",
         f is not None and f[0] == "1", "KFLAGS line: %r" % (f,))
 
+    for name, fn in SECTIONS:
+        if only is None or name in only:
+            fn()
+
+    say("\n--- summary " + "-" * 100)
+    say("sandbox-gates: sections run: %s" % (" ".join(n for n, _ in SECTIONS if only is None or n in only)))
+    say("sandbox-gates: %d passed, %d failed" % (passed, failed))
+    return 0 if failed == 0 else 1
+
+
+def mod(*words):
+    """MODIFY.ACCOUNT as the administrator (sections g and i)."""
+    return adm(["MODIFY.ACCOUNT " + " ".join(words)])
+
+
+def sec_ssh():
     # --- 0c, 0d. a session that came over ssh (S.95, 1 Nov 26): the same grant as a local one, with the client address in the audit line ---
     # The login-uid test is patched to true in this sandbox (the sandbox user is not sdsys), so these rows measure what the ssh arm does AFTER that test: it grants, and it says
     # where from.  The refusal for a login that is somebody else's (10195) cannot be played here; witness-absence.sh M12d is that row.
@@ -358,6 +395,8 @@ def main():
     f = ssh_flags(False)
     row("0d: the same session without the switch is not an administrator (admin=0): the ssh arm grants nothing by itself", f is not None and f[0] == "0", "KFLAGS line: %r" % (f,))
 
+
+def sec_a():
     # --- A. the grants are loaded at account entry -----------------------------------------------------------
     say("\n--- A. LOGIN loads the grants from ACC$SH / ACC$OS.EXEC: yes is on, anything else is off -----------------------")
     want = {"zzoff": ("0", "0"), "zzon": ("1", "1"), "zzsh": ("1", "0"), "zzos": ("0", "1"), "zzblank": ("0", "0"),
@@ -369,6 +408,8 @@ def main():
         row("A: %s (%s) -> sh=%s osx=%s, not an administrator" % (name, why[name], s, o),
             f is not None and f[0] == "0" and f[1] == s and f[2] == o and f[3] == USER, "KFLAGS line: %r" % (f,))
 
+
+def sec_b():
     # --- B. the SH verb -----------------------------------------------------------------------------------------
     say("\n--- B. the SH verb: refused without the grant (and the command does not run), runs with it ------------------------")
     refusal = "%s is not permitted to use the operating system shell" % USER
@@ -422,6 +463,8 @@ def main():
             row("B2: %s, a bare SH is refused with 10053 and no shell ran the typed line" % name, refused and not made,
                 "made=%s refused=%s screen=%r" % (made, refused, [ln for ln in lines if ln.strip()][-6:]))
 
+
+def sec_c():
     # --- C. OS.EXECUTE from a user program ------------------------------------------------------------------
     say("\n--- C. OS.EXECUTE in a user's BASIC program: refused without the grant, independent of SH ----------------------")
     for name in ("zzoff", "zzon", "zzsh", "zzos", "zzblank"):
@@ -445,6 +488,8 @@ def main():
             row("C: %s (os %s) is refused OS.EXECUTE (10054): no sentinel, and the program stopped" % (name, FIXTURES[name][1] or "blank"),
                 (not ran) and refused and not after, "ran=%s after=%s refused=%s output=%r" % (ran, after, refused, out[-3:]))
 
+
+def sec_d():
     # --- D. OPENSEQ / OPENPATH ----------------------------------------------------------------------------------
     say("\n--- D. OPENSEQ and OPENPATH by pathname: without OS.EXECUTE only the account's own directory ---------------------")
     seq = "\n".join([
@@ -519,6 +564,8 @@ def main():
         if os.path.exists(junk):
             os.remove(junk)
 
+
+def sec_osrw():
     # --- D4. OSREAD, OSWRITE and OSDELETE (QM4 gaps Q-4, 15 Oct 26) ------------------------------------------------
     # They are ordinary programs made of OPENSEQ and DELETESEQ, so the gate is the account's own.  The evidence is the disk: a file
     # that appears in /tmp, a file in /tmp that is gone or still there, and what an account reads of /etc/hostname.
@@ -585,6 +632,8 @@ def main():
         if os.path.exists(junk):
             os.remove(junk)
 
+
+def sec_d2():
     # --- D2. the other routes to an OS path -----------------------------------------------------------------------
     # 13 Oct 26 (second sitting).  THE FIRST VERSION OF THIS SUITE ASKED ABOUT OPENSEQ AND OPENPATH ONLY, AND AN
     # ACCOUNT WITH BOTH GATES OFF STILL READ /etc, LISTED IT, COPIED FILES OUT OF AND INTO OTHER DIRECTORIES, DELETED
@@ -749,6 +798,8 @@ def main():
                 "output=%r exists=%s" % (out, os.path.exists(holdfile)))
     shutil.rmtree(outside, ignore_errors=True)
 
+
+def sec_opentemp():
     # --- D4. OPENTEMP (14 Oct 26, openQM 431 and 440; owner: "security first") -----------------------------------------
     # OPENTEMP makes a dynamic file and deletes it when the file variable is closed.  A pathname it is given, and the file it
     # makes itself in the temp directory (SYSTEM(38), outside every account), are both OS paths and both ask the account's
@@ -838,6 +889,8 @@ def main():
                 has(out, r"^T outside REFUSED 3035$"), "output=%r" % (out,))
     shutil.rmtree(outside4, ignore_errors=True)
 
+
+def sec_d5():
     # --- D5. SKT$INFO.TRACE (15 Oct 26, openQM 162) -------------------------------------------------------------------------
     # SET.SOCKET.MODE(skt, SKT$INFO.TRACE, path) makes a log of the data sent and received, in a file the program names, so it is an
     # OS path like OPENSEQ's: an account with OS.EXECUTE no may trace only into its own directory.  Evidence is the disk: the log
@@ -952,6 +1005,8 @@ def main():
     srv.close()
     shutil.rmtree(outside5, ignore_errors=True)
 
+
+def sec_d3():
     # --- D3. a VOC pointer is a way to name a file ------------------------------------------------------------------
     # 13 Oct 26 (second sitting; owner: "try to make tighter ... q pointers should only be allowed into an account the
     # user can logto in any case").  The first S.63 asked about a path a program NAMED, and a file named THROUGH THE VOC was
@@ -1141,6 +1196,18 @@ def main():
     row("D3: the administrator opens the Account:File names too (zznolog:bp, zzsusp:bp): the form is refused only where a Q-pointer is",
         adm_got.get("zznolog:bp") == "OPENED" and adm_got.get("zzsusp:bp") == "OPENED" and adm_got.get("afdictno") == "OPENED",
         "%r" % ({k: adm_got.get(k) for k in ("zznolog:bp", "zzsusp:bp", "afdictno")},))
+    # 17 Nov 26 (S.62, P-4645): the administrator's LOGTO into a SUSPENDED account is refused like anyone's (owner: "REFUSE, as Windows
+    # and sd -a do"); only the install's internal mode is exempt.  The Q-pointer rows above are _voc_ref's and are unchanged.  WHO prints
+    # "<user number> <account>": the last such line is the account the session stands in.  NOT RUN when written.
+    def who_acct(lines):
+        w = [m.group(1) for m in (re.match(r"^\d+ (\S+)", ln) for ln in lines) if m]
+        return w[-1] if w else None
+    adm_su = sd(os.path.join(BOX, "user_accounts", "zzoff"), ["LOGTO zzsusp", "WHO"], admin=True, account="zzoff")
+    row("D3: the administrator's LOGTO zzsusp is REFUSED: 'Account zzsusp is suspended' (10107), and WHO still names zzoff",
+        has(adm_su, r"Account zzsusp is suspended") and who_acct(adm_su) == "zzoff", "who=%r %r" % (who_acct(adm_su), adm_su[-4:]))
+    adm_ok = sd(os.path.join(BOX, "user_accounts", "zzoff"), ["LOGTO zzon", "WHO"], admin=True, account="zzoff")
+    row("D3: CONTROL - the administrator's LOGTO zzon (in service) enters it: WHO names zzon, nothing is refused",
+        who_acct(adm_ok) == "zzon" and not has(adm_ok, r"is suspended|User not allowed"), "who=%r %r" % (who_acct(adm_ok), adm_ok[-4:]))
     for name, got in states.items():
         row("D3: %s opens sd.accounts (the stock Q-pointer into SDSYS, an account it could not LOGTO) exactly as the administrator does: %s"
             % (name, adm_got.get("sd.accounts")), got.get("sd.accounts") == adm_got.get("sd.accounts") and adm_got.get("sd.accounts") is not None,
@@ -1150,6 +1217,8 @@ def main():
         shutil.rmtree(os.path.join(BOX, "zznp-%s" % name), ignore_errors=True)
         shutil.rmtree(os.path.join(BOX, "zznp-%s.dic" % name), ignore_errors=True)
 
+
+def sec_e():
     # --- E. K$PATH.OK, the question an internal program asks for the user ---------------------------------------
     say("\n--- E. K$PATH.OK: the account's own answer, which an internal program (SED) must ask because it is exempt -------")
     out = plain("zzoff", ["ZZKP"])
@@ -1161,6 +1230,8 @@ def main():
     row("E: zzon - outside=1 inside=1 sibling=1 dotdot=1 empty=0 (an empty name is never allowed)",
         has(out, r"^KP outside=1 inside=1 sibling=1 dotdot=1 empty=0$"), "output=%r" % (out[-3:],))
 
+
+def sec_f():
     # --- F. the embedded Python -----------------------------------------------------------------------------
     say("\n--- F. the embedded Python runs arbitrary code, so it is behind OS.EXECUTE too ----------------------------------")
     for name, allowed in (("zzoff", False), ("zzsh", False), ("zzon", True), ("zzos", True)):
@@ -1180,6 +1251,8 @@ def main():
             row("F: %s is refused Python: init returns null, the code did not run (no sentinel)" % name,
                 has(out, r"^PY init=\[\]$") and (not ran) and has(out, "^PY end$"), "ran=%s output=%r" % (ran, out[-3:]))
 
+
+def sec_g():
     # --- G. MODIFY.ACCOUNT --------------------------------------------------------------------------------------
     say("\n--- G. MODIFY.ACCOUNT sh-on / sh-off / os-on / os-off: two independent switches, written to the register ---------")
     reg_write("zzmod", ["/x", "", "sdu_zzmod"])
@@ -1317,6 +1390,8 @@ def main():
     row("G: and with both switched off again the next session holds neither", f is not None and f[1] == "0" and f[2] == "0",
         "KFLAGS line: %r" % (f,))
 
+
+def sec_h():
     # --- H. the manifest and the report -------------------------------------------------------------------------
     say("\n--- H. the account archive manifest carries the gates (acc_os_info), so a restore keeps them --------------------")
     reg_write("zzoff", [os.path.join(BOX, "user_accounts", "zzoff"), "", "sdu_zzoff", "", "", "", "no", "no"])
@@ -1330,6 +1405,8 @@ def main():
         row("H: %s -> os.sh: %s and os.execute: %s in the manifest" % (name, s, o),
             has(out, r"^INFO %s .*\|os\.sh: %s\|os\.execute: %s(\||\s)" % (name, s, o)), "out=%r" % ([l for l in out if name in l][:2],))
 
+
+def sec_i():
     # --- I. the upgrade ---------------------------------------------------------------------------------------
     say("\n--- I. upgrade_gates: a BLANK field becomes yes, once; an explicit no is never undone ---------------------------")
     marker = os.path.join(SYS, "$gates.done")
@@ -1395,9 +1472,277 @@ def main():
         "changed=%r" % ([n for n in snap if reg_read(n) != snap[n]][:5],))
     row("I: ... and the marker is written again", os.path.exists(marker))
 
-    say("\n--- summary " + "-" * 100)
-    say("sandbox-gates: %d passed, %d failed" % (passed, failed))
-    return 0 if failed == 0 else 1
+
+# ---------------------------------------------------------------------------------------------------------------------
+# NETDIRS (17 Nov 26, S.62 round 1; the owner's decision of 17 Nov: "Linux Core GAINS it, delivered empty").  sd.conf's NETDIRS=d;d names
+# directories OUTSIDE its account that a session the OS gate holds to its account may still read and write (os_path_ok_for_account(),
+# op_sh.c, asks path_in_netdirs() last).  A session reads sd.conf itself when it starts, so these rows rewrite the sandbox's sd.conf
+# below a marker line between sessions; only N8 restarts SD (the start is what names the ignored entries in the error log).
+# THE DIRECTORIES ARE OUTSIDE THE SANDBOX: sd.conf lives in <box>, and an entry that holds or lies inside sd.conf's directory is ignored,
+# so a directory under <box> could never be admitted.  EVIDENCE IS THE DISK: what a read gives back is the file's own text, a write is
+# the file that appears (or does not), and N8 is the error log's text.  Request 29 over the API is NOT here (see the report: it asks
+# K$PATH.IN, the geometry alone, not the OS gate, so NETDIRS does not reach it).
+
+NETDIRS_MARK = "# sandbox-gates section netdirs: everything below this line is the suite's"
+
+
+def nd_conf(*lines):
+    """sd.conf as built, plus LINES below the marker (none: as built)."""
+    conf = os.path.join(BOX, "sd.conf")
+    with open(conf) as f:
+        base = f.read().split(NETDIRS_MARK)[0].rstrip("\n") + "\n"
+    with open(conf, "w") as f:
+        f.write(base + ((NETDIRS_MARK + "\n" + "".join(l + "\n" for l in lines)) if lines else ""))
+    say("    [sd.conf] below the marker: %s" % (" | ".join(lines) if lines else "(nothing: as built)"))
+
+
+def nd_prog(acct, ops):
+    """Write the probe zzndp into ACCT's bp: for each (tag, mode, path) it prints 'N <tag> <result>'.  mode read: the first line, EMPTY, or
+    REFUSED <status>; write: DONE (the file was made and written), EXISTS, REFUSED <status>, CFAIL / WFAIL <status>; dir: the count DIR() gives."""
+    lines = []
+    for i, (tag, mode, path) in enumerate(ops):
+        v = "f%d" % i
+        if mode == "read":
+            lines += ["   openseq '%s' to %s then" % (path, v),
+                      "      readseq ln from %s then crt 'N %s ':ln else crt 'N %s EMPTY'" % (v, tag, tag),
+                      "      close %s" % v,
+                      "   end else crt 'N %s REFUSED ':status()" % tag]
+        elif mode == "write":
+            lines += ["   openseq '%s' to %s then" % (path, v),
+                      "      crt 'N %s EXISTS'" % tag,
+                      "      close %s" % v,
+                      "   end else",
+                      "      st = status()",
+                      "      if st # 0 then",
+                      "         crt 'N %s REFUSED ':st" % tag,
+                      "      end else",
+                      "         create %s then" % v,
+                      "            writeseq 'ND-WRITTEN' to %s then crt 'N %s DONE' else crt 'N %s WFAIL ':status()" % (v, tag, tag),
+                      "            close %s" % v,
+                      "         end else",
+                      "            crt 'N %s CFAIL ':status()" % tag,
+                      "         end",
+                      "      end",
+                      "   end"]
+        elif mode == "dir":
+            lines += ["   x = dir('%s')" % path, "   crt 'N %s ':dcount(x, @fm)" % tag]
+        else:
+            bail("nd_prog: unknown mode %r" % mode)
+    put(os.path.join(BOX, "user_accounts", acct, "bp", "zzndp"), "\n".join(["   crt 'N begin x'"] + lines + ["   crt 'N end x'", "end", ""]))
+
+
+def nd_run(acct, compile=True, extra=()):
+    """One ORDINARY session of ACCT: compile (unless told not to) and run zzndp, then EXTRA commands.  Returns ({tag: result}, output)."""
+    out = plain(acct, (["BASIC bp zzndp"] if compile else []) + ["RUN bp zzndp"] + list(extra))
+    got = {}
+    for ln in out:
+        m = re.match(r"^N (\S+) ?(.*)$", ln)
+        if m:
+            got[m.group(1)] = m.group(2)
+    if compile and not has(out, r"^Compiled 1 program\(s\) with no errors"):
+        got["__nocompile__"] = "1"
+    return got, out
+
+
+def nd_kp(lines):
+    """{path: answer} from the zzndkp verb's 'NK <path> <0|1>' lines."""
+    got = {}
+    for ln in lines:
+        m = re.match(r"^NK (\S+) ([01])$", ln)
+        if m:
+            got[m.group(1)] = m.group(2)
+    return got
+
+
+def nd_started():
+    p = subprocess.run([SD, "-status"], capture_output=True, text=True, errors="replace", env=env(False), timeout=60)
+    m = re.search(r"(?m)^Started\s+(20\d\d-.*)$", p.stdout + p.stderr)
+    return m.group(1).strip() if m else None
+
+
+def sec_netdirs():
+    say("\n--- NETDIRS: directories outside the account that a session held to it may still read and write (sd.conf) -------------")
+    out_root = os.path.join("/tmp", "zzgnd-" + os.path.basename(BOX))
+    data, unl, dkey, upper = (os.path.join(out_root, n) for n in ("data", "unlisted", "datakey", "Data"))
+    shutil.rmtree(out_root, ignore_errors=True)
+    for d in (data, unl, dkey, upper, os.path.join(data, "sub"), os.path.join(data, "prog.bp")):
+        os.makedirs(d)
+    put(os.path.join(data, "f.txt"), "ND-DATA-1\n")
+    put(os.path.join(data, "sub", "g.txt"), "ND-SUB-1\n")
+    put(os.path.join(unl, "f.txt"), "ND-UNLISTED\n")
+    put(os.path.join(dkey, "f.txt"), "ND-DATAKEY\n")
+    put(os.path.join(upper, "f.txt"), "ND-CASE-UPPER\n")
+    os.symlink(unl, os.path.join(data, "lnkout"))                    # a link INSIDE the listed directory that leads to an unlisted one
+    os.symlink(os.path.join(data, "sub"), os.path.join(data, "lnkin"))   # a link that stays inside it (the control)
+    say("    [fixture] %s: data/{f.txt, sub/g.txt, prog.bp/, lnkout -> unlisted, lnkin -> data/sub}, unlisted/f.txt, datakey/f.txt, Data/f.txt"
+        % out_root)
+    for n in ("zznd", "zzndon"):
+        build_account(n)
+    # the K$PATH.OK probe: an internal program (it asks for the USER, as SED's PATH: does), reached as a verb from both VOCs
+    put(os.path.join(SYS, "gpl.bp", "zzndkp"), "\n".join([
+        "$internal", "program zzndkp", "$catalog $zzndkp", "$include keys.h", "$include int$keys.h",
+        "   p = field(trim(@sentence), ' ', 2)",
+        "   crt 'NK ':p:' ':kernel(K$PATH.OK, p)", "end", ""]))
+    put(os.path.join(SYS, "bp", "zzndvoc"), "\n".join([
+        "$internal",
+        "   for each a in 'zznd':@fm:'zzndon'",
+        "      openpath '%s/user_accounts/':a:'/voc' to v else crt 'NDVOC no voc ':a ; stop" % BOX,
+        "      write 'V':@fm:'CA':@fm:'$zzndkp' to v, 'zzndkp'",
+        "      close v",
+        "   next a",
+        "   crt 'NDVOC done'", "end", ""]))
+    out = adm(["BASIC gpl.bp zzndkp", "BASIC bp zzndvoc", "RUN bp zzndvoc"], internal=True)
+    if not has(out, r"^NDVOC done$"):
+        bail("the NETDIRS probe verb was not set up:\n" + "\n".join(out[-6:]))
+    f = flags(plain("zznd", ["ZZKF"]))
+    f2 = flags(plain("zzndon", ["ZZKF"]))
+    row("N0: the fixtures are what the rows need: zznd is a plain session with os off (admin=0 osx=0), zzndon a plain session with os on (osx=1)",
+        f is not None and f[0] == "0" and f[2] == "0" and f2 is not None and f2[0] == "0" and f2[2] == "1", "zznd %r zzndon %r" % (f, f2))
+    if f is None or f[0] != "0" or f[2] != "0":
+        bail("zznd is not a plain session held to its account, so no NETDIRS row below means anything")
+
+    # N1 + N3 (null case first): no NETDIRS line - the listed-to-be directory is refused, read and write
+    nd_conf()
+    w1, w2 = os.path.join(data, "w-before.txt"), os.path.join(data, "w-listed.txt")
+    nd_prog("zznd", [("rd", "read", data + "/f.txt"), ("wr", "write", w1), ("dr", "dir", data), ("own", "read", "inside.txt")])
+    got, out = nd_run("zznd", extra=["SELECT.DIR " + data])
+    row("N1: CONTROL - with no NETDIRS line zznd is refused %s/f.txt (3035), may not write there (no file on the disk), DIR() gives 0 and "
+        "SELECT.DIR is refused; its own inside.txt is read" % data,
+        got.get("rd") == "REFUSED 3035" and got.get("wr") == "REFUSED 3035" and not os.path.exists(w1) and got.get("dr") == "0"
+        and has(out, "has no OS access") and got.get("own") == "an ordinary file in the account", "got=%r w1 exists=%s out=%r" % (got, os.path.exists(w1), out[-3:]))
+    nd_conf("NETDIRS=" + data)
+    nd_prog("zznd", [("rd", "read", data + "/f.txt"), ("wr", "write", w2), ("dr", "dir", data), ("du", "dir", unl), ("un", "read", unl + "/f.txt"),
+                     ("key", "read", dkey + "/f.txt"), ("lout", "read", data + "/lnkout/f.txt"), ("lin", "read", data + "/lnkin/g.txt"),
+                     ("dots", "read", data + "/missing/../../unlisted/f.txt")])
+    listed_before = sorted(os.listdir(data))
+    got, out = nd_run("zznd", extra=["SELECT.DIR " + data, "SELECT.DIR " + unl,
+                                     "ZZNDKP " + data + "/f.txt", "ZZNDKP " + data + "/sub", "ZZNDKP " + unl + "/f.txt", "ZZNDKP inside.txt"])
+    kp = nd_kp(out)
+    row("N1: NETDIRS=%s - zznd reads %s/f.txt, and what it reads is the file's own text 'ND-DATA-1'" % (data, data),
+        got.get("rd") == "ND-DATA-1", "got=%r" % (got,))
+    row("N3: zznd WRITES a new file into the listed directory: DONE, and the disk holds it with 'ND-WRITTEN'",
+        got.get("wr") == "DONE" and os.path.exists(w2) and open(w2).read().startswith("ND-WRITTEN"),
+        "got=%r exists=%s" % (got.get("wr"), os.path.exists(w2)))
+    sel = [ln for ln in out if re.match(r"^\d+ record\(s\) selected", ln)]
+    row("N3: DIR() of the listed directory gives its entries (%d on the disk before the write, at least that many now) and DIR() of the "
+        "unlisted one gives 0" % len(listed_before),
+        got.get("dr", "").isdigit() and int(got["dr"]) >= len(listed_before) > 0 and got.get("du") == "0", "dr=%r du=%r" % (got.get("dr"), got.get("du")))
+    row("N3: SELECT.DIR of the listed directory selects records; SELECT.DIR of the unlisted one is refused (one 'has no OS access' line in all)",
+        len(sel) == 1 and not sel[0].startswith("0 ") and sum(1 for ln in out if "has no OS access" in ln) == 1, "selected=%r out=%r" % (sel, out[-6:]))
+    row("N3: K$PATH.OK from an internal program asks for the user: 1 for a file and a directory in the listed directory, 0 for the unlisted "
+        "file, 1 for its own inside.txt (control)",
+        kp.get(data + "/f.txt") == "1" and kp.get(data + "/sub") == "1" and kp.get(unl + "/f.txt") == "0" and kp.get("inside.txt") == "1", "kp=%r" % (kp,))
+    row("N2: an UNLISTED directory is still refused: %s/f.txt -> 3035" % unl, got.get("un") == "REFUSED 3035", "got=%r" % (got.get("un"),))
+    row("N4: a link INSIDE the listed directory that leads to the unlisted one is refused (data/lnkout/f.txt -> 3035; the file is there: %s)"
+        % os.path.exists(os.path.join(unl, "f.txt")),
+        got.get("lout") == "REFUSED 3035" and os.path.exists(os.path.join(unl, "f.txt")), "got=%r" % (got.get("lout"),))
+    row("N4: CONTROL - a link inside the listed directory that stays inside it is followed (data/lnkin/g.txt -> 'ND-SUB-1')",
+        got.get("lin") == "ND-SUB-1", "got=%r" % (got.get("lin"),))
+    row("N5: data/missing/../../unlisted/f.txt (a '..' past a name that does not exist, %s on the disk) is refused and nothing is read"
+        % ("absent" if not os.path.exists(os.path.join(data, "missing")) else "PRESENT"),
+        got.get("dots", "").startswith("REFUSED") and got.get("dots") != "ND-UNLISTED" and not os.path.exists(os.path.join(data, "missing")),
+        "got=%r" % (got.get("dots"),))
+    row("N6: a directory whose name merely BEGINS with the listed one is not inside it: %s/f.txt -> 3035" % dkey,
+        got.get("key") == "REFUSED 3035", "got=%r" % (got.get("key"),))
+    nd_prog("zzndon", [("un", "read", unl + "/f.txt")])
+    got_on, _ = nd_run("zzndon")
+    row("N2: CONTROL - zzndon (os on) reads the unlisted %s/f.txt: 'ND-UNLISTED' (the file is readable; only the gate refused zznd)" % unl,
+        got_on.get("un") == "ND-UNLISTED", "got=%r" % (got_on,))
+
+    # N7 case
+    nd_conf("NETDIRS=" + upper)
+    nd_prog("zznd", [("lo", "read", data + "/f.txt"), ("up", "read", upper + "/f.txt")])
+    got, out = nd_run("zznd")
+    row("N7: NETDIRS=%s (capital D): %s/f.txt is refused (3035), the comparison counts case" % (upper, data),
+        got.get("lo") == "REFUSED 3035", "got=%r" % (got,))
+    row("N7: CONTROL - %s/f.txt itself is read: 'ND-CASE-UPPER'" % upper, got.get("up") == "ND-CASE-UPPER", "got=%r" % (got,))
+
+    # N8 bad entries, one good beside them; then a restart, and the error log
+    probe_in_usr = os.path.join(BOX, "user_accounts", "zzndprobe.txt")
+    put(probe_in_usr, "ND-USRDIR\n")
+    bad = ["zzrel/dir", "/", SYS, os.path.join(BOX, "user_accounts", "zzndon"), os.path.join(BOX, "user_accounts"), os.path.join(out_root, "missing")]
+    value = ";".join(bad + [data])
+    if len(value) > 191:
+        bail("the N8 NETDIRS value is %d characters, over the 191 the parameter takes: use a shorter sandbox path" % len(value))
+    nd_conf("NETDIRS=" + value)
+    nd_prog("zznd", [("good", "read", data + "/f.txt"), ("root", "read", "/etc/hostname"), ("sys", "read", os.path.join(SYS, "start.default")),
+                     ("acct", "read", os.path.join(BOX, "user_accounts", "zzndon", "inside.txt")), ("usr", "read", probe_in_usr)])
+    got, out = nd_run("zznd")
+    row("N8: with six bad entries beside it the good entry still admits: %s/f.txt -> 'ND-DATA-1'" % data, got.get("good") == "ND-DATA-1", "got=%r" % (got,))
+    row("N8: the bad entries admit nothing: /etc/hostname (entry /), the sandbox system directory, another fixture account's inside.txt and a "
+        "file in the accounts directory (USRDIR) are each refused with 3035",
+        all(got.get(k) == "REFUSED 3035" for k in ("root", "sys", "acct", "usr")), "got=%r" % ({k: got.get(k) for k in ("root", "sys", "acct", "usr")},))
+    errlog = os.path.join(SYS, "errlog")
+    before = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
+    subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+    subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=180)
+    after = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
+    started = nd_started()
+    counts = {e: after.count("NETDIRS: %s is ignored - " % e) - before.count("NETDIRS: %s is ignored - " % e) for e in bad + [data]}
+    say("    [evidence] SD started %r; error log lines added by the start that name NETDIRS: %r"
+        % (started, [ln for ln in after[len(before):].splitlines() if "NETDIRS" in ln] if after.startswith(before) else "(the log was trimmed)"))
+    row("N8: after SD starts again the error log names EACH of the six ignored entries exactly once, and does not name the good one",
+        started is not None and all(counts[e] == 1 for e in bad) and counts[data] == 0, "started=%r counts=%r" % (started, counts))
+
+    # N9 the length bound
+    good_pad = data + ";/zzpad"
+    v192 = good_pad + "x" * (192 - len(good_pad))
+    v191 = good_pad + "x" * (191 - len(good_pad))
+    nd_prog("zznd", [("rd", "read", data + "/f.txt")])
+    nd_run("zznd")                      # compiled with sd.conf as N8 left it, so the two rows below only RUN it
+    nd_conf("NETDIRS=" + v192)
+    got, out = nd_run("zznd", compile=False)
+    row("N9: a NETDIRS value of %d characters refuses a NEW session by name ('NETDIRS value is longer than 191 characters.'), and the probe never ran"
+        % len(v192), has(out, r"NETDIRS value is longer than 191 characters\.") and "begin" not in got, "out=%r" % (out[-4:],))
+    nd_conf("NETDIRS=" + v191)
+    got, out = nd_run("zznd", compile=False)
+    row("N9: CONTROL - %d characters: the session starts, nothing is refused, and the good entry at its head admits (ND-DATA-1)" % len(v191),
+        got.get("rd") == "ND-DATA-1" and not has(out, "NETDIRS value"), "got=%r out=%r" % (got, out[-3:]))
+
+    # N10 a change between two sessions, no restart
+    s0 = nd_started()
+    nd_conf("NETDIRS=" + data)
+    g1, _ = nd_run("zznd", compile=False)
+    nd_conf()
+    g2, _ = nd_run("zznd", compile=False)
+    nd_conf("NETDIRS=" + data)
+    g3, _ = nd_run("zznd", compile=False)
+    s1 = nd_started()
+    row("N10: sd.conf changed between sessions with NO restart (SD's start time %r before and %r after): listed -> read, line removed -> 3035, "
+        "line back -> read" % (s0, s1),
+        s0 is not None and s0 == s1 and g1.get("rd") == "ND-DATA-1" and g2.get("rd") == "REFUSED 3035" and g3.get("rd") == "ND-DATA-1",
+        "%r / %r / %r" % (g1.get("rd"), g2.get("rd"), g3.get("rd")))
+
+    # N11 the edit gate inside a listed directory
+    rec_prog = os.path.join(data, "prog.bp", "zzrec")
+    rec_plain = os.path.join(data, "w-bpoff.txt")
+    nd_prog("zznd", [("bp", "write", rec_prog), ("plain", "write", rec_plain)])
+    cout = plain("zznd", ["BASIC bp zzndp"])     # compiled (NOT run: a run would make the files) while bp.edit is still yes
+    if not has(cout, r"^Compiled 1 program\(s\) with no errors") or os.path.exists(rec_prog) or os.path.exists(rec_plain):
+        bail("N11's probe did not compile, or its files exist before the rows: %r" % (cout[-3:],))
+    path_nd = os.path.join(BOX, "user_accounts", "zznd")
+    reg_write("zznd", [path_nd, "", GROUP, "", "", "", "no", "no", "", "yes", "no", "yes"])     # fields 10 voc, 11 bp, 12 dict (keys.h ACC$BP.EDIT 11)
+    got, out = nd_run("zznd", compile=False)
+    row("N11: bp.edit OFF - a write into a program file (prog.bp) inside the listed directory is refused: not DONE, and no file on the disk",
+        got.get("bp") != "DONE" and "bp" in got and not os.path.exists(rec_prog), "got=%r exists=%s" % (got.get("bp"), os.path.exists(rec_prog)))
+    row("N11: CONTROL - in the same session a plain file in the listed directory is written (DONE, on the disk): NETDIRS still admits",
+        got.get("plain") == "DONE" and os.path.exists(rec_plain), "got=%r" % (got.get("plain"),))
+    reg_write("zznd", [path_nd, "", GROUP, "", "", "", "no", "no", "", "yes", "yes", "yes"])
+    got, out = nd_run("zznd", compile=False)
+    row("N11: CONTROL - bp.edit ON: the same write into prog.bp is DONE and the file is on the disk",
+        got.get("bp") == "DONE" and os.path.exists(rec_prog), "got=%r exists=%s" % (got.get("bp"), os.path.exists(rec_prog)))
+
+    nd_conf()
+    reg_write("zznd", [path_nd, "", GROUP, "", "", "", "no", "no"])
+    for p_ in (probe_in_usr,):
+        if os.path.exists(p_):
+            os.remove(p_)
+    shutil.rmtree(out_root, ignore_errors=True)
+
+
+SECTIONS = [("ssh", sec_ssh), ("a", sec_a), ("b", sec_b), ("c", sec_c), ("d", sec_d), ("osrw", sec_osrw), ("d2", sec_d2),
+            ("opentemp", sec_opentemp), ("d5", sec_d5), ("d3", sec_d3), ("netdirs", sec_netdirs), ("e", sec_e), ("f", sec_f),
+            ("g", sec_g), ("h", sec_h), ("i", sec_i)]
 
 
 if __name__ == "__main__":

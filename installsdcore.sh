@@ -22,6 +22,9 @@
 #   openSUSE are served by the upstream sdb64 installer until this one is
 #   stable.
 #
+#   17 Nov 2026 dm - S.62 (LC3): the group sdsshnokey is made, empty (ssh key sign-in off for
+#   the Linux users create.account makes from now on); no existing account is put in it.
+#
 #   02 Nov 2026 - S.105: Fedora support removed for 2.0-0 (owner, 2 Nov 2026).
 #   Debian and Ubuntu only, and every other distribution is refused before the
 #   banner and the first sudo (detect_distro, below).
@@ -276,6 +279,8 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
     local IFS=' '
     # 16 Nov 26 dm - xfer-on (S.242's file transfer switch, register field 22) joins the list under the owner's "Every gate": test-install-opengates.sh S2 named it
     #            as a gate added later.  The system's own switch, XFER=1 in sd.conf, stays off: the account's switch alone moves nothing.
+    # 17 Nov 26 dm - S.62 (LC3): ssh-key-on is NOT in the list, because it does not apply to this user: the installing user is ATTACHED, not made by SD, so it is never
+    #            put in sdsshnokey and keeps the keys it set up outside SD; modify.account refuses ssh-key-on for it (14170).  test-install-opengates.sh S2d holds it out.
     gate_words="both sh-on os-on sd-on voc-on bp-on dict-on recovery-on net-on shared-write-on files-on files-write-on files-admin-on ai-on pins-on xfer-on"
     gate_missing=""
     echo "  Opening every access gate for ${user}, as you asked."
@@ -1214,6 +1219,19 @@ for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; d
     echo "Group $sd_route_group already exists."
   fi
 done
+# 17 Nov 26 dm - S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in over ssh is off as delivered for the accounts SD makes, and the administrator turns
+#   it on per account with modify.account <name> ssh-key-on).  sdsshnokey is the group whose members sshd offers no key sign-in (ssh-forcecommand's key arm).
+#   It is made EMPTY here, and THIS INSTALLER PUTS NOBODY IN IT, on a fresh install or an upgrade: create.account puts in each Linux user it makes from now on,
+#   and nothing else does.  So an upgrade changes no existing account's key sign-in, and a second upgrade does not either - the group is kept with its members
+#   on a keep-accounts cycle (deletesdcore.sh removes it only with the accounts), and nothing here walks the accounts to fill it.  The installing user is
+#   attached, not made by SD, and is never in it.  A DENY group, unlike the route groups above: one that is missing matches nobody, which is why sd-elevate
+#   never deletes it.
+if ! getent group sdsshnokey &>/dev/null; then
+  echo "Creating group: sdsshnokey."
+  sudo groupadd --system sdsshnokey
+else
+  echo "Group sdsshnokey already exists."
+fi
 # 21 Oct 26 dm - AI integration slice 1 (S.69, the owner's D6): the OS user sdai, for the in-SD model call that a later slice builds.  It holds
 #   nothing but, one day, the model key: a system user with its own group, no login shell, no home directory made, in no SD group, and nothing
 #   runs as it yet.  An existing sdai is left as it is.  (The same sitting also made a group sdagent and an ssh arm for an MCP door; the owner

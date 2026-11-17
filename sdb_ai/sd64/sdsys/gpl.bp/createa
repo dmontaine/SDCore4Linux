@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (LC3): SSH-KEY-ON, a Linux user SD makes for the account keeps key sign-in over ssh (off unless typed: the user is put in sdsshnokey); CA$SSH.KEY in
+*           createacc.h; !create_account refuses it for a group or other account; the audit gates= list names it; the usage says it.
+* 17 Nov 26 dm S.62 (P-3329): @system.return.code is 0 when the account was made (it was left at the -ER$ARGS preset or load.examples' code).
 * 17 Nov 26 dm The new account gets its own examples.bp (the example programs, compiled) from LOAD.EXAMPLES, after its audit line.
 * 14 Nov 26 dm S.242 stage 1: XFER-ON, the new user account's person may move files over the ssh login with RECEIVE / SEND (off unless typed); CA$XFER in createacc.h;
 *           !create_account refuses it for a group or other account (14075); the audit gates= list names it.
@@ -189,6 +192,8 @@
 *                 unless typed.  A user account only (11771).  RECOVERY-OFF restates the default and is not accepted here.
 *     XFER-ON     (14 Nov 26, S.242) the account's person may move plain-text files in and out with an sftp client over their ssh login (RECEIVE / SEND),
 *                 when XFER=1 in sd.conf.  Off unless typed.  A user account only (14075).  XFER-OFF restates the default and is not accepted here.
+*     SSH-KEY-ON  (17 Nov 26, S.62 LC3) the Linux user SD makes for the account may sign in over ssh with a key.  Off unless typed: the user is put in sdsshnokey, and sshd
+*                 offers it no key sign-in.  It never applies to an attached user, whose keys are its own.  SSH-KEY-OFF restates the default and is not accepted here.
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
 *   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
@@ -274,7 +279,7 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {xfer-on} {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {ssh-key-on} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {xfer-on} {no.query}'
     crt '                create.account group <group name> {start-menu | start-terminal} {pins-on} {no.query}'
     crt '                create.account other <account name> <pathname> {start-menu | start-terminal} {pins-on} {no.query}'
     crt '  A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change'
@@ -286,6 +291,7 @@ $include createacc.h
     crt '  and cannot add programs of its own to its home screen unless pins-on is typed.'
     crt '  Its editors keep no recovery copy of unsaved text unless recovery-on is typed (a user account only).'
     crt '  It cannot move files over its ssh login (receive / send) unless xfer-on is typed (a user account only).'
+    crt '  The Linux user SD makes for it cannot sign in over ssh with a key unless ssh-key-on is typed (a user account only).'
     @system.return.code = -ER$ARGS
     stop
    end case
@@ -324,6 +330,7 @@ $include createacc.h
    if settings<CA$PINS> = 1 then gates<-1> = 'pins-on'
    if settings<CA$RECOVERY> = 1 then gates<-1> = 'recovery-on'     ;* 28 Oct 26, S.88 plan 2.9 (D2)
    if settings<CA$XFER> = 1 then gates<-1> = 'xfer-on'             ;* 14 Nov 26, S.242
+   if settings<CA$SSH.KEY> = 1 then gates<-1> = 'ssh-key-on'       ;* 17 Nov 26, S.62 LC3
    if gates = '' then gates = 'none' else gates = convert(@fm, ',', gates)
 * 26 Oct 26 dm - S.75, home: where the account was told to start is a tail of its own, only when a start word was typed (start=menu or start=terminal); an account that follows the system default
 *   has the line it always had.
@@ -339,6 +346,9 @@ $include createacc.h
       if index(ex.out<ex.i>, 'Example programs in examples.bp', 1) or ex.out<ex.i>[1, 9] = 'Compiled ' or index(ex.out<ex.i>, 'was not loaded', 1) then crt ex.out<ex.i>
    next ex.i
 
+* 17 Nov 26 dm - S.62 (P-3329): the account is made, so the command succeeded.  The code was still the -ER$ARGS preset, or whatever the
+*   nested load.examples left; a paragraph or a caller that tests @system.return.code now sees 0.
+   @system.return.code = 0
    return
 
 * ======================================================================
@@ -432,6 +442,11 @@ more.args:
 *   made.  XFER-OFF restates the default and is not accepted.
          case upcase(token) = 'XFER-ON'
             settings<CA$XFER> = 1
+
+* 17 Nov 26 dm - S.62 (LC3): SSH-KEY-ON, the Linux user SD makes keeps key sign-in over ssh; off unless typed.  !create_account refuses it for a group or other account
+*   before anything is made.  SSH-KEY-OFF restates the default and is not accepted.
+         case upcase(token) = 'SSH-KEY-ON'
+            settings<CA$SSH.KEY> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word

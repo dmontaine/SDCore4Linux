@@ -11,6 +11,11 @@
 # password authentication alone and no PAM line is written; the rows of the code's PAM fences, its module and its login marker are gone, and the LEGACY rows take their place: an
 # older install's arm and fences are written closed and taken out, in every mode that should, and byte for byte.
 #
+# 17 Nov 26 dm S.62 (LC3): section KEY, the key arm (Match Group sdsshnokey User *,!root,!sdsys / PubkeyAuthentication no) asked of the REAL sshd: for users who are not in
+# the group (this user, root, sdsys, a user that does not exist, members of sdusers) sshd's WHOLE -T answer is the same with the arm and without it; a member (the arm's group
+# replaced by one the user is really in) loses key sign-in and nothing else; root and sdsys are named out even as members; the open sdsys arm still wins for sdsys; and the one
+# LIMIT, an administrator's Match block above ours, is measured.  Six mutants.
+#
 # THE REFUSAL ROWS COMPARE BYTES: a refused --open-sdsys must leave the sshd_config exactly as it was (the script puts it back when sshd's own answer is not the open arm's), and a
 # row that only looked at the exit status would pass a script that refused and still left a half-open door.  The administrator's own settings that defeat the arm are real ones: a
 # Match Address block above ours, an Include that sets a keyword first, a DenyUsers, an AllowUsers / AllowGroups that leaves sdsys out.
@@ -20,6 +25,7 @@
 
 import grp
 import os
+import pwd
 import re
 import shutil
 import subprocess
@@ -426,6 +432,85 @@ def rows_for(ctx):
         row("LEGACY: a console service whose file is not there is passed over, and the others are cleaned",
             code == 0 and rd(os.path.join(e.pamd, "login")) == CONSOLE_PAM and rd(e.pamf) == DEBIAN_PAM, out.strip()[:140])
 
+        # ---------------------------------------------------------------- S.62 LC3: the key arm, asked of the REAL sshd
+        # The oracle is sshd -T on two copies of one written config: as written, and with the key arm cut out (the block as it was before the arm).  "Unchanged" is
+        # sshd's WHOLE answer equal between the two.  A member is made without touching the machine's groups: the arm's group is replaced by a group the user is
+        # really in (MEMBER), or the arm is made to match everybody it does not name out (ALL).  A unit test cannot make Linux groups.
+        key_hdr = "Match Group sdsshnokey User *,!root,!sdsys"
+
+        def strip_key(t):
+            out, skip = [], False
+            for ln in t.splitlines(True):
+                if ln.startswith("Match ") or ln.startswith("# --- END SD"):
+                    skip = ln.startswith("Match Group sdsshnokey")
+                if not skip:
+                    out.append(ln)
+            return "".join(out)
+
+        def as_all(t):
+            if "Match Group sdsshnokey User " in t:
+                return t.replace("Match Group sdsshnokey User ", "Match User ")
+            return t.replace("Match Group sdsshnokey", "Match all")
+
+        def put(name, text):
+            p = os.path.join(e.d, name)
+            wr(p, text)
+            return p
+
+        me = pwd.getpwuid(os.getuid()).pw_name
+        me_grp = grp.getgrgid(os.getgid()).gr_name
+        e = env()
+        code, out = e.run("--install")
+        txt = rd(e.cfg)
+        row("KEY: --install writes the key arm, 'Match Group sdsshnokey User *,!root,!sdsys' with PubkeyAuthentication no and nothing else, and the REAL sshd -t accepted it",
+            code == 0 and (key_hdr + "\n    PubkeyAuthentication no\nMatch Group sdusers,") in txt, out.strip()[:160])
+        c_without = put("without-key-arm", strip_key(txt))
+        row("KEY: the copy without the arm is the block less exactly the arm's two lines (the null case: a strip that did nothing would compare a file with itself)",
+            len(txt.splitlines()) - len(rd(c_without).splitlines()) == 2 and "sdsshnokey" not in rd(c_without), "")
+        try:
+            su_members = grp.getgrnam("sdusers").gr_mem
+        except KeyError:
+            su_members = []
+        others = [me, "root", "sdsys", "alice"] + [u for u in su_members if u not in (me, "root", "sdsys")][:2]
+        diff = []
+        for u in others:
+            r1, a = effective(ctx["sshd"], e.cfg, u)
+            r2, b = effective(ctx["sshd"], c_without, u)
+            if r1 != 0 or r2 != 0 or a != b or not a:
+                diff.append(u)
+        say("  KEY: users asked as non-members (nobody is in sdsshnokey on this machine): %s" % others)
+        row("KEY: NOBODY ELSE CHANGES - for %d users who are not in the group (this user, root, sdsys, a user that does not exist, members of sdusers), sshd's whole answer is the same with "
+            "the arm and without it" % len(others), not diff, "changed for %s" % diff)
+        c_mem = put("me-member", txt.replace("Match Group sdsshnokey", "Match Group " + me_grp))
+        r1, a = effective(ctx["sshd"], c_mem, me)
+        r2, b = effective(ctx["sshd"], c_without, me)
+        changed = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+        row("KEY: A MEMBER (the arm's group made %s, a group %s is really in) is offered no key sign-in, and that is the ONLY thing sshd answers differently (its password sign-in, "
+            "ForceCommand and the rest are as they were)" % (me_grp, me), r1 == 0 and r2 == 0 and a.get("pubkeyauthentication") == "no" and changed == ["pubkeyauthentication"],
+            "changed %s; pubkey %r -> %r" % (changed, b.get("pubkeyauthentication"), a.get("pubkeyauthentication")))
+        c_all = put("everyone-member", as_all(txt))
+        r1, a = effective(ctx["sshd"], c_all, "alice")
+        row("KEY: control for the rows below - with the arm matching everybody it does not name out, an ordinary user (alice) is offered no key sign-in",
+            r1 == 0 and a.get("pubkeyauthentication") == "no", "pubkey %r" % a.get("pubkeyauthentication"))
+        for u in ("root", "sdsys"):
+            r1, a = effective(ctx["sshd"], c_all, u)
+            r2, b = effective(ctx["sshd"], c_without, u)
+            row("KEY: %s is named out - even if it were in the group, sshd's whole answer for it is the same with the arm and without it (closed sdsys arm)" % u,
+                r1 == 0 and r2 == 0 and a == b and a, "differs in %s" % sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k)))
+        code, out = e.run("--open-sdsys")
+        txt_o = rd(e.cfg)
+        r1, a = effective(ctx["sshd"], put("open-everyone-member", as_all(txt_o)), "sdsys")
+        r2, b = effective(ctx["sshd"], put("open-without", strip_key(txt_o)), "sdsys")
+        row("KEY: with the sdsys arm OPEN, sdsys's answer is still the open arm's and the same with the arm as without it (the sdsys arm comes first)",
+            code == 0 and r1 == 0 and a == b and a.get("authenticationmethods") == "password", out.strip()[:120])
+        # A LIMIT, measured and documented (ssh-forcecommand, KEY SIGN-IN): an administrator's own Match block that sshd reads FIRST and that sets the keyword wins.
+        t_adm = txt.replace("# --- BEGIN SD ssh-only model", "Match Address 192.0.2.0/24\n    PubkeyAuthentication yes\n# --- BEGIN SD ssh-only model", 1)
+        r1, a = effective(ctx["sshd"], put("admin-first", t_adm.replace("Match Group sdsshnokey", "Match Group " + me_grp)), me)
+        row("KEY: LIMIT (documented, not refused): an administrator's own Match block ABOVE ours that sets PubkeyAuthentication yes wins for a member (sshd's first value)",
+            r1 == 0 and a.get("pubkeyauthentication") == "yes", "pubkey %r" % a.get("pubkeyauthentication"))
+        code, out = e.run("--remove")
+        row("KEY: --remove takes the key arm out with the rest (the pristine config, byte for byte)", code == 0 and rd(e.cfg) == e.base_cfg and "sdsshnokey" not in rd(e.cfg), out.strip()[:120])
+
         # ---------------------------------------------------------------- the script's own text
         src = rd(ctx["helper"])
         arm = src[src.find("sdsys_arm_lines() {"):src.find("block_lines() {")]
@@ -445,7 +530,7 @@ def rows_for(ctx):
 MUTANTS = [
     ("the open arm asks for keyboard-interactive again", '"    AuthenticationMethods password" \\', '"    AuthenticationMethods keyboard-interactive" \\'),
     ("the open arm leaves password authentication off", '"    PasswordAuthentication yes" \\', '"    PasswordAuthentication no" \\'),
-    ("the open arm leaves PubkeyAuthentication on", '"    PubkeyAuthentication no" \\', '"    PubkeyAuthentication yes" \\'),
+    ("the open arm leaves PubkeyAuthentication on", '"    PubkeyAuthentication no" \\\n      "    HostbasedAuthentication no"', '"    PubkeyAuthentication yes" \\\n      "    HostbasedAuthentication no"'),     # 17 Nov 26: anchored on the next line, the key arm says it too
     ("the open arm leaves out GSSAPIAuthentication", '      "    GSSAPIAuthentication no" \\\n', ""),
     ("the open arm leaves out the ForceCommand", '      "    PermitTTY yes" \\\n      "    ForceCommand $SD_BIN"', '      "    PermitTTY yes"'),
     ("the open arm leaves out DisableForwarding", '      "    DisableForwarding yes" \\\n', ""),
@@ -471,6 +556,13 @@ MUTANTS = [
     # S.157: root out of the Match Group arms
     ("the refusal arm catches root again", '"Match Group sdusers,!sdsys,!sdssh User *,!root"', '"Match Group sdusers,!sdsys,!sdssh"'),
     ("the fence stripper takes the session fence's text", '    $0 == b || $0 == sb { drop = 1; next }', '    $0 == b { drop = 1; next }'),
+    # 17 Nov 26 S.62 LC3: the key arm
+    ("the key arm is left out", '    "Match Group $NOKEY_GROUP User *,!root,!sdsys" \\\n    "    PubkeyAuthentication no" \\\n', ""),
+    ("the key arm catches root", '"Match Group $NOKEY_GROUP User *,!root,!sdsys"', '"Match Group $NOKEY_GROUP User *,!sdsys"'),
+    ("the key arm catches sdsys", '"Match Group $NOKEY_GROUP User *,!root,!sdsys"', '"Match Group $NOKEY_GROUP User *,!root"'),
+    ("the key arm offers keys", '    "    PubkeyAuthentication no" \\\n    "Match Group sdusers', '    "    PubkeyAuthentication yes" \\\n    "Match Group sdusers'),
+    ("the key arm also shuts the password", '    "    PubkeyAuthentication no" \\\n    "Match Group sdusers', '    "    PubkeyAuthentication no" \\\n    "    PasswordAuthentication no" \\\n    "Match Group sdusers'),
+    ("the key arm names every member of sdusers", '"Match Group $NOKEY_GROUP User *,!root,!sdsys"', '"Match Group sdusers User *,!root,!sdsys"'),
 ]
 
 

@@ -28,6 +28,7 @@
 	  * 19 Oct 26 dm S.67 stage 1: K$MASTERS (150), the master files.
 	  * 28 Oct 26 dm S.88 phase 2: K$SHOW.SAFE (151), the kernel's one rule for showing another session's text (PSTAT, PROFILER, HSM).
 	  * 02 Nov 26 dm S.96 M6: K$MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
+	  * 17 Nov 26 dm S.62 P-1013, P-1014 (the owner's decision): K$REAL.USER (90) removed - no program asked it; 90 is retired, never reused.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -174,14 +175,10 @@
 *   (find, serve, refuse).  The arguments and answers are at k_xfer() in gplsrc/sd_sftp.c.  Must match gplsrc/keys.h.
       $define K$XFER           173      ;* File transfer over the ssh login: the slot and the server (S.242)
 * 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER (its row 310); not implemented on Linux and not reused here.
-* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
-*   NOT the same as K$USERNAME, which answers whoever the process is running
-*   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
-*   source can name the person; the caller must refuse rather than guess.
 * 10 Sep 26 dm - Parity audit: 57-59 are the Windows port's K$AUDIT, K$WINPATH
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.
-      $define K$REAL.USER       90       ;* Real person behind the session
+* 90 was K$REAL.USER (PRE_RELEASE 20) - removed 17 Nov 26 (S.62 P-1013, P-1014); retired, do not reuse.  Must match gplsrc/keys.h.
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.

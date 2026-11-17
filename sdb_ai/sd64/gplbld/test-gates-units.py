@@ -157,11 +157,14 @@ def checks(srcs, messages_dir):
        and "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')" in pia)
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
        'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
-    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment, then (16 Oct 26) the SD.ACCOUNTS gate",
+    # 17 Nov 26 (S.62): NETDIRS is asked last, after the SD.ACCOUNTS gate (test-netdirs-units.py holds what it does)
+    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment, then (16 Oct 26) the SD.ACCOUNTS gate, then (17 Nov 26) NETDIRS",
        re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*if \(path_inside_dir\(NULL, name\)\)\s*return TRUE;\s*"
-                 r"return MY_PRIV\(USR_SD_ACCOUNTS\) && path_in_enterable_account\(name\);", sh))
+                 r"if \(MY_PRIV\(USR_SD_ACCOUNTS\) && path_in_enterable_account\(name\)\)\s*return TRUE;\s*return path_in_netdirs\(name\);", sh))
     pea = at(sh, "Private bool path_in_enterable_account(")
-    pea_end = at(sh, "bool os_path_ok_for_account(", pea)
+    pea_end = at(sh, "#define MAX_NETDIRS", pea)   # 17 Nov 26: the NETDIRS code sits between it and os_path_ok_for_account
+    if pea_end < 0:
+        pea_end = at(sh, "bool os_path_ok_for_account(", pea)
     pea_body = sh[pea:pea_end] if pea > 0 and pea_end > pea else ""
     ck("C7a SD.ACCOUNTS: an account counts only if the user is in its register group and it is not suspended",
        "user_in_group(line[2])" in pea_body and 'strcasecmp(line[4], "SUSPENDED")' in pea_body)

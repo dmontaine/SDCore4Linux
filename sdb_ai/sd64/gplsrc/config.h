@@ -22,6 +22,7 @@
  * 14 Sep 26 dm  S.18: api_login removed (APILOGIN retired).
  * 19 Oct 26 dm  netwait and netreply are 32 bit (verifier finding of the SDNet finish): a value in sd.conf is read into an int and a 16 bit field wrapped 65541 to 5 before rangecheck saw it.
  * 14 Nov 26 dm  S.242 stage 1: xfer, xferfile, xferslot, xferwait, xferidle, xfermax, xferkind - file transfer over the ssh login (delivered off).
+ * 17 Nov 26 dm  S.62 (NETDIRS, the owner's decision of 17 Nov): netdirs, per process, MAX_NETDIRS_LEN 191 (what one sd.conf line holds after "NETDIRS=").
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -66,6 +67,9 @@ struct CONFIG {
 /* Config parameters loaded per process to allow local changes */
 
 #define MAX_SH_CMD_LEN 80
+/* 17 Nov 26 dm - S.62, NETDIRS.  read_config() reads a line of at most 199 characters, so 191 is all "NETDIRS=" leaves; a longer value is refused
+   by name (config.c), never cut: a cut list could end in a SHORTER directory, which would admit more than the administrator wrote. */
+#define MAX_NETDIRS_LEN 191
 struct PCFG  {
 /* 27 Oct 26 dm - S.87: CODEPAGE, CREATUSR, EXCLREM, GDI, RINGWAIT, TXCHAR (and APILOGIN, FIXUSERS, JNLDIR, JNLMODE, PORTMAP in the shared part) are gone. */
   int16_t dhcache;                      /* DHCACHE:  Closed dynamic files kept open for quick reopening */
@@ -85,6 +89,11 @@ struct PCFG  {
   int32_t objmem;                       /* OBJMEM:   Object size limit, zero = none */
   int32_t netwait;                      /* NETWAIT:  Seconds to wait for a connection to a remote SDNet server, 1 to 3600 (19 Oct 26, K8d).  32 bit, not 16: sd.conf is read into an int and a 16 bit field wrapped 65541 to 5 BEFORE the range test */
   int32_t netreply;                     /* NETREPLY: Seconds to wait for each reply of a remote SDNet server, 1 to 3600 (19 Oct 26, K8d; eight characters: CONFIG() reads no longer name).  32 bit for the same reason */
+  /* 17 Nov 26 dm - S.62.  NETDIRS: directories outside its own account, separated by ";", that a session held to its account by the OS gate
+     (os_path_ok_for_account(), op_sh.c) may still reach, to read and to write.  Delivered EMPTY, which confines it to its account.  PER PROCESS,
+     NOT IN THE SHARED SEGMENT (W.11 F9: a member of sdusers can write the segment, and a list read from it would be a way to widen access):
+     every session reads it from sd.conf itself, so an edit reaches the sessions started after it.  Not readable with CONFIG(). */
+  char netdirs[MAX_NETDIRS_LEN+1];      /* NETDIRS:  Directories outside the account a gated session may reach */
   int16_t pwdelay;                      /* PWDELAY:  Seconds paused after a failed network login */
   int16_t sdclient_mode;                /* SDCLIENT: 0 = any, 1 = no open/exec, 2 = restricted call */
   int16_t reccache;                     /* RECCACHE: Record cache size */

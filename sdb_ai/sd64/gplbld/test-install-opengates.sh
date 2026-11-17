@@ -300,7 +300,8 @@ all_on_words=$(grep -o "case action = '[A-Z.-]*'" "$MODIFYA" | sed "s/case actio
 # to add one's own programs to the home screen) were never in the installer's list; this row was red from 23 Oct until they were named here as left out on purpose.
 # 1 Nov 26 (owner: "Every gate", confirmed after the warning): the rows above that left files-admin-on, sdsys-on, ai-on and pins-on out are history; the
 # list now holds every on-word but shared-read-on (on already) and sdsys-on, which open_installer_sdsys gives after the ruling (section Z).
-mod_words=$(printf '%s\n' $all_on_words | grep -v -E '^(sdsys-on)$' | tr '\n' ' ' | sed 's/ $//')
+# 17 Nov 26, S.62 LC3: ssh-key-on is left out as well - it does not apply to the installing user, who is ATTACHED, not made by SD, and keeps its own keys (S2d).
+mod_words=$(printf '%s\n' $all_on_words | grep -v -E '^(sdsys-on|ssh-key-on)$' | tr '\n' ' ' | sed 's/ $//')
 mine=$(printf '%s\n' $inst_words | sort | tr '\n' ' ' | sed 's/ $//')
 row "S2 the list is every word modify.account accepts to turn something on (shared-read-on is on by default; sdsys-on is section Z): a gate added later fails here" \
     "$(ok "$([ -n "$mod_words" ] && [ "$mod_words" = "$mine" ] && echo yes)")" "modifya: $mod_words / installer: $mine"
@@ -308,6 +309,8 @@ row "S2b the list holds ai-on, files-admin-on, pins-on and recovery-on (owner, 1
     "$(ok "$(case " $mine " in *" ai-on "*) case " $mine " in *" files-admin-on "*) case " $mine " in *" pins-on "*) case " $mine " in *" recovery-on "*) echo yes;; esac;; esac;; esac;; esac)")" "installer: $mine"
 row "S2c sdsys-on is a word modify.account accepts and is NOT in the list (open_installer_sdsys gives it, after the ruling)" \
     "$(ok "$(case " $all_on_words " in *" sdsys-on "*) case " $mine " in *" sdsys-on "*) ;; *) echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
+row "S2d ssh-key-on is a word modify.account accepts and is NOT in the list: the installing user is attached, not made by SD, so the word does not apply to it, and the function says why" \
+    "$(ok "$(case " $all_on_words " in *" ssh-key-on "*) case " $mine " in *" ssh-key-on "*) ;; *) printf '%s\n' "$FUNC" | grep -q 'ssh-key-on is NOT in the list' && echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
 row "S3 files-on comes before files-write-on" \
     "$(ok "$(case " $inst_words " in *" files-on files-write-on "*) echo yes;; esac)")" "list: $inst_words"
 declare -A ACCOF=( [sh-on]='ACC$SH' [os-on]='ACC$OS.EXEC' [sd-on]='ACC$SD.ACCOUNTS' [voc-on]='ACC$VOC.EDIT' [bp-on]='ACC$BP.EDIT' [dict-on]='ACC$DICT.EDIT' [shared-write-on]='ACC$SHARED.WRITE' [net-on]='ACC$NET' [pins-on]='ACC$PINS' [recovery-on]='ACC$RECOVERY' [xfer-on]='ACC$XFER' )

@@ -161,7 +161,7 @@ def table(h):
     return out
 
 
-NGATES = 18                                     # S.166: the home gate is the seventeenth; S.242: file transfer (xfer) the eighteenth
+NGATES = 19                                     # S.166: the home gate is the seventeenth; S.242: file transfer (xfer) the eighteenth; S.62 LC3: key sign-in (after ai) the nineteenth, 'own' for the sandbox user (no SD stamp)
 SUMROW = 3 + NGATES                             # the line that says who is signed on (row 20)
 
 
@@ -185,6 +185,8 @@ def expected(register_on, route_on):
     for gid, title, status in gate_titles():
         if status != "built":
             out[title] = "plan"
+        elif gid == "ssh-key":
+            out[title] = "own"          # 17 Nov 26 (S.62 LC3): the sandbox user carries no "SD account" stamp, so its key sign-in is its own (is_sd_user)
         elif gid in ("ssh", "api", "files", "files-write", "files-admin", "ai"):
             out[title] = "ON" if gid in route_on else "off"
         else:

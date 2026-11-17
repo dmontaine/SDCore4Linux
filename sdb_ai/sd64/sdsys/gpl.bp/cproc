@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (P-4645): LOGTO refuses a SUSPENDED account to the administrator too (10107, audit reason=suspended), as LOGIN and
+*              the Windows port do; the only exemption is the install's (internal mode with the administrator flag: load.help's
+*              LOGTO shared).  RUN.IN into a suspended account is unchanged; the administrator's group exemption is unchanged.
+* 17 Nov 26 dm S.62 (P-4649, P-4642): .S saves a NEW sentence under a lower-case id; an existing record keeps its id.
 * 17 Nov 26 dm S.62 (P-1280, P-1283, P-1282): LOGTO takes a registered account name only.  A name the register lacked was taken as a
 *              pathname (the administrator could enter any directory holding a voc); it is now refused with 10003 and audited
 *              'logto refused ... reason=not in the register', the Windows port's behaviour since 13 Aug 26.  LOGTO SDSYS is unchanged.
@@ -1722,6 +1726,11 @@ stack.manipulation:
                end
             until upcase(s[1,1]) = "Y"
             repeat
+         end else
+* 17 Nov 26 dm - S.62 P-4649 / P-4642 (the Windows port's RELEASE_1.1 5).  A NEW saved sentence's id is lower case; an existing
+*   record (found in any case: the VOC folds case) keeps its id.  The lock the readvu left on the name as typed is given back.
+            release voc, arg1
+            arg1 = downcase(arg1)
          end
 
          voc.rec = if arg2 = arg3 then "S" else "PA"
@@ -3033,12 +3042,16 @@ int.logto:
 *   blank means in service and SUSPENDED means suspended.  Nothing else about
 *   the door moves.
 *
-*   AN ADMINISTRATOR STILL ENTERS ONE - the port's judgement call, kept rather
-*   than the owner's ruling: looking at a suspended account is the ordinary
-*   reason to have one, and an administrator can lift the suspension anyway.
-*   If that is wrong, drop the K$ADMINISTRATOR half of this test; do not add a
-*   second test.  The way out mirrors the 10003 refusal below.
-   if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then
+* 17 Nov 26 dm - S.62 (P-4645).  THE ADMINISTRATOR IS REFUSED TOO (owner, 17 Nov 26: "REFUSE, as Windows and
+*   sd -a do").  LOGIN refuses a suspended account to everyone (login, the suspended test after the case), and
+*   the Windows port's logto.authorised refuses it to everyone but the install.  The ONE exemption is the
+*   install's own: a session in internal mode that holds the administrator flag (sudo sd -internal, the
+*   IS_INSTALL bootstrap), because the installer runs load.help, which enters the shared account by LOGTO, and
+*   a kept shared account may be suspended.  To look into a suspended account, lift the suspension
+*   (modify.account <account> unsuspended); run.in is the administrator's maintenance tool for one and does
+*   not come through here (int.runin).  The group exemption for the administrator below is unchanged (S.103).
+*   The way out mirrors the 10003 refusal below.
+   if not(kernel(K$INTERNAL,-1) and kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then
       display sysmsg(10107, new.account) ;* Account %1 is suspended
       void kernel(K$AUDIT, 'logto refused account=' : new.account : ' reason=suspended')  ;* 07 Oct 26 PAL-24
       if ospath(account.path, OS$CD) then return
@@ -3213,6 +3226,10 @@ load.account.switches:
 *     account's gate.  The session's operating system user is still sdsys: what the flag no longer opens, that user's group memberships still may (a Q-pointer or a
 *     LOGTO into an account whose group it is in).
 *   NO COMMAND AT COMPILE TIME (BCOMP): $EXECUTE in the source, and an include file or dictionary outside the account, are compile errors while ri.active is set.
+*
+* 17 Nov 26 dm - S.62 (P-4645).  A SUSPENDED ACCOUNT IS NOT REFUSED HERE, ON PURPOSE (owner, 17 Nov 26: "it is the administrator's maintenance tool and
+*   a suspended account is when you would use it").  LOGTO refuses a suspended account to the administrator since that day; run.in reads the register
+*   record itself and never asks ACC$SUSPENDED.  Do not add the test.
 
 int.runin:
    if not(kernel(K$ADMINISTRATOR, -1)) then

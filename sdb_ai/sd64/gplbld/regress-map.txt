@@ -716,11 +716,10 @@ sdsys/messages/11219         : ide-kinds
 sdsys/gpl.bp/edit_recovery   : recovery ide-fresh
 sdsys/messages/1177[0-7]     : recovery
 gplbld/sandbox-recovery.py   : @self
-# 28 Oct 26 (the owner's approved items): the AUTOLOGOUT countdown (11750-11752) and the read-only tab for bytes outside ASCII (11753, 11754, 11761) in the IDE;
+# 28 Oct 26 (the owner's approved items): the AUTOLOGOUT countdown (11750-11752) in the IDE (11753, 11754 and 11761, the read-only tab for bytes outside ASCII, were
+# deleted 17 Nov 26, S.62: printed by nothing);
 # the recovery store in the person's home is found by SDEXT SD_USER_HOME (op_sdext.c, which the gplsrc rules above take), held as C by test-userhome-units.py
 sdsys/messages/1175[0-2]     : ide
-sdsys/messages/1175[34]      : ide-kinds ide
-sdsys/messages/11761         : ide-kinds ide
 # S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
 sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small eofkeys idedraw ai-ide recarr ide-kinds ide-path
 # The editor merge, stage E (28 Oct 26): operating system files in the IDE - the helper (NOT $internal, so the kernel's OS gate and edit gates apply), messages 11727-11741, and its suite
@@ -947,8 +946,8 @@ sdsys/messages/1172[0-4]     : docs
 sdsys/messages/11755         : tool-voc tool-files termsafe
 sdsys/messages/1175[6-9]     : tool-query tool-bulk termsafe
 sdsys/messages/11760         : tool-query termsafe
-# S.88 p3.9 (29 Oct 26): 11186 to 11189 the action registry's words (tk_keys 'keylist', the pilot in tool_tktest; the palette that will use the other two is p3.10A's)
-sdsys/messages/1118[6-9]     : tk-base tk-keys
+# S.88 p3.9 (29 Oct 26): 11188 and 11189 the action registry's words (tk_keys 'keylist', the pilot in tool_tktest; 11186 and 11187, never printed, deleted 17 Nov 26, S.62)
+sdsys/messages/1118[89]      : tk-base tk-keys
 sdsys/messages/1117[1-5]     : tk-base tk-widgets
 # S.88 F0a (30 Oct 26): the menu bar made from the key table ($tk_menubar) has no page yet, so no page suite runs it; the pilot's suites are tk-base and tk-keys.  11244 is F1's "Keys in this pane" (tk_help)
 sdsys/gpl.bp/tk_menubar      : tk-base tk-keys tk-public

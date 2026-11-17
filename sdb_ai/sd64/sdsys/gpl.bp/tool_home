@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-4667, P-4668): a tile whose tool.* verb is not in this account's VOC is left off the page (add.tile), as Windows does since 12 Nov 26.
 * 15 Nov 26 dm  Windows row 303: F6 and AI > Ask the AI say "the AI is not set up on this computer (the administrator sets it up in AI)" when the computer has no provider,
 *               model or key, and "the AI is not on for this account" only when the account's gate is off ($tk_ai 'why'; ai.off.text).
 * 14 Nov 26 dm  The header's date line names the product and its version after the time ("SD Core for Linux L2.0-0"; the owner: the home screen never said what ran).
@@ -342,6 +343,8 @@ build.page:
    * the tiles the administrator has turned off for this account (SET.TILE): left out of the page, their menu entries cannot be chosen
    call !home_off(@who, off.list)
    off.set = ' ' : off.list : ' '
+   tile.voc.ok = @false                                   ;* 17 Nov 26 S.62 (P-4667): add.tile asks this account's VOC for a cmd: tile's tool.* verb
+   open 'VOC' to tile.voc then tile.voc.ok = @true
    terminal.off = (index(off.set, ' terminal ', 1) > 0)
    tl = ''
    gr = ''
@@ -529,6 +532,17 @@ xfer.usable:
 add.tile:
    added = 0
    if index(off.set, ' ' : id : ' ', 1) then return        ;* turned off by the administrator: not on the page at all
+* 17 Nov 26 dm - S.62 (P-4667, P-4668; the Windows port's RELEASE_1.1 262): a tile for one of SD's own pages (tool.*) whose verb is not in
+*   this account's VOC is not shown, so a tile never offers a command the account cannot run.  When the verb arrives (an update of the
+*   account's VOC), the tile appears with no change here.  A pin's sentence is not asked: it may start with a catalogued program.
+   if tile.voc.ok and act[1, 4] = 'cmd:' then
+      tile.verb = field(trim(act[5, 999]), ' ', 1)
+      if downcase(tile.verb[1, 5]) = 'tool.' then
+         read tile.vr from tile.voc, tile.verb else
+            read tile.vr from tile.voc, downcase(tile.verb) else return
+         end
+      end
+   end
    t = id : @vm : grp : @vm : label : @vm : glyph : @vm : sub : @vm : act : @vm : pal : @vm : size : @vm : pause : @vm : why
    tl<-1> = t
    nt = dcount(tl, @fm)

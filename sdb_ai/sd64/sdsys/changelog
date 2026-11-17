@@ -1,6 +1,176 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SET.AI KEY NO LONGER SAYS A KEY IS SET WHEN THE HELPER'S CLIENT FAILED.
+
+             What        - set.ai key <provider>, typed at the prompt or handed over by the AI page's setup dialog, now
+                           looks at how the helper's client ended.  If the client failed, set.ai stops with "The AI
+                           helper refused: nokey (the key was not set)", prints no "The key for <provider> is set" and
+                           writes no audit line.
+             Why         - set.ai judged the outcome only by asking the helper whether a key exists.  When a key from
+                           an earlier time was already stored and the client failed to store the new one, it said the
+                           key was set and audited it, although nothing had changed.  SD Core for Windows found this in
+                           its own product; SD Core for Linux and SD Core Solo for Linux had the same fault.
+             Does NOT    - Change what happens when the client succeeds, or how the key is kept.
+
+17 Nov 26  SSH KEY SIGN-IN IS OFF AS DELIVERED FOR THE ACCOUNTS SD MAKES.
+
+             What        - a Linux user that create.account makes can no longer sign in over ssh with a key.  It signs
+                           in with its password, and only if the account's ssh route is on.  The administrator turns
+                           key sign-in on for one account with "modify.account <name> ssh-key-on" and off again with
+                           "ssh-key-off"; "create.account user <name> ssh-key-on" makes the account with it on.  The
+                           gate matrix (tool.gates) has a new column for it, and turning it on asks for the account's
+                           name to be typed; each account's own gate page shows its state.  SD does this with a Linux
+                           group, sdsshnokey: the installer adds a setting to sshd that offers its members no key
+                           sign-in, and create.account puts each user it makes in the group.
+             Why         - the owner's rule: high security is delivered and the administrator loosens it.  An SD
+                           account signs in with its name and password; a key is a second way in that the password does
+                           not control, and SD cannot see who holds it.  For the accounts SD creates, a key is now
+                           something the administrator allows, account by account.
+             Does NOT    - Touch anyone SD did not make: the user who ran the installer, a Linux user attached to an
+                           account, root, the sdsys user and every user outside SD keep exactly the ssh settings they
+                           had, and modify.account refuses ssh-key-on and ssh-key-off for them (their keys are their
+                           own).  Change an existing account at an upgrade: every account that existed before keeps the
+                           key sign-in it had, and only accounts made afterwards start with keys off.  Change how
+                           anybody signs in with a password.  Help on a machine whose own sshd allows no password
+                           sign-in: there an account SD makes cannot use ssh at all until ssh-key-on.  Override a rule
+                           the administrator wrote in sshd's configuration ahead of SD's block: that rule wins.  Keep
+                           the setting for a backup made before this release: such an account is restored with key
+                           sign-in off.  Fit a long account name in the gate matrix: with the new column a name is cut
+                           to ten characters there, and shown in full in the box below.
+
+17 Nov 26  NETDIRS: DIRECTORIES OUTSIDE ITS ACCOUNT THAT AN ACCOUNT WITHOUT OS ACCESS MAY STILL REACH.
+
+             What        - a new sd.conf parameter, NETDIRS, lists directories separated by semicolons, for example
+                           NETDIRS=/srv/sales;/srv/shared.  An account that has not been given os-on may then read and
+                           write files in those directories, and below them, by pathname - OPENSEQ, OPENPATH, DIR(),
+                           SELECT.DIR, OSPATH, DELETESEQ, a print file, a socket trace, an F-pointer in its VOC, a file
+                           opened over the API - exactly as it already may inside its own account directory.  Nothing
+                           is listed as delivered: there is no NETDIRS line in sd.conf, and an account is then held to
+                           its own directory as before.  A session reads the line when it starts, so a change reaches
+                           the sessions started after it; sd -start names in the error log and the system log each
+                           entry it ignores.
+             Why         - a site whose data lives in a shared directory outside every account had only one way to let
+                           an account reach it: os-on, which opens the whole machine to that account.  NETDIRS opens
+                           named directories only.  SD Core for Windows has had the parameter since August; the owner
+                           decided on 17 Nov 2026 that SD Core for Linux gains it, delivered empty.  FILLING IT IS A
+                           LOOSENING: every account without os-on, on every route (terminal, phantom, API), can then
+                           read, change, create and delete files in the listed directories, as far as the Linux
+                           permissions of the account's user allow.
+             Does NOT    - Change anything for the administrator or an account with os-on, which reach every path
+                           already.  Give shell or OS.EXECUTE access, or relax the VOC, dictionary and program-file edit
+                           gates, the shared account's rules or what the AI line may send.  Accept an entry that is not
+                           an absolute path, is not an existing directory, is the root directory, or holds or lies inside
+                           the SD system directory, the directory of sd.conf, the user or group accounts directory, or
+                           any registered account's directory: such an entry is ignored (an account made later inside a
+                           listed directory closes that entry at once).  Follow a link out of a listed directory to
+                           somewhere unlisted: names are resolved before they are compared, case counts, and /data/xkey
+                           is not inside /data/x.  Take a value longer than 191 characters: SD refuses to start, and a
+                           new session refuses to begin, with "NETDIRS value is longer than 191 characters."  Show the
+                           list to programs: CONFIG('NETDIRS') does not read it.  Reach API request 29, the old remote
+                           open of an account's file behind NETFILES: a pointer followed there must still lead inside
+                           the account (an OPENSEQ by pathname over the API is reached, like any other session's).
+
+17 Nov 26  LOGTO REFUSES A SUSPENDED ACCOUNT TO THE ADMINISTRATOR TOO.
+
+             What        - LOGTO into a suspended account is refused for every session, the administrator's included:
+                           "Account <name> is suspended", the session stays in the account it was in, and the audit
+                           trail says "logto refused account=<name> reason=suspended".  This is what an ordinary user
+                           already got, and what signing on to a suspended account (sd -a<account>, ssh, the console)
+                           has always given everyone.
+             Why         - the owner's ruling of 17 Nov 2026 ("refuse, as Windows and sd -a do").  The administrator
+                           used to pass this test, so a suspended account could be entered by LOGTO although it could
+                           not be signed on to.  SD Core for Windows has refused it to everyone but the installer since
+                           August.  Found by the four-version parity audit.
+             Does NOT    - Stop the administrator's maintenance of a suspended account: run.in <account> ... still works
+                           in one (basic, catalog, decatalog, delete.catalog, debug, compile.dict), and
+                           modify.account <account> unsuspended lifts the suspension.  Change the installer, which may
+                           still enter a suspended shared account to load the help text.  Change who may enter an
+                           account in service: the administrator still enters every registered account by LOGTO.
+
+17 Nov 26  TOOL.REMOTE AND TOOL.CONFIG SAY WHEN THEY ARE READING THE SETTINGS.
+
+             What        - before tool.remote reads the state of ssh, the API and the sdsys login, and before
+                           tool.config makes its operating system report, the status line says "Reading the settings
+                           (a few seconds)..."; the page's own message comes back when the reading is done.
+             Why         - the owner's rule: a page says what it is doing before anything that can take more than about
+                           two seconds, so the screen does not look frozen.  These reports run the root helper and the
+                           firewall and certificate tools.  SD Core for Windows' pages have done it since 12 Nov 2026.
+             Does NOT    - Make the reading any faster, or change what either page shows or does.
+
+17 Nov 26  FOUR OF THE ADMINISTRATOR'S VERBS DESCRIBE THEMSELVES IN THE VOC.
+
+             What        - the SDSYS account's VOC records of backup.account, restore.account, settings.report and
+                           tool.jobs carry a one-line description, as set.backup.directory's already did: LIST VOC and
+                           an editor show what each verb is for.
+             Why         - the owner's ruling of 17 Nov 2026: Linux Core gains the descriptions SD Core Solo for Windows
+                           had written, and the other versions follow it.
+             Does NOT    - Change what any verb does, or any account's VOC but SDSYS's.
+
+17 Nov 26  CNAME STORES A RENAMED FILE'S NEW NAME IN LOWER CASE.
+
+             What        - cname old to NEW (or old, NEW) records the file under the name in lower case, and renames
+                           its directory to that name.  A new name that is already in the VOC in any case, or that
+                           differs from the old name only in case, is refused with "... is already defined in your VOC".
+             Why         - SD's rule is that no command, file or record id exists in two casings.  The VOC already
+                           refused a twin, but a rename kept the case that was typed, so a file could be named FOO in
+                           the VOC and on disk.  SD Core for Windows has stored the lower-case name since September.
+                           Found by the four-version parity audit.
+             Does NOT    - Rename existing upper-case files, change how a record (rather than a file) is renamed, or
+                           change the edit gates a rename asks.
+
+17 Nov 26  .S SAVES A NEW SENTENCE UNDER A LOWER-CASE NAME.
+
+             What        - .S NAME n saves a new sentence or paragraph in the VOC as name.  A name that is already in
+                           the VOC is found in any case and asked about ("Overwrite VOC record ...?") as before, and
+                           keeps the name it has.
+             Why         - the lower-case rule; .S wrote the name exactly as typed.  As SD Core for Windows does.
+             Does NOT    - Change what is saved, the question asked before an existing record is replaced, or who may
+                           replace one.
+
+17 Nov 26  MODIFY.ACCOUNT WARNS WHEN A REMOTE ROUTE HAS NOTHING BEHIND IT.
+
+             What        - modify.account <account> ssh (or api, or both) now says, after the route line, that the
+                           machine has no ssh server yet, or provides no API listener yet, when that is so - the two
+                           warnings create.account already gives.
+             Why         - the grant was made silently, and the person could not sign in or connect with no word why.
+             Does NOT    - Refuse or undo anything: the grant is in place and takes effect when sshd is installed or
+                           remote.api is turned on.  Check whether sshd is running (Ubuntu starts it on demand).
+
+17 Nov 26  THE HOME SCREEN SHOWS NO TILE FOR A PAGE THE ACCOUNT CANNOT RUN.
+
+             What        - a tile for one of SD's own pages (a tool.* verb) is left off the home screen when that verb
+                           is not in the account's VOC.  When the verb arrives (an update of the account's VOC) the tile
+                           appears.
+             Why         - choosing such a tile failed with an unknown-verb error.  As SD Core for Windows does since
+                           12 Nov 2026.
+             Does NOT    - Hide a pinned program's tile, the Editor or IDE tiles, or a tile the administrator turned off
+                           (already hidden); it gives no account a verb it did not have.
+
+17 Nov 26  CREATE.ACCOUNT ENDS WITH RETURN CODE 0 WHEN THE ACCOUNT IS MADE.
+
+             What        - @system.return.code is 0 after a successful create.account.
+             Why         - it was left at the argument-error preset, or at whatever loading the example programs left,
+                           so a paragraph that tested it took a success for a failure.
+             Does NOT    - Change any message, or the code of a refused create.account.
+
+17 Nov 26  A PHANTOM THAT CANNOT BE STARTED SAYS WHY IN THE ERROR LOG.
+
+             What        - when the new process of a PHANTOM cannot run SD's program, the error log has a line "phantom:
+                           cannot start a phantom from <path> - <reason>".
+             Why         - it ended without a word, and PHANTOM gave no hint why the phantom never ran.  SD Core for
+                           Windows reports the same failure.
+             Does NOT    - Change what PHANTOM returns, or print anything on the terminal.
+
+17 Nov 26  SMALLER WORDING CORRECTIONS.
+
+             What        - the Configuration page's text for SORTWORK now says that when it is not set, or does not
+                           exist, SD uses TEMPDIR (it said the system account's directory, which SD never did); the
+                           system log line for an API connection refused because the TLS directory cannot be found now
+                           reads "cannot derive the TLS directory beside <sd.conf path>" (it spoke of an SDSYS= line SD
+                           does not read).
+             Does NOT    - Change what SD does in either case.
+
 17 Nov 26  SET.AI KEY AT THE PROMPT TAKES THE KEY AGAIN.
 
              What        - set.ai key <provider>, typed at SD's prompt, reads the key and shows one * for each character,

@@ -17,6 +17,7 @@
 *              ran past 40 on 23 Oct (CA$AI, 41) and is 31-50 here.  Same deferral: mail the Windows agent when the Linux side is stable.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): CA$RECOVERY (44), Linux only, whether a new user account's editors keep a recovery copy of unsaved text.  Same block, same deferral.
 * 14 Nov 26 dm S.242: CA$XFER (45), Linux only, whether a new user account may move files over the ssh login (RECEIVE / SEND).
+* 17 Nov 26 dm S.62 (LC3): CA$SSH.KEY (46), Linux only, whether a Linux user SD makes for a new user account may sign in over ssh with a key (off as delivered).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -93,5 +94,10 @@ $define CA$RECOVERY        44    ;* 1 = the new account starts with ACC$RECOVERY
 * Linux only (14 Nov 26, S.242): 1 = the new USER account starts with ACC$XFER 'yes' (file transfer over the ssh login, RECEIVE / SEND).  Blank or 0 leaves it off.
 *   Refused for a group or other account (14075).
 $define CA$XFER            45    ;* 1 = the new account starts with ACC$XFER 'yes'
+
+* Linux only (17 Nov 26, S.62 LC3): 1 = a Linux user SD makes (or a restore takes over: CA$REUSE.SD.USER) is NOT put in the group sdsshnokey, so it may sign in over ssh
+*   with a key.  Blank or 0: it is put in the group, and is offered no key sign-in (the delivered state).  It never applies to an attached Linux user or to one SD did not
+*   make, whose keys are its own; refused for a group or other account (10087, 10081), which has no Linux user of its own.
+$define CA$SSH.KEY         46    ;* 1 = a Linux user SD makes keeps key sign-in (not in sdsshnokey)
 
 * END-CODE

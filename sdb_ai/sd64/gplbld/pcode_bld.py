@@ -102,8 +102,9 @@ def main():
     # If $catlog directive found in source  bbcmp will also write the pcode object file to the global catalog file
     #         ie) for BCOMP,  $catalog $BCOMP is found in source.  bbcmp will write the pcode object file to
     #         sdsys/gcat/$BCOMP
-    cwd = os.getcwd()
-    bbcmp = cwd + os.sep +'gplbld' + os.sep + 'bbcmp.py'
+    # 17 Nov 26 dm - S.62 P-3061: bbcmp.py is taken from this script's own folder, not from <cwd>/gplbld, so the
+    #   script also works when run from elsewhere; the installer's "python3 gplbld/pcode_bld.py" from sd64 gives the same path.
+    bbcmp = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bbcmp.py')
     logger.info('bbcmp.py path: ' + bbcmp)
     for src in pcode_fs:
         logger.info('**********************************************************************')

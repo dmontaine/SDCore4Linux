@@ -8,6 +8,9 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   17 Nov 2026 dm - S.62 (LC3): the group sdsshnokey (members are offered no ssh key sign-in)
+#   is removed with the route groups on a full DELETE, and kept with them otherwise.
+#
 #   16 Nov 2026 dm - S.249 (the owner, in the Windows chat 15 Nov: "uninstall
 #   should probably remove everything if asked to remove accounts"; a parity
 #   ruling, Windows row 322): on a full DELETE the Linux group of every account
@@ -585,6 +588,12 @@ if [ "$keep_accts" = "DELETE" ]; then
             echo "Removed group $sd_route_group (the accounts went with it)."
         fi
     done
+    # 17 Nov 26 dm - S.62 (LC3): and sdsshnokey, the group whose members sshd offers no key sign-in.  Only with the accounts: on a keep cycle its members ARE the
+    #   accounts whose key sign-in is off, and removing it would give every one of them key sign-in back.
+    if getent group sdsshnokey &>/dev/null; then
+        sudo groupdel sdsshnokey || true
+        echo "Removed group sdsshnokey (the accounts went with it)."
+    fi
     # 21 Oct 26 dm - AI integration slice 1 (owner's D6): and the OS user sdai, with its own group (userdel takes the group it made).
     if getent passwd sdai &>/dev/null; then
         sudo userdel sdai || true
@@ -601,6 +610,7 @@ if [ "$keep_accts" = "DELETE" ]; then
     fi
 else
     echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers were kept."
+    echo "The group sdsshnokey (the accounts whose key sign-in is off) was kept with them."
     echo "The user sdai was kept with them, and /var/lib/sd-ai (the AI settings and keys)."
 fi
 # --------------------

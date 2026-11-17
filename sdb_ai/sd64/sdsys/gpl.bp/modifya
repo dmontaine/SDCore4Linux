@@ -19,6 +19,13 @@
 * 
 *
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes, a documented loosening for the administrator):
+*           SSH-KEY-ON / SSH-KEY-OFF take the account's Linux user out of the group sdsshnokey and put it back (sshd offers a member no key sign-in).  set.sshkey is the one
+*           routine: a group or other account is refused (10087, 10081), and so is a USER account whose Linux user SD did not make (14170: its keys are its own); the
+*           membership is read three-valued, changed through change.files.group and read back; the audit line is "modify.account ssh-key-on|ssh-key-off account=<name>";
+*           the state line is 14171.  Slot KY, carried out after ai-on / ai-off.
+* 17 Nov 26 dm S.62 (P-4659, P-4660): set.route warns with 10161 / 10162, as create_account does, when ssh or the API is left on and the
+*           machine has no sshd or no active sdclient.socket.  A warning only: nothing is refused or undone.
 * 14 Nov 26 dm S.242 stage 1 (owner, 14 Nov: file transfer in this release, delivered off): XFER-ON / XFER-OFF, whether the account's person may move files over the ssh
 *           login with RECEIVE / SEND (register field 22, ACC$XFER; off as delivered), through os.set like RECOVERY-ON.  A USER account only: a group or other account is
 *           refused with 14075.  Slot XF; 14074 is the line os.set prints; the audit line is os.set's.  Nothing reads the field yet (the transfer server is stage 3).
@@ -170,6 +177,16 @@
 * MODIFY.ACCOUNT account RECOVERY-OFF
 * MODIFY.ACCOUNT account XFER-ON
 * MODIFY.ACCOUNT account XFER-OFF
+* MODIFY.ACCOUNT account SSH-KEY-ON
+* MODIFY.ACCOUNT account SSH-KEY-OFF
+*
+* 17 Nov 26 dm - S.62 (LC3).  SSH-KEY-ON / SSH-KEY-OFF take the account's Linux user out of the Linux group sdsshnokey or put it in.  sshd offers a member of the group
+*   no key sign-in (ssh-forcecommand's key arm, PubkeyAuthentication no and nothing else): it signs in with its password, if its ssh gate is on.  create.account puts every
+*   Linux user it MAKES in the group, so key sign-in is off as delivered for those accounts; SSH-KEY-ON is the administrator's loosening, account by account, and
+*   SSH-KEY-OFF takes it back.  A user account only, and only one whose Linux user carries SD's "SD account" stamp (!is_sd_user): an attached user - the installing user,
+*   a login that was there before SD - is refused (14170), because the keys it set up outside SD are its own.  The line printed is "Account %1 may sign in over ssh with
+*   a key: yes|no", read back from /etc/group.  It takes effect at the next ssh connection: sshd reads the groups each time.  An account that existed before this release
+*   is not in the group, and an upgrade does not put it there.
 *
 * 14 Nov 26 dm - S.242.  XFER-ON / XFER-OFF write 'yes' / 'no' in register field 22 (ACC$XFER).  With yes, and with XFER=1 in sd.conf, the account's person may open a
 *   transfer slot (RECEIVE / SEND) and move plain-text files in or out with an sftp client over their usual ssh login.  Off for a new account and for every existing
@@ -237,6 +254,7 @@ $include err.h
 deffun is_grp_member(user,group) calling '!is_grp_member'
 deffun is_group(group) calling '!is_group'
 deffun valid_os_name(name) calling '!valid_os_name'
+deffun is_sd_user(username) calling '!is_sd_user'
 
    prompt ''
 
@@ -504,6 +522,15 @@ do.action:
          ai.want = @false
          gosub set.ai
          return
+* 17 Nov 26 dm - S.62 (LC3): SSH-KEY-ON / SSH-KEY-OFF, key sign-in over ssh for a Linux user SD made: out of / into the Linux group sdsshnokey (in it as delivered).
+      case action = 'SSH-KEY-ON'
+         key.want = @true
+         gosub set.sshkey
+         return
+      case action = 'SSH-KEY-OFF'
+         key.want = @false
+         gosub set.sshkey
+         return
 * 26 Oct 26 dm - F6: SDSYS-ON / SDSYS-OFF, membership of the account's Linux group by the sdsys user (OFF for a new account); set.sdsys does both.
       case action = 'SDSYS-ON'
          sdsys.want = @true
@@ -630,6 +657,7 @@ add.delete.arm:
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, recovery-on, recovery-off, xfer-on, xfer-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
          crt '   start-menu, start-terminal, start-default, pins-on, pins-off,'
+         crt '   ssh-key-on, ssh-key-off,'
          crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended'
       end
 
@@ -657,6 +685,7 @@ show.usage:
    crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
    crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off'
    crt '                 modify.account <account> ai-on | ai-off'
+   crt '                 modify.account <account> ssh-key-on | ssh-key-off'
    crt '                 modify.account <account> sdsys-on | sdsys-off'
    crt '                 modify.account <account> start-menu | start-terminal | start-default'
    crt '                 modify.account <account> pins-on | pins-off'
@@ -683,8 +712,8 @@ show.usage:
 *   The conflict test compares DIFFERENT words only: the same word twice is one action (want.at is set once).
 
 validate.actions:
-   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,RECOVERY-ON,RECOVERY-OFF,XFER-ON,XFER-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
-   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,RC,RC,XF,XF,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,SY,SY,ST,ST,ST,PN,PN,S,S')
+   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,RECOVERY-ON,RECOVERY-OFF,XFER-ON,XFER-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,SSH-KEY-ON,SSH-KEY-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
+   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,RC,RC,XF,XF,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,KY,KY,SY,SY,ST,ST,ST,PN,PN,S,S')
    n.words = dcount(actions, @fm)
    pos.of = ''
    want.at = ''
@@ -988,6 +1017,20 @@ set.route:
       case 1
          crt sysmsg(10079, acc.name)  ;* %1 has no remote access: not ssh, not the API
    end case
+
+* 17 Nov 26 dm - S.62 (P-4659, P-4660): the warnings create_account gives (10161, 10162, Windows RELEASE_1.1 125), given here
+*   too, after the route message, when a route is left on with nothing behind it.  They warn and refuse nothing: the grant is
+*   in place and takes effect when sshd is installed or the API listener is turned on.  The same two tests as create_account:
+*   ssh by whether sshd is installed (not running - Ubuntu starts it from ssh.socket on demand), the API by sdclient.socket.
+   if want.ssh and not(ospath('/usr/sbin/sshd', OS$EXISTS)) then
+      crt sysmsg(10161, acc.name)  ;* %1 is set up for ssh, but this machine has no ssh server yet
+   end
+   if want.api then
+      OS.EXECUTE "systemctl is-active --quiet sdclient.socket 2>/dev/null"
+      if OS.ERROR() # 0 then
+         crt sysmsg(10162, acc.name)  ;* %1 is set up for the API, but this machine provides no API listener yet
+      end
+   end
    return
 
 *****************************************************************************
@@ -1246,6 +1289,93 @@ change.files.group:
       files.stat = status()
       if files.stat = 0 and cg.now # cg.want then files.stat = 2
    end
+   return
+
+*****************************************************************************
+* SET.SSHKEY  -  MODIFY.ACCOUNT <account> SSH-KEY-ON | SSH-KEY-OFF
+*
+* 17 Nov 26 dm - S.62 (LC3; the owner, 17 Nov 2026: "key sign-in is FORBIDDEN as delivered ... a documented loosening for the administrator", and only the accounts SD itself
+*   made lose it).  key.want is set by the caller.  Membership of the Linux group sdsshnokey means NO key sign-in (sshd's key arm), so SSH-KEY-ON takes the person OUT of the
+*   group and SSH-KEY-OFF puts the person IN: the opposite of the route words.  Nothing is written to the register.
+*
+* THE REFUSALS, IN ORDER, each before anything changes: a group (sdg_) or other account has no Linux user (10087, 10081, as set.ai says it); a Linux user name that is not
+*   valid (10081); a Linux user SD did not make - no "SD account" stamp, read by !is_sd_user, three-valued like the groups - is refused with 14170, because the keys it set up
+*   outside SD are its own (sd-elevate refuses the join for it too); a membership that cannot be read (10081 with the status); SSH-KEY-OFF when the group does not exist on
+*   this machine (10024: an install from before this release).  The state line (14171) is read back from /etc/group by change.files.group, and a read back that does not
+*   show the wanted state is a failure (10081), never a success.
+*   NOTE: sshd's deny group fails OPEN where the group cannot be read; that is the price of not taking keys away from users SD did not make (ssh-forcecommand, KEY SIGN-IN).
+
+set.sshkey:
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      if group.name[1,4] = 'sdg_' then
+         crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto
+      end else
+         crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      end
+      return
+   end
+   files.user = group.name[5,999]
+   if not(valid_os_name(files.user)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)
+      return
+   end
+
+   key.made = is_sd_user(files.user)
+   files.stat = status()
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+   if not(key.made) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(14170, acc.name, files.user)  ;* %1: its Linux user %2 was not made by SD, so its ssh keys are its own ...; nothing was changed
+      return
+   end
+
+   has.nokey = is_grp_member(files.user, 'sdsshnokey')
+   files.stat = status()
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   if has.nokey = not(key.want) then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if not(key.want) then
+      key.found = is_group('sdsshnokey')
+      files.stat = status()
+      if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10081, acc.name, files.stat)
+         return
+      end
+      if not(key.found) then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10024, 'sdsshnokey')  ;* %1 is not a valid Linux Group
+         return
+      end
+   end
+
+   cg.group = 'sdsshnokey'
+   cg.want = not(key.want)
+   gosub change.files.group
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   crt sysmsg(14171, acc.name, if cg.now then 'no' else 'yes')  ;* Account %1 may sign in over ssh with a key: %2
    return
 
 *****************************************************************************

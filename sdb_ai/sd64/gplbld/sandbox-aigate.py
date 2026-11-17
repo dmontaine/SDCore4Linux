@@ -2,7 +2,9 @@
 #
 # sandbox-aigate.py - the `ai` gate and the AI settings RUN on a private SD (S.69 step 2, groups B; plan .claude/plan-ai-step2.md).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aigate.py <dir> [--build] [--mutant=NAME]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aigate.py <dir> [--build] [--mutant=NAME] [--only=part1,part2]
+#
+# 17 Nov 26 (S.62): --only (part1, part2); row J19c - with a key already set, a client that fails for 'key' must not be reported as having set one.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run.  With --mutant=NAME only PART 1 runs, and exit 0 means the mutant was killed by exactly the rows listed for it (MUTANTS below).
@@ -285,7 +287,8 @@ def pty_key_rows(box, fm):
     s.settle(2.5)
     s.type("set.ai key openai\r", idle=2.5)
     scr = "\n".join(l.rstrip() for l in s.screen.lines())
-    row("J16 the prompt is the client's: 'Key for openai (not shown):' is on the screen, from sd-ai-ctl and not from SD", "Key for openai (not shown):" in scr, scr[-300:])
+    # 17 Nov 26 (S.62): the client's prompt has read "(shown as *)" since the star prompt of 14 Nov; this row still looked for "(not shown)" and was red.
+    row("J16 the prompt is the client's: 'Key for openai (shown as *):' is on the screen, from sd-ai-ctl and not from SD", "Key for openai (shown as *):" in scr, scr[-300:])
     s.type(KEY[:6], idle=0.6)
     scr2 = "\n".join(l.rstrip() for l in s.screen.lines())
     row("J17 what is typed at the prompt is not shown (the first six characters of the key are not on the screen)", KEY[:6] not in scr2, scr2[-300:])
@@ -298,6 +301,27 @@ def pty_key_rows(box, fm):
         and (os.stat(kp).st_mode & 0o777) == 0o600 and KEY not in new and re.search(r"set\.ai key set provider=openai$", new, re.M) is not None, repr((os.path.exists(kp), new)))
     out = q3.adm(["set.ai"])
     row("J19b set.ai now lists a key set for openai (the listing says so; it never shows the key)", any("key: set" in ln for ln in out) and not any(KEY in ln for ln in out), repr(out[:12]))
+    # 17 Nov 26 (S.62, the Windows port's finding, relayed by the auditor): with a key ALREADY set, a client that FAILS for 'key' must not be reported as having set one.
+    # setai read 'show' afterwards and said 11615 and audited whenever the listing said 'key: set'.  The wrapper exits 3 for 'key' and runs the real client for every
+    # other word (show answers truthfully: the earlier key is still there).  J16 to J19 above are the control: the real client sets a key and all three appear.
+    ctl = os.environ["SD_AI_CTL"]
+    wrap = os.path.join(box, "ai", "ctl-failkey")
+    put(wrap, "#!/bin/sh\n# sandbox-aigate J19c: fail 'key', pass every other word to the real client\nif [ \"$1\" = key ]; then echo 'ctl-failkey: refused on purpose' >&2; exit 3; fi\nexec '%s' \"$@\"\n" % ctl)
+    os.chmod(wrap, 0o755)
+    st0 = os.stat(kp)
+    body0 = open(kp).read()
+    a1 = fg.audit_off()
+    os.environ["SD_AI_CTL"] = wrap
+    try:
+        out = q3.adm(["set.ai key openai"])
+    finally:
+        os.environ["SD_AI_CTL"] = ctl
+    new = fg.audit_new(a1) or ""
+    st1 = os.stat(kp)
+    row("J19c with a key already set, a client that FAILS for 'key' (exit 3; 'show' still answers): 11608 'nokey (the key was not set)' is said, 11615 is NOT, no 'set.ai key set' "
+        "audit line, and the key file is unchanged (contents, size, modification time)",
+        any(ln.startswith("The AI helper refused: nokey (the key was not set)") for ln in out) and msg(11615, "openai") not in out and "set.ai key set" not in new
+        and open(kp).read() == body0 and (st1.st_mtime_ns, st1.st_size) == (st0.st_mtime_ns, st0.st_size), repr((out[-4:], new)))
 
 
 def main():
@@ -346,11 +370,19 @@ def main():
             if not has(out, r"^Compiled 1 program\(s\) with no errors"):
                 q3.bail("the mutated modifya did not compile:\n" + "\n".join(out[-6:]))
             say("sandbox-aigate: MUTANT %s: the rows that must fail, and nothing else: %s" % (mutant, ", ".join(MUTANTS[mutant][2])))
-        real = subprocess.run(["id", "-nG", ME], capture_output=True, text=True).stdout.split()
-        if "sdaiusers" in real and "sdusers" in real:
-            q3.bail("%s is really in sdusers AND sdaiusers, so a case could pass by reading /etc/group instead of the scratch file" % ME)
-        part1()
-        if mutant is None:
+        # 17 Nov 26 (S.62): --only=part2 runs SET.AI alone.  PART 2 reads no group (the helper's runner makes this person the administrator and an AI
+        # user by its arguments), so the guard below, which keeps PART 1's scratch group file honest, is PART 1's and is skipped with it.
+        only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), "part1,part2").split(",")
+        if any(o not in ("part1", "part2") for o in only) or (mutant is not None and "part1" not in only):
+            q3.bail("--only takes part1 and / or part2 (a mutant needs part1)")
+        if "part1" in only:
+            real = subprocess.run(["id", "-nG", ME], capture_output=True, text=True).stdout.split()
+            if "sdaiusers" in real and "sdusers" in real:
+                q3.bail("%s is really in sdusers AND sdaiusers, so a case could pass by reading /etc/group instead of the scratch file" % ME)
+            part1()
+        else:
+            say("sandbox-aigate: --only=part2: PART 1 (and its group-membership guard) not run")
+        if mutant is None and "part2" in only:
             part2()
     finally:
         subprocess.run([sys.executable, q3.TOOL, q3.BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)

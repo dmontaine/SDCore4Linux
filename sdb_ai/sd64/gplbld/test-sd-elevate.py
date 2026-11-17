@@ -119,7 +119,9 @@ NOT_SDFILES = ["sdfilesx", "sdfiles2", "sdfiles-x", "sdfile", "xsdfiles",
                # 21 Oct 26, S.73 item 3: lookalikes of sdfilesadmin
                "sdfilesadmi", "sdfilesadminx", "sdfilesadmin2", "sdfilesadmin-x", "xsdfilesadmin",
                # 23 Oct 26, S.69 step 2: lookalikes of sdaiusers
-               "sdaiuser", "sdaiusersx", "sdaiusers2", "sdaiusers-x", "xsdaiusers"]
+               "sdaiuser", "sdaiusersx", "sdaiusers2", "sdaiusers-x", "xsdaiusers",
+               # 17 Nov 26, S.62 LC3: lookalikes of sdsshnokey
+               "sdsshnokeyx", "sdsshnoke", "sdsshnokey2", "xsdsshnokey", "sdsshkey"]
 
 
 def group_rows(helper=None):
@@ -155,7 +157,10 @@ def group_rows(helper=None):
         ask("delgroup <me> sdfilesadmin is on the whitelist", ["delgroup", who, "sdfilesadmin"], _accepted)
         ask("addgroup <me> sdaiusers is on the whitelist", ["addgroup", who, "sdaiusers"], _accepted)
         ask("delgroup <me> sdaiusers is on the whitelist", ["delgroup", who, "sdaiusers"], _accepted)
-    for grp in ("sdfiles", "sdfileswrite", "sdfilesadmin", "sdaiusers", "sdusers", "sdssh", "sdapi"):
+        # 17 Nov 26, S.62 LC3: sdsshnokey - taking a user OUT needs no stamp (it gives back what the machine's own settings say)
+        ask("delgroup <me> sdsshnokey is on the whitelist", ["delgroup", who, "sdsshnokey"], _accepted)
+    ask("groupadd sdsshnokey is on the whitelist", ["groupadd", "sdsshnokey"], _accepted)
+    for grp in ("sdfiles", "sdfileswrite", "sdfilesadmin", "sdaiusers", "sdusers", "sdssh", "sdapi", "sdsshnokey"):
         ask(f"groupdel {grp} is never deleted", ["groupdel", grp], _undeletable)
     for bad in NOT_SDFILES:
         ask(f"groupadd {bad} is not an SD group", ["groupadd", bad], _name_refused)
@@ -193,6 +198,10 @@ GROUP_MUTANTS = [
     ("sdaiusers dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;"),
     ("sdaiusers matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers*) : ;;"),
     ("sdaiusers made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
+    # 17 Nov 26, S.62 LC3: the seventh, sdsshnokey, on lines of its own (a DENY group: deleting it would give every SD-made account its key sign-in back)
+    ("sdsshnokey dropped from the whitelist", "    sdsshnokey) : ;;\n", ""),
+    ("sdsshnokey matched as a prefix", "    sdsshnokey) : ;;\n", "    sdsshnokey*) : ;;\n"),
+    ("sdsshnokey made deletable", "      sdsshnokey)\n        die \"'$1' is one of SD's system groups and is never deleted here (a deny group that is missing matches nobody)\" ;;\n", ""),
 ]
 
 
@@ -638,6 +647,17 @@ def stamp_rows(helper=None):
                 ask(f"REFUSE: {verb} {who} is refused for {why} ({gecos!r})", [verb, who], stamp_refused(tails[verb]), env(gecos))
             ask(f"REFUSE: setpw {who} is refused for {why} ({gecos!r}), with a good password on stdin", ["setpw", who], stamp_refused(tails["setpw"]), env(gecos), good)
         ask("REFUSE: userdel-home keeps its words (the stamp test it always made, now shared with the others)", ["userdel-home", who], stamp_refused(tails["userdel-home"]), unstamped)
+        # ---- 17 Nov 26, S.62 LC3: addgroup USER sdsshnokey (key sign-in taken away) only for a user SD made; the group answered by the stub
+        nk_tail = "its ssh keys are its own and SD does not take key sign-in away from it"
+        ask(f"ALLOW: addgroup {who} sdsshnokey goes through for a user with the stamp (create.account, modify.account ssh-key-off)", ["addgroup", who, "sdsshnokey"],
+            goes(f"usermod -aG sdsshnokey -- {who}"), dict(stamped, STUB_GROUPS="sdsshnokey"))
+        for gecos, why in (("Some Person", "an ordinary login (the installing user, an attached user)"), ("", "no comment at all"), ("SD account,,,", "chfn's extra fields")):
+            ask(f"REFUSE: addgroup {who} sdsshnokey is refused for {why} ({gecos!r}): its keys are its own", ["addgroup", who, "sdsshnokey"], stamp_refused(nk_tail),
+                dict(env(gecos), STUB_GROUPS="sdsshnokey"))
+        ask(f"ALLOW: addgroup {who} sdssh needs no stamp (only sdsshnokey asks it)", ["addgroup", who, "sdssh"],
+            lambda c, o: "was not created by SD" not in o and "not an SD group" not in o, dict(unstamped, STUB_GROUPS="sdssh"))
+        ask(f"ALLOW: delgroup {who} sdsshnokey needs no stamp (taking a user out gives back the machine's own settings)", ["delgroup", who, "sdsshnokey"],
+            lambda c, o: "was not created by SD" not in o and "not an SD group" not in o, dict(unstamped, STUB_GROUPS="sdsshnokey"))
         ask("REFUSE: setpw asks the stamp BEFORE it reads the password: a weak password for an out-of-reach user is refused for the stamp, and its text is not judged",
             ["setpw", who], lambda c, o: stamp_refused(tails["setpw"])(c, o) and "does not meet SD's rule" not in o, unstamped, "weakpass\n")
         # ---- the user rules come first, whatever the stamp says: root, sdsys and a system account keep their own words
@@ -676,6 +696,9 @@ STAMP_MUTANTS = [
     ("stamp: setpw asks it before the user rules", '  require_sd_user "$user"\n' + _SW, _SW + '  require_sd_user "$user"\n'),
     ("stamp: passwd asks it before the user rules", '    require_sd_user "$1"\n' + _SP, _SP + '    require_sd_user "$1"\n'),
     ("stamp: setpw judges the password before it asks it", _SW + _PU + _PWL, _PWL + _SW + _PU),
+    # 17 Nov 26, S.62 LC3
+    ("stamp: addgroup sdsshnokey no longer asks it", '    [[ $2 != sdsshnokey ]] || require_sd_stamp "$1" "its ssh keys are its own and SD does not take key sign-in away from it"\n', ""),
+    ("stamp: addgroup asks it for every group", '    [[ $2 != sdsshnokey ]] || require_sd_stamp', '    require_sd_stamp'),
 ]
 
 

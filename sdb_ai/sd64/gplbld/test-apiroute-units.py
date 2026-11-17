@@ -12,6 +12,10 @@ could not run.  Written 20 Sep 26 for S.29 part 3.
               no register record refused with the branch=1 audit line and 10003
               before account.entry.check and OS$CD; no typed name in account.path),
               with six mutants from M_S62: --selftest --from=5 runs only those.
+17 Nov 26 dm  S.62 (P-4638, P-4639): rows E0-E3 hold account.entry.check's
+              empty-group refusal (branch=3 no.group.in.register, after the
+              suspended test, before is_grp_member, SDSYS's own entry exempt),
+              with five mutants from M_S62B: --selftest --from=11.
 
 ***WHAT THIS IS AND, MORE IMPORTANTLY, WHAT IT IS NOT.***  It reads
 sdsys/gpl.bp/apisrvr as text.  ***IT DOES NOT RUN BASIC, SO IT CANNOT SAY THE
@@ -135,7 +139,58 @@ def checks(src, messages=MESSAGES):
            repr(body[:60]))
 
     account_entry_checks(lines, ck)
+    empty_group_checks(lines, ck)
     return out
+
+
+# ------------------------------------------- account.entry.check: no group
+#
+# 17 Nov 26 dm - S.62 (P-4638, P-4639): an account whose register record has
+# an EMPTY group is refused by its own test, audited branch=3
+# no.group.in.register (the Windows port's words), after the suspended test and
+# before the membership test, and never for SDSYS entering its own account.
+EG_OWN = "ent.sdsys.own = (downcase(@logname) = 'sdsys' and ent.name = 'sdsys')"
+EG_TEST = "if not(ent.sdsys.own) and ent.rec<ACC$GROUP> = '' then"
+EG_AUDIT = "'account refused branch=3 no.group.in.register account=' : ent.name"
+EG_SUSP = "'account refused branch=2 suspended account=' : ent.name"
+EG_MEMBER = "if not(is_grp_member(@logname, ent.rec<ACC$GROUP>)) then"
+
+
+def empty_group_checks(lines, ck):
+    """E0-E3: the empty-group refusal in account.entry.check (its label to the next label)."""
+    start = find(lines, "account.entry.check:")
+    stop = None
+    if start is not None:
+        stop = next((n for n, ln in lines if n > start and re.match(r"^[a-z][a-z0-9.]*:\s*$", ln)), None)
+    block = [(n, ln) for n, ln in lines if start is not None and start < n and (stop is None or n < stop)]
+    ck("E0 the account.entry.check block is found", start is not None and bool(block),
+       f"account.entry.check {start}, next label {stop}, {len(block)} code lines")
+    if not block:
+        return
+
+    def at(needle):
+        return next((n for n, ln in block if needle in ln), None)
+
+    own, test, susp, member = at(EG_OWN), at(EG_TEST), at(EG_SUSP), at(EG_MEMBER)
+    ck("E1 the empty-group test is written, guarded by the SDSYS-own-account exemption",
+       own is not None and test is not None and own < test,
+       f"exemption {own}, test {test}")
+    ck("E2 it comes AFTER the suspended refusal and BEFORE the membership test",
+       None not in (test, susp, member) and susp < test < member,
+       f"suspended {susp}, empty group {test}, is_grp_member {member}")
+    body = []
+    if test is not None:
+        for n, ln in block:
+            if n <= test:
+                continue
+            if ln.strip() == "end":
+                break
+            body.append(ln.strip())
+    text = "\n".join(body)
+    ck("E3 it audits 'branch=3 no.group.in.register', answers 10003, refuses and returns",
+       ("void kernel(K$AUDIT, " + EG_AUDIT + ")") in text and "sysmsg(10003)" in text
+       and "ent.refused = @true" in text and "return" in body,
+       repr(text[:160]))
 
 
 # --------------------------------------------------- request 3: by name only
@@ -242,6 +297,39 @@ MUTANTS += [
      lambda s: s.replace("   error.msg = sysmsg(10003) ;* User not allowed in requested account\n   abort.message = error.msg",
                          "   error.msg = sysmsg(5037) ;* Invalid account name\n   abort.message = error.msg")),
 ]
+
+# 17 Nov 26 dm - S.62 (P-4638, P-4639): the empty-group refusal.  --selftest --from=11 runs these alone.
+M_S62B = len(MUTANTS)
+MUTANTS += [
+    ("S.62b: the empty-group test is gone",
+     lambda s: s.replace(EG_TEST, "if @false then")),
+    ("S.62b: SDSYS's own entry is no longer exempt from it",
+     lambda s: s.replace(EG_TEST, "if ent.rec<ACC$GROUP> = '' then")),
+    ("S.62b: it audits as branch=4",
+     lambda s: s.replace(EG_AUDIT, "'account refused branch=4 not.in.group group= account=' : ent.name")),
+    ("S.62b: it does not return",
+     lambda s: s.replace("   ent.refused = @true\n   return\nend\n\n* rev 0.9.0",
+                         "   ent.refused = @true\nend\n\n* rev 0.9.0")),
+    ("S.62b: it moves below the membership test",
+     lambda s: _move_empty_group_after_member(s)),
+]
+
+
+def _move_empty_group_after_member(src):
+    """Move the empty-group test (its if to its end) to just before the membership test's closing return."""
+    lines = src.splitlines(keepends=True)
+    start = next((i for i, ln in enumerate(lines) if ln.strip() == EG_TEST), None)
+    if start is None:
+        return src
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == "end"), None)
+    if end is None:
+        return src
+    block = lines[start:end + 1]
+    rest = lines[:start] + lines[end + 1:]
+    at = next((i for i, ln in enumerate(rest) if EG_MEMBER in ln.strip() and i >= start), None)
+    if at is None:
+        return src
+    return "".join(rest[:at + 1] + block + rest[at + 1:])
 
 
 def _move_refusal_after_entry(src):

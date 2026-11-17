@@ -24,6 +24,12 @@ text exactly once: an injection that changed nothing is not a test.
 26 Oct 26, F6 (S.67 stage 2, alternative C): SDSYS-ON and SDSYS-OFF (M14 to M14c: the words, the slot SY they share with nothing else, set.sdsys's order and its three
 helper commands, the read back; M15, M15b: messages 11977 to 11980) with their own mutants (F6_MUTANTS, first number M_F6), and `--selftest --from=N`, which runs the
 mutants from number N on, so that a sitting that changes the F6 words does not pay for the others.
+
+17 Nov 26 dm, S.62 (P-4659, P-4660): M16 / M16b hold set.route's 10161 / 10162 warnings (after the route message, refusing nothing), with five
+mutants from M_S62 (printed by the self-test header).
+
+17 Nov 26 dm, S.62 (LC3): M17 to M17c hold SSH-KEY-ON / SSH-KEY-OFF (the words, slot KY, set.sshkey's refusals in order, the change through change.files.group, the audit
+line and 14171, messages 14170 / 14171), with seven mutants after M_S62's five.
 """
 
 import os
@@ -248,6 +254,51 @@ def checks(src, msgs):
        and all(("sysmsg(%s" % n) in strip(src) for n in NEW_F6) and not any(
            ("sysmsg(%s" % n) in open(os.path.join(GPL, fn), encoding="latin-1").read() for n in NEW_F6 for fn in os.listdir(GPL) if fn != "modifya" and os.path.isfile(os.path.join(GPL, fn))),
        "")
+
+    # 17 Nov 26 dm - S.62 (P-4659, P-4660): set.route warns as create_account does, after the route message, and refuses nothing.
+    rs = c.find("\nset.route:")
+    rn = re.search(r"\n[a-z][a-z0-9.]*:[ \t]*\n", c[rs + 1:]) if rs >= 0 else None
+    rt = "" if rs < 0 else (c[rs:rs + 1 + rn.start()] if rn else c[rs:])
+    tail = rt[rt.find("crt sysmsg(10079, acc.name)"):] if "crt sysmsg(10079, acc.name)" in rt else ""
+    tr = re.search(r"\n\s*return\b", tail)
+    tail = tail[:tr.start()] if tr else tail
+    ck("M16 set.route warns with 10161 when ssh is left on and sshd is not installed, and with 10162 when the API is left on and sdclient.socket is not "
+       "active, AFTER the route message, as create_account does",
+       in_order(rt, "crt sysmsg(10078, acc.name)", "crt sysmsg(10079, acc.name)",
+                "if want.ssh and not(ospath('/usr/sbin/sshd', OS$EXISTS)) then", "crt sysmsg(10161, acc.name)",
+                "if want.api then", 'OS.EXECUTE "systemctl is-active --quiet sdclient.socket 2>/dev/null"',
+                "if OS.ERROR() # 0 then", "crt sysmsg(10162, acc.name)", "return"),
+       "set.route block %d chars" % len(rt))
+    ck("M16b ...and the warnings refuse nothing: no stop, goto, failure code or audit line after the route message",
+       tail != "" and "sysmsg(10162" in tail and not re.search(r"\bstop\b|\bgoto\b|ER\$FAILED|K\$AUDIT", tail),
+       repr(tail[:200]))
+
+    # 17 Nov 26 dm - S.62 (LC3): SSH-KEY-ON / SSH-KEY-OFF, key sign-in over ssh, membership of sdsshnokey read the other way round.
+    sk = between(c, "\nset.sshkey:\n", "\nset.ai:\n")
+    ck("M17 SSH-KEY-ON and SSH-KEY-OFF: do.action sets key.want true or false and calls set.sshkey; the two words follow AI-ON / AI-OFF in the list and share a slot (KY) that no other "
+       "word has",
+       re.search(r"case action = 'SSH-KEY-ON'\s*\n\s*key\.want = @true\s*\n\s*gosub set\.sshkey\s*\n\s*return", do_action) is not None
+       and re.search(r"case action = 'SSH-KEY-OFF'\s*\n\s*key\.want = @false\s*\n\s*gosub set\.sshkey\s*\n\s*return", do_action) is not None
+       and "SSH-KEY-ON" in words and words.index("SSH-KEY-ON") == words.index("AI-OFF") + 1 and words.index("SSH-KEY-OFF") == words.index("SSH-KEY-ON") + 1
+       and len(slots) == len(words) and slots[words.index("SSH-KEY-ON")] == slots[words.index("SSH-KEY-OFF")] == "KY" and slots.count("KY") == 2, "")
+    ck("M17a set.sshkey refuses, in order and before anything changes: a group or other account (10087, 10081), a Linux user name that is not valid, a stamp that cannot be read (10081), "
+       "a Linux user SD did not make (14170: its keys are its own), a membership that cannot be read; then 'already' (10080), then SSH-KEY-OFF looks for the group (10024)",
+       sk != "" and in_order(sk, "if group.name[1,4] # 'sdu_' then", "sysmsg(10087, acc.name)", "files.user = group.name[5,999]", "if not(valid_os_name(files.user)) then",
+                             "key.made = is_sd_user(files.user)", "files.stat = status()", "if files.stat # 0 then", "if not(key.made) then", "crt sysmsg(14170, acc.name, files.user)", "return",
+                             "has.nokey = is_grp_member(files.user, 'sdsshnokey')", "files.stat = status()", "if has.nokey = not(key.want) then", "sysmsg(10080, acc.name)",
+                             "if not(key.want) then", "key.found = is_group('sdsshnokey')", "crt sysmsg(10024, 'sdsshnokey')", "cg.group = 'sdsshnokey'", "cg.want = not(key.want)",
+                             "gosub change.files.group"), "")
+    ck("M17b ...ON takes the person OUT of the group (cg.want = not(key.want)), the change goes through change.files.group (which reads it back) and nowhere else, a failed read back is 10081, "
+       "and the success path audits once in lower case and prints 14171 from the read back (yes when NOT a member)",
+       in_order(sk, "gosub change.files.group", "if files.stat # 0 then", "sysmsg(10081, acc.name, files.stat)", "kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)",
+                "crt sysmsg(14171, acc.name, if cg.now then 'no' else 'yes')")
+       and sk.count("K$AUDIT") == 1 and "os.execute" not in sk and not re.search(r"(?m)^\s*(write|readu|delete)\s", sk)
+       and "deffun is_sd_user(username) calling '!is_sd_user'" in c, "")
+    m17 = {n: msgs.get(n) for n in ("14170", "14171")}
+    ck("M17c messages 14170 and 14171 exist, end in a newline, carry their %n, and are lower case for the command words",
+       all(m17[n] is not None and m17[n].endswith("\n") and "%1" in m17[n] and "%2" in m17[n] and "MODIFY.ACCOUNT" not in m17[n] and "SSH-KEY" not in m17[n] for n in m17)
+       and "was not made by SD" in (m17["14170"] or "") and "nothing was changed" in (m17["14170"] or "") and "with a key" in (m17["14171"] or ""),
+       "%s" % m17)
     return rows
 
 
@@ -255,7 +306,7 @@ def load(path=MD):
     with open(path, encoding="latin-1") as f:
         src = f.read()
     msgs = {}
-    for n in NEW + NEW_F6:
+    for n in NEW + NEW_F6 + ("14170", "14171"):          # 17 Nov 26, S.62 LC3: set.sshkey's two messages
         p = os.path.join(MESSAGES, n)
         if os.path.isfile(p):
             with open(p, encoding="latin-1") as f:
@@ -348,6 +399,24 @@ F6_MUTANTS = [
     ("message 11980 has a capital command", "msg", "11980", "failed, status", "failed, MODIFY.ACCOUNT status"),
 ]
 
+# ---- 17 Nov 26 dm - S.62 (P-4659, P-4660): set.route's two warnings.  M_S62 is the number of the first, for `--selftest --from=N`.
+M_S62 = M_F6 + len(F6_MUTANTS)
+F6_MUTANTS += [
+    ("S.62: the 10161 warning is gone", "src", None, "      crt sysmsg(10161, acc.name)", "      null"),
+    ("S.62: the 10162 warning is gone", "src", None, "         crt sysmsg(10162, acc.name)", "         null"),
+    ("S.62: ssh warns although sshd is installed", "src", None, "if want.ssh and not(ospath('/usr/sbin/sshd', OS$EXISTS)) then", "if want.ssh then"),
+    ("S.62: the API warning is not tied to the listener", "src", None, "      if OS.ERROR() # 0 then\n         crt sysmsg(10162", "      if @true then\n         crt sysmsg(10162"),
+    ("S.62: the 10161 warning refuses", "src", None, "      crt sysmsg(10161, acc.name)", "      crt sysmsg(10161, acc.name) ; @system.return.code = -ER$FAILED"),
+    # 17 Nov 26 dm - S.62 (LC3)
+    ("LC3: ssh-key-on joins the group", "src", None, "   cg.want = not(key.want)", "   cg.want = key.want"),
+    ("LC3: a Linux user SD did not make is not refused", "src", None, "   if not(key.made) then\n", "   if @false then\n"),
+    ("LC3: the stamp is asked of the account name", "src", None, "   key.made = is_sd_user(files.user)", "   key.made = is_sd_user(acc.name)"),
+    ("LC3: ssh-key-off does not look for the group", "src", None, "      key.found = is_group('sdsshnokey')", "      key.found = @true"),
+    ("LC3: the state line says the membership, not the key sign-in", "src", None, "crt sysmsg(14171, acc.name, if cg.now then 'no' else 'yes')", "crt sysmsg(14171, acc.name, if cg.now then 'yes' else 'no')"),
+    ("LC3: the two words share the AI slot", "src", None, "AI,AI,KY,KY,", "AI,AI,AI,AI,"),
+    ("LC3: message 14170 has a capital command", "msg", "14170", "ssh-key-on and ssh-key-off", "SSH-KEY-ON and ssh-key-off"),
+]
+
 
 def selftest():
     src, msgs = load()
@@ -361,7 +430,7 @@ def selftest():
             start = int(a.split("=", 1)[1])
     holes = 0
     ran = 0
-    print("--- self-test: the unmutated source passes; each mutation must be CAUGHT and match its text once%s ---" % ("" if start == 0 else " (from mutant %d: M_F6 is %d)" % (start, M_F6)))
+    print("--- self-test: the unmutated source passes; each mutation must be CAUGHT and match its text once%s ---" % ("" if start == 0 else " (from mutant %d: M_F6 is %d, M_S62 is %d)" % (start, M_F6, M_S62)))
     seq = ([(name, "src", None, old, new) for name, old, new in MUTANTS] + [(name, "msg", n, old, new) for name, n, old, new in MSG_MUTANTS] + F6_MUTANTS)
     for i, (name, kind, n, old, new) in enumerate(seq):
         if i < start:

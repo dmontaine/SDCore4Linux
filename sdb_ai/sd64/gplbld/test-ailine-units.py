@@ -20,8 +20,11 @@ MSG = os.path.join(SD64, "sdsys", "messages")
 FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
          "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"),
          "ced_edit": os.path.join(GPL, "ced_edit"), "ced_core": os.path.join(GPL, "ced_core"), "debug": os.path.join(GPL, "debug")}
-MSGS = list(range(11635, 11653))
-MSGS2 = list(range(11653, 11682))              # AI line stage 2 (the IDE: edits as diffs, 11653-11669) and stage 3 (SED, CED, the debugger: 11670-11681)
+# 17 Nov 26 (S.62, the owner: the orphans in Linux's own blocks are deleted): 11652, 11670 and 11671 were printed by nothing and are gone; their
+# numbers are never reused, and M4 holds that they stay gone.
+RETIRED = [11652, 11670, 11671]
+MSGS = [n for n in range(11635, 11653) if n not in RETIRED]
+MSGS2 = [n for n in range(11653, 11682) if n not in RETIRED]   # AI line stage 2 (the IDE: edits as diffs, 11653-11669) and stage 3 (SED, CED, the debugger: 11672-11681)
 
 
 def read(p):
@@ -51,7 +54,7 @@ def ordered(t, *needles):
 
 def load():
     s = {k: read(p) for k, p in FILES.items()}
-    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS + MSGS2}
+    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS + MSGS2 + RETIRED}
     return s
 
 
@@ -129,7 +132,7 @@ def checks(s):
        and re.search(r"gen \+= 1\n   ctx<TK\.C\.GEN> = gen\n   lastmin = ''\n   call \$tk_ai\('move', ctx, '', ''\)", home) is not None, "")
     ck("H6 while the line has the focus no tile does (draw.tile), and the cursor is in the line (the loop draws it and does not park the cursor on the status line)",
        "if aif then focused = 0" in home and ordered(home, "if aif then", "call $tk_ai('draw', ctx, 1, '')", "call $sl_curat(0, ctx<TK.C.YSTAT>)"), "")
-    ck("M1 messages 11635 to 11652 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS), repr([n for n in MSGS if s["msgs"][n] is None]))
+    ck("M1 messages 11635 to 11651 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS), repr([n for n in MSGS if s["msgs"][n] is None]))
     ck("M2 the fixed instruction (11635) asks for ONE JSON object with say, action, arg and command, plain ASCII, and offers an action only for a request the list covers",
        all(w in (s["msgs"][11635] or "") for w in ('"say"', '"action"', '"arg"', '"command"', "ONE JSON object", "Plain ASCII only")), "")
     ck("T1 tk.h defines TK.C.AI (11)", re.search(r"\$define TK\.C\.AI\s+11\b", s["tk.h"]) is not None, "")
@@ -164,7 +167,9 @@ def checks(s):
        and "if j = 11230 and ai.on then" in ide and ordered(ide, "if ai.on then", "screen label f, 'ailab'", "screen entry f, 'ai'"), "")
     ck("I6 a request typed in the AI entry goes through the same route as the menu (ai.go), and only on Enter (the entry activates)", "case focus.id = 'ai'" in ide and "gosub ai.go" in ide and "aw{'activate'} = 1" in ide, "")
     ck("I7 sl_form lets an entry activate on Enter only when the app asked for it (the flag), so no other form's entry changes", "(aw{'type'} = 'entry' and aw{'activate'} + 0)" in strip_bas(s["sl_form"]), "")
-    ck("M3 messages 11653 to 11681 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS2), repr([n for n in MSGS2 if s["msgs"][n] is None]))
+    ck("M3 messages 11653 to 11681 exist (11670 and 11671 deleted), each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS2), repr([n for n in MSGS2 if s["msgs"][n] is None]))
+    ck("M4 the deleted 11652, 11670 and 11671 stay gone (17 Nov 26, S.62: a deleted number is never reused)", all(s["msgs"][n] is None for n in RETIRED),
+       repr([n for n in RETIRED if s["msgs"][n] is not None]))
 
     # AI line stage 3 (24 Oct 2026): SED, CED and the debugger
     ced = strip_bas(s["ced_core"])               # 30 Oct 26: CED's AI code is the engine's (ced_core); the host (ced_edit) asks whether the AI is usable and hands the answer over

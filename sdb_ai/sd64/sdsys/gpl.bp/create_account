@@ -17,6 +17,10 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes): a Linux user this routine MAKES (or that a
+*              restore takes over, which is SD-made by the reuse rule) joins the group sdsshnokey, so sshd offers it no key sign-in, unless CA$SSH.KEY is exactly 1; a
+*              reused user given CA$SSH.KEY leaves the group.  An ATTACHed user (the installing user) is never put in it: its keys are its own.  The group is looked for
+*              before anything is made (10024); CA$SSH.KEY on a group or other account is refused (10087, 10081); the state line is 14171, read off /etc/group.
 * 17 Nov 26 dm S.62 (P-1284): a Linux user SD made that a restore takes over again (CA$REUSE.SD.USER) is taken out of every route group the
 *              request does not name (sdfilesadmin, sdfileswrite, sdfiles, sdaiusers, sdapi, sdssh; leave.route.group), as the Windows port's
 *              create_account does: the joins only added, so it kept the routes of its earlier account.
@@ -202,6 +206,9 @@ deffun valid_os_path(path) calling '!valid_os_path'
    recovery.want = (settings<CA$RECOVERY> = 1)
 * 14 Nov 26 dm - S.242: XFER-ON, file transfer over the ssh login; the same rule, exactly 1 to be a request; a user account only.
    xfer.want = (settings<CA$XFER> = 1)
+* 17 Nov 26 dm - S.62 (LC3): SSH-KEY-ON, key sign-in over ssh for a Linux user SD makes; the same rule, exactly 1 to be a request; a user account only.  Off (the user is put in
+*   sdsshnokey) unless named.
+   ssh.key.want = (settings<CA$SSH.KEY> = 1)
 * 18 Oct 26 dm - S.66: the shared-account gates.  Read is ON by default (a blank field means yes), so its setting is inverted: exactly 1 withdraws it.
 *   Write is OFF by default: exactly 1 grants it.
    shared.read.off = (settings<CA$SHARED.READ.OFF> = 1)
@@ -281,6 +288,15 @@ deffun valid_os_path(path) calling '!valid_os_path'
 * 23 Oct 26 dm - S.69 step 2: AI-ON needs nothing else, but the group sdaiusers is looked for before anything is made, as the others are.
      if ai.want then
        files.grp.name = 'sdaiusers'
+       gosub check.files.group
+       if files.bad then goto exit.create
+     end
+
+* 17 Nov 26 dm - S.62 (LC3): a Linux user SD makes is put in sdsshnokey (key sign-in off), so the group is looked for before anything is made, as the others are: on a machine
+*   without it (an install from before this release) the account is refused and nothing is created, rather than made with keys it should not have.  An attached user is never put
+*   in it, so the group is not asked for then.
+     if not(attach) and not(ssh.key.want) then
+       files.grp.name = 'sdsshnokey'
        gosub check.files.group
        if files.bad then goto exit.create
      end
@@ -413,6 +429,12 @@ PW.TRY.AGAIN:
        err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
        goto exit.create
      end
+* 17 Nov 26 dm - S.62 (LC3): nor key sign-in, which belongs to a Linux user, for the same reason.
+     if ssh.key.want then
+       @system.return.code = -ER$ARGS
+       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
+       goto exit.create
+     end
 * 28 Oct 26 dm - S.88 plan 2.9 (D2): nor a recovery copy: it is kept in the account's directory, where every member can rename entries (11771).
      if recovery.want then
        @system.return.code = -ER$ARGS
@@ -439,6 +461,12 @@ PW.TRY.AGAIN:
      end
 * 17 Oct 26 dm - S.65 slice 2c: nor a files-only login (10081 with status 2, as MODIFY.ACCOUNT says it for an account with no Linux user).
      if files.want or files.write.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: nor an AI gate
+       @system.return.code = -ER$ARGS
+       err = 10081:@vm:acc.name:@vm:2 ;* Unable to change remote access for %1, status: 2
+       goto exit.create
+     end
+* 17 Nov 26 dm - S.62 (LC3): nor key sign-in.
+     if ssh.key.want then
        @system.return.code = -ER$ARGS
        err = 10081:@vm:acc.name:@vm:2 ;* Unable to change remote access for %1, status: 2
        goto exit.create
@@ -623,6 +651,23 @@ PW.TRY.AGAIN:
             end
          next leave.i
       end
+* 17 Nov 26 dm - S.62 (LC3; the owner, 17 Nov 2026: "key sign-in is FORBIDDEN as delivered ... only the accounts SD itself made lose key sign-in").  A Linux user this
+*   routine made, or a restore took over (SD made it: !is_sd_user, above), is put in sdsshnokey, the group whose members sshd offers no key sign-in, unless SSH-KEY-ON was
+*   asked; a reused user given SSH-KEY-ON is taken out of it.  AN ATTACHED USER IS NEVER TOUCHED: it is the installing user's own login, and the keys it set up outside SD
+*   are its own (sd-elevate refuses the join anyway for a user without SD's stamp).  A failure is reported (10081) and the account stops here, as for a route.  This is the
+*   only place a Linux user joins the group unasked, so an upgrade, which makes no account, changes nobody's key sign-in.
+      if not(attach) then
+         files.grp.name = 'sdsshnokey'
+         if ssh.key.want then
+            if reuse.sd.user then
+               gosub leave.route.group
+               if route.stat # 0 then goto exit.create
+            end
+         end else
+            gosub join.files.group
+            if route.stat # 0 then goto exit.create
+         end
+      end
       begin case
          case access.ssh and access.api
             crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
@@ -737,6 +782,8 @@ PW.TRY.AGAIN:
      crt sysmsg(11770, acc.name, acc.rec<ACC$RECOVERY>)  ;* Account %1 keeps a recovery copy of unsaved editor text: %2
 *    14 Nov 26, S.242: file transfer, in the words MODIFY.ACCOUNT says it with.
      crt sysmsg(14074, acc.name, acc.rec<ACC$XFER>)  ;* Account %1 may move files over its ssh login (receive / send): %2
+*    17 Nov 26, S.62 (LC3): key sign-in is NOT being in sdsshnokey, read off /etc/group.  Not said for an attached user, whose keys SD does not manage.
+     if not(attach) then crt sysmsg(14171, acc.name, if is_grp_member(acc.uname, 'sdsshnokey') then 'no' else 'yes')  ;* Account %1 may sign in over ssh with a key: %2
    end
 *  26 Oct 26, S.75, home: the two settings are said when they were asked for, in the words MODIFY.ACCOUNT says them with.
    if start.want # '' then crt sysmsg(11868, acc.name, start.want)  ;* Account %1 starts at: %2

@@ -172,8 +172,9 @@ class Suite:
         writable = sorted(k for k, c in cls.items() if c == "W")
         fixed = sorted(k for k, c in cls.items() if c == "F")
         # 14 Nov 26 (S.242 stage 1): the table is 57 rows with the seven file transfer parameters (XFER and its six limits), all fixed.
-        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 57 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
-                   len(dest) > 40 and len(trs) == 57 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
+        # 17 Nov 26 (S.62): 58 with NETDIRS, a door, fixed.
+        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 58 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
+                   len(dest) > 40 and len(trs) == 58 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
         self.check("CS1", "THE HELPER KNOWS THE PARSER'S NAMES AND NO OTHERS: writable + fixed are exactly the %d parameters read_config() takes, none is both, and a lookalike (ZZNEW, CLEANUPX, XCLEANUP, SD) is unknown"
                    % len(keys), sorted(writable + fixed) == keys and not (set(writable) & set(fixed)) and all(cls[d] == "U" for d in decoys),
                    "only helper %s, only parser %s, decoys %s" % (sorted(set(writable + fixed) - set(keys)), sorted(set(keys) - set(writable + fixed)), [cls[d] for d in decoys]))

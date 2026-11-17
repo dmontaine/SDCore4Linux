@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 NETDIRS: netdirs_report() (op_sh.c), called by start_sd().
  * 06 Nov 26 dm  S.152: the prototypes of fatal, dump, k_dh_error, k_strnum_len, k_null_id, coll_json_build,
  *               coll_fill_entry, coll_value_of and is_global are gone with the functions (nothing called them).
  * 02 Nov 26 dm  S.96 M6: the prototypes of masters.c, masters_cas_on and DHE_MASTER_REFUSED (8910) are gone: the master-file copies (S.67) are retired.
@@ -471,6 +472,7 @@ bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
 bool os_path_open_ok(const char * name);
 bool os_path_inside(const char * rootdir, const char * name);
+void netdirs_report(void);   /* 17 Nov 26, S.62: NETDIRS judged when SD starts, each entry it ignores named */
 
 /* OP_SH.C - the edit gates (17 Oct 26, S.64): which guarded kind a file is, and may the session save a change to it */
 #define EDIT_NONE 0

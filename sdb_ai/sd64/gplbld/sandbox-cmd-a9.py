@@ -16,6 +16,8 @@
 # 14 Oct 26 dm  Written for 1.2-0 bundles A-7, A-9, A-10 and A-11: sheet 449, 146, 296, 396, 490, 268 and 320.
 # 17 Nov 26 dm  S.62 (P-1280): LOGTO takes a registered account name only, so section D's second account gets a register
 #               record and is entered as LOGTO zzacct2 (it was LOGTO <path>, now refused); a WHO after it is the control.
+# 17 Nov 26 dm  S.62 (P-4649): three .S rows in section B - a new name is stored lower case, an existing ZZKEEPS keeps its id
+#               (the stored ids read by a SELECT of the VOC, which folds case on a READ).
 # END-HISTORY
 #
 # THE INSTRUMENT.  Every session is the real bin/sd with its commands on stdin, run in the SDSYS account as the
@@ -134,6 +136,13 @@ PROGS = {
     "zzedrd": ("   open 'DICT', 'zzedf' to d else stop 'no dict'\n   read r from d, 'zzedi' then crt 'F2[':r<2>:']' else crt 'F2[none]'\nend\n"),
     "zzedrd2": ("   open 'zzedf' to f else stop 'no f'\n   read r from f, 'zzedrec' then\n"
                 "      crt 'MARK[':count(r<1>, char(253)):'][':count(r, char(254)):'][':r<2>:']'\n   end else crt 'MARK[none]'\nend\n"),
+    # 17 Nov 26 (S.62, P-4649): .S - the VOC ids, as STORED, of the two names the rows use, and what each record holds
+    "zzvocid": ("   select @voc to 9\n   ids = ''\n   loop\n      readnext id from 9 else exit\n"
+                "      if upcase(id) = 'ZZSAVED' or upcase(id) = 'ZZKEEPS' then ids<-1> = id\n   repeat\n"
+                "   crt 'VID[':change(ids, @fm, '/'):']'\n"
+                "   read r from @voc, 'zzsaved' then crt 'VSAV[':change(r, @fm, '/'):']' else crt 'VSAV[none]'\n"
+                "   read r from @voc, 'zzkeeps' then crt 'VKEEP[':change(r, @fm, '/'):']' else crt 'VKEEP[none]'\nend\n"),
+    "zzvocpl": ("   delete @voc, 'zzsaved'\n   delete @voc, 'zzkeeps'\n   write 'S':@fm:'DATE' to @voc, 'ZZKEEPS'\n   crt 'VPLANT'\nend\n"),
 }
 
 
@@ -273,6 +282,20 @@ def main():
     out = sd(["WHO", "DATE", ".C2/WHO/TIME/", ".C-", ".L2"])
     row("it is the entry that .C changed that comes back (entry 2, not the top): the list shows WHO again as entry 2",
         has(out, r"^02  WHO$") and has(out, r"^01  DATE$"), repr(out[-5:]))
+    # 17 Nov 26 (S.62, P-4649 / P-4642): .S saves a NEW sentence under a lower-case id; an existing record keeps the id it has.  The VOC
+    # folds case, so the id as STORED is read by a SELECT of the VOC (zzvocid), not by a READ, which would find either spelling.
+    out = sd(["RUN bp zzvocpl", "RUN bp zzvocid"])
+    planted = tagged(out, "VID")
+    row(".S CONTROL: the planted record is stored as ZZKEEPS (upper case) and there is no zzsaved: VID[ZZKEEPS]",
+        has(out, r"^VPLANT$") and planted == "ZZKEEPS", repr(out[-4:]))
+    out = sd(["WHO", ".S ZZSAVED 1", "RUN bp zzvocid"])
+    row(".S ZZSAVED 1 (a NEW name typed in upper case) stores the sentence under the lower-case id zzsaved, holding S / WHO",
+        tagged(out, "VID") in ("ZZKEEPS/zzsaved", "zzsaved/ZZKEEPS") and tagged(out, "VSAV") == "S/WHO", "%r %r" % (tagged(out, "VID"), tagged(out, "VSAV")))
+    out = sd(["WHO", ".S zzkeeps 1", "Y", "RUN bp zzvocid"])
+    row(".S zzkeeps 1 over the EXISTING ZZKEEPS asks (5045), and Y replaces the sentence (S / WHO) while the id stays ZZKEEPS",
+        has(out, r"Overwrite VOC record 'zzkeeps'") and tagged(out, "VKEEP") == "S/WHO" and "ZZKEEPS" in (tagged(out, "VID") or "").split("/")
+        and "zzkeeps" not in (tagged(out, "VID") or "").split("/"), "%r %r %r" % (tagged(out, "VID"), tagged(out, "VKEEP"), out[-4:]))
+    sd(["DELETE VOC zzsaved", "DELETE VOC zzkeeps"])
 
     # -------------------------------------------------------------------------------------------------------------
     say("\n--- C. 146: a catalogued program run by its catalogue name ------------------------------------------------")

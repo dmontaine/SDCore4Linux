@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-4608: a phantom child whose exec of bin/sd fails (or whose path is too long) writes why to the error log.
  * 14 Nov 26 dm  S.241: a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
  * 15 Nov 26 dm  S.242 stage 3: K_XFER (173), the file transfer slot and server (sd_sftp.c k_xfer()).
@@ -1571,14 +1572,22 @@ void op_phantom() {
     release_pipe_fds(); /* 14 Nov 26 S.241: a session run through a pipe must not hand that pipe to its phantom */
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sd_sysdir()) >= (MAX_PATHNAME_LEN + 1)) {
-      /* TODO: this should also be logged with more detail */
       /* 16 Oct 26 (openQM 280): this is the CHILD.  It used to report the error and go on through the rest of the function as
          a second copy of the program that called PHANTOM, with the user cell reserved for a phantom that never started. */
+      /* 17 Nov 26 dm - S.62 P-4608: said in the error log (the child has no terminal of its own), not silently. */
+      log_message("phantom: cannot start a phantom - the path of bin/sd is too long");
       _exit(1);
     }
     sprintf(option, "-p%d", phantom_user_index);
     execle(path, path, option, (char *)NULL, child_env); /* 26 Oct 26 F10: with the environment made above */
-    _exit(1); /* execle() only returns when it failed: the same */
+    /* execle() only returns when it failed.  17 Nov 26 dm - S.62 P-4608: the failure goes to the error log, as the Windows
+       port reports it, rather than the phantom vanishing without a word. */
+    {
+      char phantom_msg[MAX_PATHNAME_LEN + 128];
+      snprintf(phantom_msg, sizeof(phantom_msg), "phantom: cannot start a phantom from %s - %s", path, strerror(errno));
+      log_message(phantom_msg);
+    }
+    _exit(1);
   } else if (cpid == -1) { /* Error */
     *(UMap(uptr->uid)) = 0;
     uptr->uid = 0; /* Release reserved user cell */

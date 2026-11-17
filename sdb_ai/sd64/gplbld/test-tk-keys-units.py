@@ -159,7 +159,7 @@ def load():
     for n in IDE_MENU_MESSAGES:
         with open(os.path.join(MSG, str(n)), "r", encoding="latin-1") as fh:
             raw["msg:%d" % n] = fh.read()
-    for n in range(11186, 11190):
+    for n in range(11186, 11190):            # 11186 and 11187 were deleted 17 Nov 26 (S.62, owner: orphans in Linux's own blocks go); read to prove they stay gone
         p = os.path.join(MSG, str(n))
         if os.path.exists(p):
             with open(p, "r", encoding="latin-1") as fh:
@@ -515,9 +515,12 @@ def run_b(raw):
         res["fkeys"].append("tk_fkeys does not skip ROW = 0")
     if "keys<i, TK.K.KEY> # ''" not in fk:
         res["fkeys"].append("tk_fkeys does not skip an empty key")
-    # the messages 11186 to 11189
+    # the messages 11188 and 11189 (11186 and 11187, which no program printed, were deleted 17 Nov 26, S.62; their numbers are not reused)
     res["messages"] = []
-    for n in (11186, 11187, 11188, 11189):
+    for n in (11186, 11187):
+        if raw.get("msg:%d" % n) is not None:
+            res["messages"].append("message %d is back: it was deleted (17 Nov 26) and its number is never reused" % n)
+    for n in (11188, 11189):
         t = raw.get("msg:%d" % n)
         if t is None:
             res["messages"].append("message %d is missing" % n)
@@ -688,7 +691,7 @@ B_TEXT = {
     "keyof": "'keyof' returns the key of the first enabled binding for the pane",
     "name": "'name' knows PgUp, PgDn, ^, Shift- and Alt-",
     "fkeys": "tk_fkeys leaves a key-less row and a ROW = 0 row off the function-key row",
-    "messages": "messages 11186 to 11189 exist, are one line each, 11188 holds %1; only tk_keys cites 11188 and only tool_tktest 11189",
+    "messages": "messages 11188 and 11189 exist, are one line each, 11188 holds %1, and the deleted 11186 and 11187 stay gone; only tk_keys cites 11188 and only tool_tktest 11189",
     "norun": "OWNER ANSWER 25: tk_keys and tk_fkeys contain no word that runs, opens, writes, calls or stops anything (and gosub only act.state and key.name): the registry cannot run an action",
     "samehandler": "OWNER ANSWER 25: in a page that puts actions in a menu, every such action has exactly one `case act` handler and the menu answer is used only as `act = answer`, before that case",
     "regmenu": "the registry's own menus: one & in every title and entry, no letter twice in a menu or among the titles",

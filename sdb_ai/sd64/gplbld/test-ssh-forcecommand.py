@@ -32,6 +32,9 @@ transcript says so.  Two kinds of row cover it:
     there is no sshd or no ssh-keygen it reports SKIP and is counted and
     printed as a skip - never as a pass.
 
+17 Nov 26 (S.62 LC3): five STRUCTURE rows for the key arm (sdsshnokey, PubkeyAuthentication no) - one arm, one keyword, after the
+sdsys arm and before the Match Group sdusers arms.  What the real sshd does with it is test-sshd-sdsys.py, section KEY.
+
 And --refuse, the mode the refusal arm runs, is driven directly: it must exit
 non-zero, name the user, and take its wording from the message file rather than
 carry a copy.  A row drives it with the message file missing too, because a
@@ -191,6 +194,24 @@ def main():
            not any(ln.lstrip().startswith("Subsystem") for ln in arms.get("Match User sdsys", ["Subsystem"])))
     record("state", "the machine's own global Subsystem line is left alone",
            "Subsystem sftp /usr/lib/openssh/sftp-server" in read(cfg).split("# --- BEGIN SD")[0])
+
+    # 1d. 17 Nov 26 (S.62 LC3): the key arm.  Exactly the header and ONE keyword, PubkeyAuthentication no, written after the sdsys arm and
+    #     before both Match Group sdusers arms, root and sdsys named out.  The REAL sshd's answer for members and non-members is
+    #     test-sshd-sdsys.py's section KEY; these rows hold OUR string.
+    key_hdr = "Match Group sdsshnokey User *,!root,!sdsys"
+    blk_lines = in_block.splitlines()
+    key_at = [i for i, ln in enumerate(blk_lines) if ln.strip() == key_hdr]
+    sdsys_at = [i for i, ln in enumerate(blk_lines) if ln.strip() == "Match User sdsys"]
+    narrow_at = [i for i, ln in enumerate(blk_lines) if ln.strip() == NARROW_ARM]
+    record("state", "S.62 LC3: the block has exactly one key arm, 'Match Group sdsshnokey User *,!root,!sdsys'", len(key_at) == 1)
+    record("state", "S.62 LC3: the key arm sets PubkeyAuthentication no and nothing else",
+           arms.get(key_hdr) == ["    PubkeyAuthentication no"])
+    record("state", "S.62 LC3: the key arm comes after the sdsys arm and before the refusal arm and the general arm",
+           len(key_at) == 1 and len(sdsys_at) == 1 and len(narrow_at) == 1 and sdsys_at[0] < key_at[0] < narrow_at[0])
+    record("state", "S.62 LC3: no other line of the block says PubkeyAuthentication for anybody but sdsys (the closed sdsys arm says none)",
+           sum(1 for ln in blk_lines if "PubkeyAuthentication" in ln) == 1)
+    record("state", "S.62 LC3: --check prints the key arm (the instrument shows what it would write)",
+           key_hdr in run("--check", cfg, sshd=stub)[1])
 
     # 2. Idempotent: a second install does not stack a second block.
     code, out = run("--install", cfg, sshd=stub)

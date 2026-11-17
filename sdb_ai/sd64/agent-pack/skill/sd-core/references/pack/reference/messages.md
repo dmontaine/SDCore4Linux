@@ -743,7 +743,7 @@ cited by: `apisrvr`
 %1 is set up to sign in over ssh, but this machine has no ssh server yet. The account cannot sign in until one is installed - the grant is already in place and takes effect then.
 ```
 
-cited by: `create_account`
+cited by: `create_account`, `modifya`
 
 ### msg:10162
 > kind=message tier=reference since=- src=sdsys/messages/10162:1#b31a2505
@@ -752,7 +752,7 @@ cited by: `create_account`
 %1 is set up to use the API, but this machine provides no API listener yet. The account cannot connect until it is turned on (remote.api on) - the grant is already in place and takes effect then.
 ```
 
-cited by: `create_account`
+cited by: `create_account`, `modifya`
 
 ### msg:10165
 > kind=message tier=reference since=- src=sdsys/messages/10165:1#22b524aa
@@ -2328,13 +2328,6 @@ Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/
 
 cited by: `ced_core`
 
-### msg:11137
-> kind=message tier=reference since=- src=sdsys/messages/11137:1#816df5fc
-
-```
-Press any key to continue
-```
-
 ### msg:11138
 > kind=message tier=reference since=- src=sdsys/messages/11138:1#c073dc83
 
@@ -2395,13 +2388,6 @@ The elements of an array have no names to change
 ```
 
 cited by: `ced_core`
-
-### msg:11144
-> kind=message tier=reference since=- src=sdsys/messages/11144:1#0281bfc8
-
-```
-Change type to: %1 (Esc cancels)
-```
 
 ### msg:11145
 > kind=message tier=reference since=- src=sdsys/messages/11145:1#f6c3eb3a
@@ -2794,20 +2780,6 @@ cited by: `sl_out`
 
 cited by: `sl_out`
 
-### msg:11186
-> kind=message tier=reference since=- src=sdsys/messages/11186:1#7f56d213
-
-```
-Find an action
-```
-
-### msg:11187
-> kind=message tier=reference since=- src=sdsys/messages/11187:1#9b8066b4
-
-```
-No action matches
-```
-
 ### msg:11188
 > kind=message tier=reference since=- src=sdsys/messages/11188:1#c18cf684
 
@@ -2885,13 +2857,6 @@ MOUSE takes ON or OFF
 ```
 
 cited by: `sl_need`
-
-### msg:11198
-> kind=message tier=reference since=- src=sdsys/messages/11198:1#2b75eb0e
-
-```
-The IDE needs a terminal of at least %1 columns by %2 lines
-```
 
 ### msg:11199
 > kind=message tier=reference since=- src=sdsys/messages/11199:1#2d4eb512
@@ -6429,13 +6394,6 @@ The AI did not answer in the form that was asked for; its words follow, and noth
 
 cited by: `tk_ai`
 
-### msg:11652
-> kind=message tier=reference since=- src=sdsys/messages/11652:1#31bfb643
-
-```
-The AI line is not available: %1
-```
-
 ### msg:11653
 > kind=message tier=reference since=- src=sdsys/messages/11653:1#634c14f6
 
@@ -6588,20 +6546,6 @@ The selected text: %1 bytes
 ```
 
 cited by: `tk_ai`
-
-### msg:11670
-> kind=message tier=reference since=- src=sdsys/messages/11670:1#79275020
-
-```
-The AI is not available here: it is off for this account, or no provider, model and key have been set
-```
-
-### msg:11671
-> kind=message tier=reference since=- src=sdsys/messages/11671:1#473b6fec
-
-```
-Nothing is selected: set the mark (Esc .) where the text starts, move to where it ends, then ask
-```
 
 ### msg:11672
 > kind=message tier=reference since=- src=sdsys/messages/11672:1#5f20f247
@@ -7314,20 +7258,6 @@ Idle: signing out in %1 s
 
 cited by: `ide`
 
-### msg:11753
-> kind=message tier=reference since=- src=sdsys/messages/11753:1#585c4a5f
-
-```
-[read-only: characters outside ASCII]
-```
-
-### msg:11754
-> kind=message tier=reference since=- src=sdsys/messages/11754:1#b6976128
-
-```
-%1 %2 holds characters outside ASCII (bytes 128 to 247), so it is read-only in the IDE: it cannot be saved, saved as, written as a copy, changed by Replace or an AI edit, or edited as fields.  The editor shows such a character a byte at a time and could not be trusted to keep it as it is.
-```
-
 ### msg:11755
 > kind=message tier=reference since=- src=sdsys/messages/11755:1#451a91b5
 
@@ -7381,13 +7311,6 @@ cited by: `tk_ownfile`
 ```
 
 cited by: `tool_query`
-
-### msg:11761
-> kind=message tier=reference since=- src=sdsys/messages/11761:1#8c656d20
-
-```
-%1 %2 is open read-only: it holds characters outside ASCII
-```
 
 ### msg:11762
 > kind=message tier=reference since=- src=sdsys/messages/11762:1#79fafe6e
@@ -9097,27 +9020,6 @@ cited by: `login`
 ```
 
 cited by: `login`
-
-### msg:11985
-> kind=message tier=reference since=- src=sdsys/messages/11985:1#99993e56
-
-```
-split.up and split.down take a number of lines
-```
-
-### msg:11986
-> kind=message tier=reference since=- src=sdsys/messages/11986:1#6deeaca4
-
-```
-View lines containing:
-```
-
-### msg:11987
-> kind=message tier=reference since=- src=sdsys/messages/11987:1#b700615f
-
-```
-No line holds that text
-```
 
 ### msg:11988
 > kind=message tier=reference since=- src=sdsys/messages/11988:1#49c7d49a
@@ -11085,6 +10987,15 @@ cited by: `qproc`
 Illegal file type for SELECTV
 ```
 
+### msg:14150
+> kind=message tier=reference since=- src=sdsys/messages/14150:1#3d946bd0
+
+```
+Reading the settings (a few seconds)...
+```
+
+cited by: `tool_config`, `tool_remote`
+
 ### msg:1416
 > kind=message tier=reference since=- src=sdsys/messages/1416:1#13589ac3
 
@@ -11098,6 +11009,24 @@ Error %d opening sequential file record
 ```
 Error %d reading sequential file record
 ```
+
+### msg:14170
+> kind=message tier=reference since=- src=sdsys/messages/14170:1#7911f071
+
+```
+%1: its Linux user %2 was not made by SD, so its ssh keys are its own and ssh-key-on and ssh-key-off do not apply to it; nothing was changed
+```
+
+cited by: `modifya`
+
+### msg:14171
+> kind=message tier=reference since=- src=sdsys/messages/14171:1#3bdf5ce8
+
+```
+Account %1 may sign in over ssh with a key: %2
+```
+
+cited by: `create_account`, `modifya`
 
 ### msg:1418
 > kind=message tier=reference since=- src=sdsys/messages/1418:1#91241493

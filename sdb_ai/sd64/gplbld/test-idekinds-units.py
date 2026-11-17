@@ -16,6 +16,8 @@ START-HISTORY:
               four countdown mutants replaced.
 29 Oct 26 dm  Review R3 and R8: K10, K37 and K39 follow the collection text in the text area's field-mark form (convert(char(10), @fm, jbuild(...))), the guard before JBUILD of the disk
               record, the text compare and the conditional reload; seven mutants replaced or added.
+17 Nov 26 dm  S.62: messages 11753, 11754 and 11761 (the read-only tab for bytes outside ASCII, printed by nothing) deleted on the owner's word; K36 holds that
+              they stay gone and no longer asks the help 11215 for the read-only rule.
 END-HISTORY
 
 WHAT IT HOLDS (gpl.bp/ide).  `ide dict file id` and `ide voc id` start on a dictionary item or a VOC record; CREATING.SEQKEY in the place of the id takes the file's
@@ -41,7 +43,8 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 NEWMSG = list(range(11684, 11699))
-NEWMSG2 = [11750, 11751, 11752, 11753, 11754, 11761]     # 28 Oct 26: the AUTOLOGOUT countdown and the read-only tab for bytes outside ASCII
+NEWMSG2 = [11750, 11751, 11752]     # 28 Oct 26: the AUTOLOGOUT countdown
+RETIRED2 = [11753, 11754, 11761]    # the read-only tab for bytes outside ASCII; deleted 17 Nov 26 (S.62), never reused
 FIELDS_LABELS = ("fields.enter", "fields.leave", "fields.view.on", "fields.form", "fields.apply", "fields.sync", "fields.sync.tab", "fields.parse", "fields.rebuild", "fields.drop", "fields.esc",
                  "fields.key", "fields.after", "fields.writeback", "fields.fill", "fields.pull", "fields.show", "fields.label")     # 30 Oct 26 (stage 2b): the pane's labels in gpl.bp/ide
 NEWMSG3 = [11743, 11744, 11745]                         # 29 Oct 26 (stage F): JSON that will not parse, a collection record is not a program, a text is not saved into a collection file
@@ -321,13 +324,16 @@ def checks(src):
     ck("K41", "stage F: messages 11743-11745 are there, one line each; 11743 takes the character the parse stopped at (%3), 11744 and 11745 are cited by the IDE and the name form",
        all(src["m%d" % n].strip() and src["m%d" % n].count("\n") == 1 for n in NEWMSG3) and "%3" in src["m11743"] and "%2" in src["m11744"] and "sysmsg(11743" in ide and "sysmsg(11744" in ide
        and "sysmsg(11745" in strip(src["ide_name"]), "")
-    ck("K36", "messages 11750-11754 and 11761 are there, one line each; the countdown's three begin 'Idle: signing out in %1 s' and say what happens to the changes; the refusal "
-       "and the open note name the record (%1 %2); the help names the read-only rule and the countdown",
+    # 17 Nov 26 (S.62): 11753, 11754 and 11761 - the read-only tab for bytes outside ASCII, a rule the IDE no longer has - were printed by nothing and are deleted
+    # (the owner: orphans in Linux's own blocks go); their numbers are never reused, so K36 now holds that they stay gone.
+    gone = [n for n in RETIRED2 if os.path.exists(os.path.join(MSG, str(n)))]
+    ck("K36", "messages 11750-11752 are there, one line each; the countdown's three begin 'Idle: signing out in %1 s' and say what happens to the changes; the help names "
+       "the countdown; the deleted 11753, 11754 and 11761 stay gone",
        all(t.count("\n") == 1 and t.endswith("\n") for t in m2.values())
        and all(m2[n].startswith("Idle: signing out in %1 s") for n in (11750, 11751, 11752))
        and "unsaved changes will be lost" in m2[11750] and "recovery copy is kept" in m2[11751]
-       and "%1 %2" in m2[11754] and "%1 %2" in m2[11761] and "ASCII" in m2[11753]
-       and "outside ASCII" in src["m11215"] and "counts down" in src["m11215"] and "AUTOLOGOUT" not in "".join(m2.values()) + src["m11215"], repr({n: t[:30] for n, t in m2.items()}))
+       and "counts down" in src["m11215"] and "AUTOLOGOUT" not in "".join(m2.values()) + src["m11215"] and not gone,
+       repr(({n: t[:30] for n, t in m2.items()}, "back:", gone)))
     return rows
 
 

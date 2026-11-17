@@ -3,6 +3,12 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 17 Nov 26 dm - S.62: NETDIRS, a new sd.conf parameter, is fixed - not changed by set.config (confset_fixed).
+# 17 Nov 26 dm - S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes): sdsshnokey is the seventh named group (after sdaiusers), the one whose
+#                members sshd offers no key sign-in (ssh-forcecommand's key arm).  require_sd_group takes it by its exact name; groupdel never deletes it (a deny group that is
+#                missing matches nobody, so deleting it would hand every SD-made account its keys back at once); addgroup puts ONLY a user with the "SD account" stamp in it
+#                (require_sd_stamp), so no caller can take away the keys of a Linux user SD did not make - the installing user, an attached user, a login that was there
+#                before SD.  delgroup needs no stamp: taking a user out gives back what the machine's own settings say.
 # 16 Nov 26 dm - S.256: sdsys-api on ADDR... | off | status, the administrator's remote-API door.  "on" checks every address or CIDR range with python3's
 #                ipaddress (a /0 range is refused: it is every address), writes them in standard network/length form under the line "on" to
 #                /etc/sdcore/sdsys-api (root, 0600, one rename), which APISRVR reads while it is still root; "off" removes the file.  And
@@ -142,7 +148,8 @@
 #             test to cover sdsys would have stopped covering it, silently, on
 #             the next install.  It never did, and this note is here so the
 #             next person to touch either rule knows the two are independent.
-#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers, sdu_*, sdg_*.
+#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers, sdsshnokey, sdu_*, sdg_*.
+#             sdsshnokey (17 Nov 26, S.62 LC3) takes only a user with the "SD account" stamp (addgroup).
 #             Nothing else is addressable, so "add me to sudo" has no spelling
 #             here.
 #   paths   - setgid only under the SD accounts root, and the path is resolved
@@ -877,9 +884,12 @@ require_sd_group() {
   # a file, the file's counter).  Exact name, for the same reason.
   # 23 Oct 26 dm - S.69 step 2: sdaiusers is the sixth, the right to use the AI provider's API through the helper sd-ai (the owner's "API gate for each user
   # account").  Exact name, for the same reason.
+  # 17 Nov 26 dm - S.62 LC3: sdsshnokey is the seventh, the members sshd offers no key sign-in.  Exact name, for the same reason, on a line of its own (the six above are
+  #   one line that other checks hold); addgroup asks the stamp for it.
   case $group in
     sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;
     sdu_?*|sdg_?*) : ;;
+    sdsshnokey) : ;;
     *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers, sdu_*, or sdg_*)" ;;
   esac
 }
@@ -1807,7 +1817,7 @@ CS_WRITABLE="CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK 
 
 confset_fixed() {   # confset_fixed KEY - true when KEY is a parameter config.c takes that conf-set does not change
   case $1 in
-    BACKUPDIR|CMDSTACK|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|FDS|FLTDIFF|FSYNC|GRPDIR|INTPREC|MAXIDLEN|MUSTLOCK|NETFILES) return 0 ;;
+    BACKUPDIR|CMDSTACK|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|FDS|FLTDIFF|FSYNC|GRPDIR|INTPREC|MAXIDLEN|MUSTLOCK|NETDIRS|NETFILES) return 0 ;;
     NUMFILES|NUMUSERS|OBJECTS|OBJMEM|PDUMP|PHANTOMS|PWDELAY|SAFEDIR|SCREENTHEME|SDCLIENT|SDSYS|SH|SH1|SORTMEM|SORTWORK|SPOOLER) return 0 ;;
     STARTUP|TEMPDIR|TERMINFO|USERPOOL|USRDIR|YEARBASE) return 0 ;;
     XFER|XFERFILE|XFERSLOT|XFERWAIT|XFERIDLE|XFERMAX|XFERKIND) return 0 ;;   # 14 Nov 26, S.242: file transfer - a door and its limits, set by hand
@@ -2434,9 +2444,13 @@ case $verb in
     # 18 Oct 26 dm - S.65 write group: and sdfileswrite.
     # 21 Oct 26 dm - S.73 item 3: and sdfilesadmin.
     # 23 Oct 26 dm - S.69 step 2: and sdaiusers.
+    # 17 Nov 26 dm - S.62 LC3: and sdsshnokey, for the opposite reason: it is a DENY group, and one that does not exist matches nobody, so deleting it would give every
+    #   SD-made account its key sign-in back at once.
     case $1 in
       sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
+      sdsshnokey)
+        die "'$1' is one of SD's system groups and is never deleted here (a deny group that is missing matches nobody)" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"
     cmd=(groupdel -- "$1")
@@ -2446,6 +2460,9 @@ case $verb in
     [[ $# -eq 2 ]] || usage
     require_sd_user "$1"
     require_sd_group "$2"
+    # 17 Nov 26 dm - S.62 LC3: key sign-in is taken away only from a Linux user SD made.  A user without the stamp (the installing user, an attached user, a login
+    #   that was there before SD) keeps the keys it set up outside SD, whoever asks.
+    [[ $2 != sdsshnokey ]] || require_sd_stamp "$1" "its ssh keys are its own and SD does not take key sign-in away from it"
     getent group "$2" >/dev/null 2>&1 || die "group '$2' does not exist"
     cmd=(usermod -aG "$2" -- "$1")
     ;;

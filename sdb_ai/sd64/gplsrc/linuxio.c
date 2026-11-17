@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-4606: the TLS-directory refusal says what api_tls_dir() does (the directory beside sd.conf), not "no usable SDSYS=".
  * 16 Nov 26 dm  S.256: a Unix-socket connection also records whose login started the peer process (peer_login_user, /proc/<pid>/loginuid).
  * 14 Nov 26 dm  The build's warnings: socket_byte() gives a NUL on an ended read (it returned an unset byte), the key written
  *               to a child's pipe is tested, and the Unix-socket path is copied with its terminator always set.
@@ -341,7 +342,8 @@ bool start_connection(int unused) {
       char tls_err[512];
 
       if (!api_tls_dir(tls_dir, sizeof(tls_dir))) {
-        syslog(LOG_ERR, "API connection refused: no usable SDSYS= in %s",
+        /* 17 Nov 26 dm - S.62 P-4606: api_tls_dir() reads no SDSYS=; it takes the directory of config_path. */
+        syslog(LOG_ERR, "API connection refused: cannot derive the TLS directory beside %s",
                config_path);
         return FALSE;
       }

@@ -417,7 +417,7 @@ def run_checks(raw):
                    "if files.admin.want then", "err = 11526:@vm:acc.name", "files.grp.name = 'sdfilesadmin'", "gosub check.files.group",
                    "if not(create_user(acc.uname)) then", "files.grp.name = 'sdfiles'", "gosub join.files.group", "if files.write.want then", "files.grp.name = 'sdfileswrite'", "gosub join.files.group",
                    "if files.admin.want then", "files.grp.name = 'sdfilesadmin'", "gosub join.files.group")
-       and ca2.count("gosub check.files.group") == 4 and ca2.count("gosub join.files.group") == 4      # 23 Oct 26: the fourth of each is sdaiusers (S.69 step 2; test-ai-units.py holds its rows)
+       and ca2.count("gosub check.files.group") == 5 and ca2.count("gosub join.files.group") == 5      # 23 Oct 26: the fourth of each is sdaiusers (S.69 step 2; test-ai-units.py holds its rows); 17 Nov 26: the fifth is sdsshnokey (S.62 LC3; test-createacct / the LC3 VM rows)
        and re.search(r"if files\.admin\.want then\s*\n\s*if not\(files\.want\) or not\(files\.write\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11526:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
        and re.search(r"^check\.files\.group:\s*\n\s*files\.bad = @false\s*\n\s*files\.found = is_group\(files\.grp\.name\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
                      r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat[^\n]*\n\s*files\.bad = @true\s*\n\s*end else\s*\n\s*if not\(files\.found\) then\s*\n"

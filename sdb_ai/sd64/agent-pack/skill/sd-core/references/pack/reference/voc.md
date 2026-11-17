@@ -17,7 +17,7 @@ Every ordinary account's VOC is `newvoc` in full (`create.account` copies it; `u
 SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (60): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `docs.install`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.readu`, `list.servers`, `list.shared`, `list.voc.removed`, `listu`, `load.examples`, `load.help`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.sdsys`, `remote.ssh`, `remove.examples`, `restore.account`, `restore.voc`, `run.in`, `second.compile`, `set.ai`, `set.backup.directory`, `set.batch`, `set.config`, `set.date`, `set.job`, `set.server`, `set.start.default`, `set.tile`, `settings.report`, `third.compile`, `tool.accounts`, `tool.ai`, `tool.audit`, `tool.backups`, `tool.config`, `tool.entries`, `tool.jobs`, `tool.menus`, `tool.remote`, `tool.sessions`, `unlock`, `update.accounts`.
 
 ### voc:type:F
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:80#98baf5a6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:77#98baf5a6
 
 **The F record — a file**
 
@@ -74,7 +74,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:261#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:258#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -112,7 +112,7 @@ supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:226#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:223#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -152,7 +152,7 @@ in the command instead.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:243#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:240#7acc327c
 
 **The PH record — a phrase**
 
@@ -175,7 +175,7 @@ in the command instead.
 
 
 ### voc:type:Q
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:183#b10fccd2
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:180#b10fccd2
 
 **The Q record — an indirect pointer**
 
@@ -187,13 +187,13 @@ in the command instead.
 ```
 
 This is `sd.accounts`. Field 2 is the account name, field 3 is the file
-name in that account. `set.file` writes Q-pointers; see below. Since 16 Oct 2026 the
+name in that account. `set.file` writes Q-pointers; see below. The
 target of `set.file` may itself be a Q-pointer, which makes a chain (not recommended, but it opens): each link is
 followed with the same account test, so a chain cannot reach where its links alone could not.
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:196#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:193#7919279b
 
 **The R record — a remote record reference**
 
@@ -217,7 +217,7 @@ keywords, `"PA"` paragraphs, `"PH"` phrases, `"Q"` Q-pointers, `"R"` R-records,
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:215#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:212#e478fff6
 
 **The S record — a sentence**
 
@@ -233,7 +233,7 @@ command with its first arguments filled in.
 
 
 ### voc:type:V
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:132#770e48c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:129#770e48c1
 
 **The V record — a verb**
 
@@ -289,7 +289,7 @@ a marginal verb.
 
 
 ### voc:type:X
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:294#f1c700c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:291#f1c700c1
 
 **The X record — text**
 
@@ -336,8 +336,8 @@ load-bearing and the remaining thirty are not.**
 | `X` | text | miscellaneous data — not a command |
 | `D` | descriptor | a data descriptor, which is what dictionary records are |
 
-**`PQ` is a valid type and is refused.** PROC was removed from this port
-(23 Aug 2026). A record of type `PQ` is reported as *"PROC is not
+**`PQ` is a valid type and is refused.** PROC is not supported in
+SD. A record of type `PQ` is reported as *"PROC is not
 supported"* rather than being dispatched, because the record itself is
 valid PROC and it is the interpreter that is gone.
 

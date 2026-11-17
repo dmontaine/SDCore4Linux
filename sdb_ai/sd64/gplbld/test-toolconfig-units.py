@@ -230,10 +230,11 @@ def checks(raw):
     ck("CF6", "THE EFFECT IS THE PARSER'S: a parameter that read_config() puts in the shared segment says restart and one it keeps for the session says session (BACKUPDIR, which is accepted and stored nowhere, is exempt)", not bad and sum(1 for d in dest.values() if d == "cfg") >= 15, repr(bad[:4]))   # 20 before the 27 Oct 26 removals (S.87)
     # 29 Oct 26 (S.88 3.7a): CONFIG() takes a name of up to 16 characters, so SCREENTHEME (11) is readable; BACKUPDIR and SDSYS have no branch
     unreadable = sorted(k for k in keys if k not in readable or len(k) > 16)
-    ck("CF7", "the parameters CONFIG() cannot read are exactly BACKUPDIR and SDSYS (a name over sixteen characters, or one the function has no branch for), SCREENTHEME being readable since the buffer went from 8 to 16 (the setter's is not touched); the guide says the same and the table says so for SDSYS and no longer for SCREENTHEME",
-       unreadable == ["BACKUPDIR", "SDSYS"] and "`SDSYS` and `BACKUPDIR` cannot be read" in raw["doc"]
+    # 17 Nov 26 (S.62): NETDIRS is not offered to BASIC either (as in Windows Core); the guide's sentence is the docs' to extend.
+    ck("CF7", "the parameters CONFIG() cannot read are exactly BACKUPDIR, NETDIRS and SDSYS (a name over sixteen characters, or one the function has no branch for), SCREENTHEME being readable since the buffer went from 8 to 16 (the setter's is not touched); the guide says the same and the table says so for SDSYS and NETDIRS and no longer for SCREENTHEME",
+       unreadable == ["BACKUPDIR", "NETDIRS", "SDSYS"] and "`SDSYS`, `BACKUPDIR` and `NETDIRS` cannot be read" in raw["doc"]
        and "char param[16 + 1];" in raw["opconfig"] and "k_get_c_string(descr, param, 16) < 1" in raw["opconfig"]
-       and all("Not readable" in r[7] for r in trs if r[0] == "SDSYS") and all("Not readable" not in r[7] for r in trs if r[0] == "SCREENTHEME"), repr(unreadable))
+       and all("Not readable" in r[7] for r in trs if r[0] in ("SDSYS", "NETDIRS")) and all("Not readable" not in r[7] for r in trs if r[0] == "SCREENTHEME"), repr(unreadable))
     used_status = sorted({r[6] for r in trs})
     doc_status = sorted(re.findall(r"^\| `([a-z]+)` \|", raw["doc"].split("| Status | Meaning |")[-1].split("\n\n")[0], re.M))
     ck("CF8", "the guide's status table has a row for each status the table uses (%s) and for `unknown`, and none for the two that went with the eleven removed parameters (`inert`, `retired`)" % " ".join(used_status),
@@ -341,9 +342,9 @@ def checks(raw):
     d_no = dict(re.findall(r"^\| `([A-Z0-9]+)` \| ([^|]+) \|$", sect, re.M))
     t_can = [(r[0], r[3], r[4], r[5]) for r in trs if len(r) > 8 and r[8] == "yes"]
     t_no = {r[0]: r[9] for r in trs if len(r) > 8 and r[8] == "no"}
-    # 14 Nov 26 (S.242 stage 1): 43 not changed by the page, with the seven file transfer parameters.
-    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 43 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
-       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 43
+    # 14 Nov 26 (S.242 stage 1): 43 not changed by the page, with the seven file transfer parameters.  17 Nov 26 (S.62): 44 with NETDIRS.
+    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 44 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
+       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 44
        and all(s in doc for s in ("set.config cleanup 600", "/etc/sd.conf.bak", "set.config key=cleanup value=600 status=ok", "the `E` key of `tool.config`", "`Change`")), "can %s, no %d of %d" % (d_can[:2], len(d_no), len(t_no)))
     hp = raw["help"]
     ck("CF27", "THE HELP RECORD says what E does (it names set.config, the .bak, the fourteen parameters and the by-hand line) and no longer says the page only looks",
@@ -382,7 +383,7 @@ MUTANTS = [
     ("SORTMEM is given in bytes", "CF5", sub("table", "SORTMEM|int|4096|", "SORTMEM|int|4194304|")),
     ("a shared parameter says session", "CF6", sub("table", "NUMFILES|int|80|||restart|", "NUMFILES|int|80|||session|")),
     ("a session parameter says restart", "CF6", sub("table", "MAXCALL|int|10000|10|1000000|session|", "MAXCALL|int|10000|10|1000000|restart|")),
-    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SDSYS` and `BACKUPDIR` cannot be read", "`SDSYS` cannot be read")),
+    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SDSYS`, `BACKUPDIR` and `NETDIRS` cannot be read", "`SDSYS` cannot be read")),
     ("the table forgets to say a parameter is unreadable", "CF7", sub("table", "Not readable with the CONFIG function.", "")),
     ("the table says SCREENTHEME is not readable again", "CF7", sub("table", "terminal with no colour shows mono whatever this says.", "terminal with no colour shows mono whatever this says. Not readable with the CONFIG function.")),
     ("CONFIG()'s name buffer is eight again", "CF7", sub("opconfig", "char param[16 + 1];", "char param[8 + 1];")),

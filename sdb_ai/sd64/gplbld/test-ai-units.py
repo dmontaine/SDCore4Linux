@@ -20,6 +20,8 @@
 # a length) and never holds the text; the request that can be built is an ask and nothing else; the kernel opens a Unix socket and nothing else; a request has a deadline and a
 # size limit and is always closed; the ai verb gives an earlier request up, asks the helper for its status, tests the gate, the model and the key, SHOWS the text, asks, and only
 # then starts the request, with the fixed sentence and the person's text and nothing of the account; it only displays the answer; the VOC entries and messages 11623-11634.
+# 17 Nov 26 (S.62): set.ai key reads the client's exit status (key.stat = os.error() straight after each os.execute, a failure stops with 11608 before show,
+#            the audit and 11615); the two key rows hold the order, mutants from M_G.
 # 9 Nov 26 (S.187): two mutants named $setviewer and $tool_viewers as "another program"; those programs went with the pdf verb, so they name $setstart and $tool_audit.
 # (3 Nov 26, group C) a follow-up's earlier exchanges in K$AI.START: counted, bounded at 3, cut off before the prompt, escaped, and named in the audit line by count (mutants from M_E).
 # GROUP D, the AI choice page (tool.ai): administrator first; it runs only set.ai (through $tk_runx) and modify.account (through $tk_run), every command shown in the confirm box
@@ -226,14 +228,17 @@ def check_b(t):
     row("(S.170) set.ai key p handover: the file is FIXED (the hand-over directory in the sdsys directory, not a word of the sentence); it is the client's standard input, nothing is captured, the "
         "file is removed after the client ran and on a refused provider, and the key is read back, not assumed; SD never reads the file itself",
         ordered(hb, "hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'", "gosub drop.handover", "stop sysmsg(11610",
-                "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "gosub drop.handover", "gosub check.key", "if not(key.found) then")
+                "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "key.stat = os.error()", "gosub drop.handover",
+                "if key.stat # 0 then", "stop sysmsg(11608, 'nokey', 'the key was not set')", "gosub check.key", "if not(key.found) then", "'set.ai key set provider=' : prov : ' from=page'", "sysmsg(11615, prov)")
         and "drop.handover: os.execute \"rm -f '\" : hand.f : \"'\" return" in re.sub(r"\s+", " ", sa) and not re.search(r"\b(openseq|readseq|readblk|osread)\b", sa), "")
     safe = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:/@+,-")
     row("set.ai quotes every word it passes to the client in single quotes and allows only letters, digits and . _ : / @ + , - (no quote, space, $, ; or backquote)",
         set(re.search(r"okc = '([^']*)'", sa).group(1)) == safe and sa.count("qargs") >= 8
         and "qargs = \"'provider' '\"" in sa and 'os.execute "\'" : ctl' in sa, "")
     row("set.ai key: the terminal is handed to the client (os.execute, no capturing), the key is never in a variable of SD's, and the result is read back from the client's listing, not assumed",
-        ordered(sa, "case sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "qargs = \"'show'\"", "gosub run.ctl", "gosub check.key", "if not(key.found) then")
+        ordered(sa, "case sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "key.stat = os.error()", "if key.stat # 0 then",
+                "stop sysmsg(11608, 'nokey', 'the key was not set')", "qargs = \"'show'\"", "gosub run.ctl", "gosub check.key", "if not(key.found) then", "'set.ai key set provider=' : prov)",
+                "sysmsg(11615, prov)")
         and not re.search(r"os\.execute[^\n]*'key'[^\n]*capturing", sa) and not re.search(r"\binput\b|readline", sa), "")
     row("(S.170) run.ctl takes a reply for an unreachable helper only when its first line is not the helper's refusal ('error: '): a provider's 'model not found' passes through as a refusal",
         "if trim(out) = '' or (trim(out<1>)[1, 7] # 'error: ' and (index(out, 'could not be reached', 1) or index(out, 'not found', 1)" in sa, "")
@@ -569,6 +574,11 @@ GROUP_F_MUTANTS = [
     ("setai", "the hand-over file is a word of the sentence", "         hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'\n", "         hand.f = field(words, ' ', 5)\n"),
     ("setai", "a refusal that says not found is taken for an unreachable helper", "(trim(out<1>)[1, 7] # 'error: ' and (", "(1 and ("),
 ]
+M_G = M_F + len(GROUP_F_MUTANTS)                           # 17 Nov 26 (S.62): set.ai key reads the client's exit status: --from=M_G
+GROUP_G_MUTANTS = [
+    ("setai", "the typed key's client status is not read", "' 2>&1\"\n         key.stat = os.error()\n", "' 2>&1\"\n         key.stat = 0\n"),
+    ("setai", "the hand-over client's status is not read", "/dev/null 2>&1\"\n         key.stat = os.error()\n", "/dev/null 2>&1\"\n         key.stat = 0\n"),
+]
 
 
 def selftest(first):
@@ -577,7 +587,7 @@ def selftest(first):
     global passed, failed
     base = load()
     bad = 0
-    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS + GROUP_E_MUTANTS + GROUP_F_MUTANTS):
+    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS + GROUP_E_MUTANTS + GROUP_F_MUTANTS + GROUP_G_MUTANTS):
         if i < first:
             continue
         if base[key].count(old) != 1:

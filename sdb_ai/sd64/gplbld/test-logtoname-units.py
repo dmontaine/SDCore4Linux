@@ -12,6 +12,12 @@ No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it c
               13 Aug 26 and the tighter behaviour is kept.  The refusal is the 10003 an ungranted account gives, with
               the audit line 'logto refused account=<name> reason=not in the register'.  LOGTO SDSYS (into.sdsys) is
               unchanged: the administrator's way back is the system directory itself.
+17 Nov 26 dm  S.62 (P-4645), L6-L10 and 7 mutants: LOGTO refuses a SUSPENDED account to the administrator too
+              (owner: "REFUSE, as Windows and sd -a do"); the one exemption is the install's, internal mode AND the
+              administrator flag (the installer's sd -internal load.help enters shared by LOGTO).  The test sits after
+              the not-in-the-register refusal and before the group test; the administrator's group exemption stays
+              (S.103); int.runin asks no suspension (owner: run.in is the maintenance tool for a suspended account).
+              Runtime rows: sandbox-listu-a5.py A, sandbox-gates.py D3 (the Q-pointer rows are _voc_ref's own).
 
 WHAT THIS IS NOT.  It reads sdsys/gpl.bp/cproc as TEXT, so it cannot say LOGTO refuses anybody.  The runtime rows
 are sandbox-listu-a5.py section A (the administrator's LOGTO to a path refused with 10003 and the audit line, the
@@ -35,6 +41,9 @@ REFUSE = "if acc.rec = '' then"
 AUDIT = "'logto refused account=' : downcase(new.account) : ' reason=not in the register'"
 GROUP = "is_grp_member(@logname,acc.record<ACC$GROUP>)"
 ENTER = "ospath(acc.rec, OS$CD)"
+SUSP_FIELD = "upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED'"
+SUSP_EXEMPT = "if not(kernel(K$INTERNAL,-1) and kernel(K$ADMINISTRATOR,-1)) and " + SUSP_FIELD + " then"
+SUSP_AUDIT = "void kernel(K$AUDIT, 'logto refused account=' : new.account : ' reason=suspended')"
 SDSYS_LINES = [
     'into.sdsys = (downcase(new.account) = "sdsys")',
     "if into.sdsys and not(kernel(K$ADMINISTRATOR, -1)) then",
@@ -117,6 +126,57 @@ def checks(src):
     old = [n for n, ln in lines if re.match(r"^\s*if\s+new\.account\s*=\s*''\s+then", ln)]
     ck("L5 no name is made from the path's last directory (the old LOGTO-by-path ending is gone)", not old,
        f"'if new.account = '' then' at {old}")
+
+    # P-4645: the suspended account, the administrator included.
+    susp = [n for n, ln in lines if SUSP_FIELD in ln]
+    s_at = susp[0] if len(susp) == 1 else None
+    s_line = next((ln for n, ln in lines if n == s_at), "")
+    ck("L6 ONE suspended test, whose only exemption is the install's (internal mode AND the administrator flag):"
+       " the administrator alone is refused",
+       s_at is not None and SUSP_EXEMPT in s_line
+       and not re.search(r"if\s+not\(kernel\(K\$ADMINISTRATOR,\s*-1\)\)\s+and\s+upcase", s_line),
+       f"tests at {susp}: {s_line.strip()[:160]!r}")
+    ck("L7 the suspended test comes AFTER the not-in-the-register refusal and BEFORE the group test and the first"
+       " change of directory",
+       None not in (s_at, refuse, group, enter) and refuse < s_at < group and s_at < enter,
+       f"not-registered {refuse}, suspended {s_at}, group {group}, OS$CD {enter}")
+    sbody = []
+    if s_at is not None:
+        for n, ln in lines:
+            if n <= s_at:
+                continue
+            if ln.strip() == "end":
+                break
+            sbody.append(ln.strip())
+    stext = "\n".join(sbody)
+    ck("L8 the suspended refusal shows 10107, audits 'logto refused ... reason=suspended' in lower case and goes back",
+       "display sysmsg(10107, new.account)" in stext and SUSP_AUDIT in stext
+       and "if ospath(account.path, OS$CD) then return" in stext, repr(stext[:200]))
+    gex = next((ln for n, ln in lines if n == group), "")
+    ck("L9 the administrator's GROUP exemption is unchanged (S.103)",
+       "not(kernel(K$ADMINISTRATOR,-1)) and not(" + GROUP + ")" in gex, repr(gex.strip()[:160]))
+    rin = runin_lines(src)
+    rs = [n for n, ln in rin if "ACC$SUSPENDED" in ln or "'SUSPENDED'" in ln.upper()]
+    ck("L10 run.in does NOT refuse a suspended account (owner, 17 Nov 26: the administrator's maintenance tool)",
+       len(rin) > 20 and not rs, f"{len(rin)} code lines of int.runin, suspended tests at {rs}")
+    return out
+
+
+def runin_lines(src):
+    """[(line number, text)] of int.runin, its label to the next label, full-line comments dropped."""
+    out = []
+    inside = False
+    for i, line in enumerate(src.splitlines(), 1):
+        if line.startswith("int.runin:"):
+            inside = True
+            continue
+        if not inside:
+            continue
+        if re.match(r"^[a-z][a-z0-9.$]*:\s*$", line):
+            break
+        if line.lstrip().startswith("*"):
+            continue
+        out.append((i, line))
     return out
 
 
@@ -160,7 +220,43 @@ MUTANTS = [
     ("the old name-from-path ending comes back",
      lambda s: s.replace("   who = new.account                     ;*",
                          "   if new.account = '' then new.account = 'x'\n   who = new.account                     ;*", 1)),
+    # P-4645 (17 Nov 26): the suspended account
+    ("the administrator enters a suspended account again (the old exemption)",
+     lambda s: s.replace(SUSP_EXEMPT, "if not(kernel(K$ADMINISTRATOR,-1)) and " + SUSP_FIELD + " then", 1)),
+    ("the install's exemption widens to every internal-mode session",
+     lambda s: s.replace(SUSP_EXEMPT, "if not(kernel(K$INTERNAL,-1)) and " + SUSP_FIELD + " then", 1)),
+    ("the suspended test is gone",
+     lambda s: s.replace(SUSP_EXEMPT, "if @false then", 1)),
+    ("the suspended test moves below the group test",
+     lambda s: _move_block_below_group(s, SUSP_EXEMPT)),
+    ("the suspended refusal writes no audit line",
+     lambda s: s.replace("      " + SUSP_AUDIT, "     ", 1)),
+    ("the administrator loses the group exemption",
+     lambda s: s.replace("not(kernel(K$ADMINISTRATOR,-1)) and not(" + GROUP + ")", "not(" + GROUP + ")", 1)),
+    ("run.in refuses a suspended account",
+     lambda s: s.replace("   acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)\n\n* 11 Nov 26 dm - S.213",
+                         "   acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)\n"
+                         "   if upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then return\n\n* 11 Nov 26 dm - S.213", 1)),
 ]
+
+
+def _move_block_below_group(src, head):
+    lines = src.splitlines(keepends=True)
+    start = next((i for i, ln in enumerate(lines) if ln.strip() == head), None)
+    if start is None:
+        return src
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == "end"), None)
+    if end is None:
+        return src
+    block = lines[start:end + 1]
+    rest = lines[:start] + lines[end + 1:]
+    g = next((i for i, ln in enumerate(rest) if GROUP in ln and i > start), None)
+    if g is None:
+        return src
+    ge = next((i for i in range(g + 1, len(rest)) if rest[i].strip() == "end"), None)
+    if ge is None:
+        return src
+    return "".join(rest[:ge + 1] + block + rest[ge + 1:])
 
 
 def selftest(src, first=0):

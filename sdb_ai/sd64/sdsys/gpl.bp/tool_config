@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (Q9, the owner's rule of 12 Nov 26, carried from the Windows port's RELEASE_1.1 243): the status line says 14150 (Reading the settings (a few
+*               seconds)...) before the report's !settings_os, so the screen does not look frozen while it runs.
 * 14 Nov 26 dm  Compiler warning: the "Not changed here" SCREEN MSGBOX no longer keeps its answer in bx, which nothing read (RETURNING and ELSE are optional).
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the parameter list takes the extra rows, every
 *               box and text is as wide as the window, and the detail wraps at the box's width. The rows, widths, hit tests and the [?] button are counted from the pane rectangles.
@@ -357,6 +359,10 @@ read.backup:
 
 read.report:
    repl = '' ; rtop = 1
+   held.msg = msg                                               ;* 17 Nov 26 (S.62, Q9): !settings_os runs sd-elevate, openssl and grep, which can take a few seconds;
+   msg = sysmsg(14150)                                          ;* the status line says so first, as tool.remote's does (the owner's rule of 12 Nov 26)
+   call $tk_frame(ctx, keys, panes<view>, msg)
+   msg = held.msg
    call !settings_os(os.lines, rerr)
    if rerr # '' then
       repl = 'the report could not be made'

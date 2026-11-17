@@ -69,10 +69,10 @@ sh.KEYS["f1"] = "\x1b[[A"
 ME = fg.ME
 FAILED_IDS = []
 
-HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "home", "sock"]     # 7 Nov 26 S.166: home; 15 Nov 26 S.242: xfer
-IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
+HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "key", "home", "sock"]     # 7 Nov 26 S.166: home; 15 Nov 26 S.242: xfer; 17 Nov 26 S.62 LC3: key
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "xfer", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "ssh-key", "home", "sockets"]
 NC = len(IDS)
-CX = 24                                          # S.242: the screen column of the first gate cell (3 of border and gap + 15 of name + 6 of kind); the name was 20 wide until eighteen cells needed the room for 'susp'
+CX = 19                                          # S.62 LC3: the screen column of the first gate cell (3 of border and gap + 10 of name + 6 of kind); the name was 15 wide until nineteen cells needed the room for 'susp' (20 before S.242)
 G2, G3, GG, GO = "zzg2", "zzg3", "zzgg", "zzgo"
 NAMES = [ME, G2, G3, GG, GO]
 
@@ -305,6 +305,7 @@ def expect_cells(me_overrides=None):
     me[IDS.index("shared-read")] = "ON"
     me[IDS.index("home")] = home_default()       # S.166: the register's start field is blank, so the cell is the system's default (the sandbox's set-up writes terminal)
     me[IDS.index("sockets")] = "plan"
+    me[IDS.index("ssh-key")] = "-"                # S.62 LC3: no Linux user here has SD's "SD account" stamp (the sandbox user, the scratch users), so the key cell is a dash on every row
     z2 = list(me)
     for k in ("ssh", "sh", "os", "sd", "xfer"):
         z2[IDS.index(k)] = "ON"
@@ -363,13 +364,13 @@ def section_open():
     T = p.text()
     arow("G1a", "the four boxes", all(w in T for w in ("Gates by account", "The cell under the cursor", "Who can reach the operating system", "Sessions of the account under the cursor")), T[:300])
     head = [p.line(2)[CX + 6 * i:CX + 6 + 6 * i].strip() for i in range(NC)]
-    arow("G1b", "the eighteen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
+    arow("G1b", "the nineteen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
     rows = p.rows()
     exp = expect_cells()
     ok = sorted(rows) == sorted(NAMES) and all(rows[n][0] == exp[n][0] and rows[n][1] == exp[n][1] for n in NAMES)
     arow("G1c", "five rows, SDSYS not among them, by name: each with its kind and its sixteen cells read from the register and the scratch groups (ON, off, a dash for a route on a group or "
          "other account, plan for sockets, shared-read ON as delivered)", ok, repr({n: (rows[n][0], rows[n][1]) for n in rows}))
-    arow("G1d", "the suspended account says so at the end of its row (susp: eighteen cells and a name of 15 letters leave five columns)", rows[G3][2] == "susp" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
+    arow("G1d", "the suspended account says so at the end of its row (susp: nineteen cells and a name of 10 letters leave four columns, S.62 LC3)", rows[G3][2] == "susp" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
     c1, c2 = p.counts()
     arow("G1e", "the counts: all accounts, 5 of 5, one with a gate on that reaches beyond SD (zzg2; zzgg has sd on, which is also beyond SD: two)", c1.startswith("all accounts: 5 of 5 accounts.  2 with a gate on"), repr(c1))
     arow("G1f", "nothing is queued yet", c2.startswith("Nothing queued for"), repr(c2))

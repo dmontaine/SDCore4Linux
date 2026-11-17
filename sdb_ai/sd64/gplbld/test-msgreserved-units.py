@@ -35,6 +35,8 @@ side noticing three of them were deliberate and the fourth was not:
                  15995-15999 (its +1005 rule overflows), which the +1000 images of these would collide with.
     15000-15999  the Windows port's second block, refused here like 12000-12999.
                  Anything at 16000 or above is nobody's block and is refused.
+    RETIRED      (17 Nov 26, S.62) the numbers whose message was deleted: a file
+                 at one of them is refused, since a number is never reused.
 
 WHAT THIS DOES NOT DO.  It cannot see the Windows tree, so it cannot confirm
 their side keeps out of 11000-11999 - that is their own
@@ -67,6 +69,13 @@ WINDOWS_SECOND_BLOCK = range(15000, 16000)
 # and puts the five Linux messages its +1005 rule pushes out of its first block (Linux 11995-11999) at 15995-15999, so Linux 14995-14999 must stay
 # empty or their +1000 images would collide.
 RESERVED_FOR_OVERFLOW = range(14995, 15000)
+# 17 Nov 26 (S.62) - RETIRED: numbers of this port's blocks whose message was deleted.  A deleted number is never
+# given to another text (the convention above), so a file at one of these numbers is a violation.  10191 went on
+# 2 Nov 26 (cproc's ssh arm) and 11190 with S.106 (2 Nov 26); the fourteen below went on the owner's word of
+# 17 Nov 26 ("DELETE the ones in Linux's own blocks"), each printed by nothing.  10032 and 10033, orphans too, are in
+# the shared legacy range and were LEFT on that word.  Add a number here in the change that deletes its file.
+RETIRED = {10191, 11190,
+           11137, 11144, 11186, 11187, 11198, 11652, 11670, 11671, 11753, 11754, 11761, 11985, 11986, 11987}
 
 
 def message_ids(messages_dir):
@@ -99,7 +108,9 @@ def main():
               "this port's second block (14000-14999)": 0}
     violations = []
     for num, path in ids:
-        if num in UPSTREAM:
+        if num in RETIRED:
+            violations.append((num, path))
+        elif num in UPSTREAM:
             counts["upstream (0-10029)"] += 1
         elif num in SHARED_LEGACY:
             counts["shared legacy (10030-10999)"] += 1
@@ -121,7 +132,8 @@ def main():
         print(f"\n[FAIL] {len(violations)} message(s) outside the agreed ranges:",
               file=sys.stderr)
         for num, path in violations:
-            where = ("the Windows port's reserved block (12000-12999)" if num in WINDOWS_BLOCK
+            where = ("a RETIRED number: its message was deleted and the number is never reused" if num in RETIRED
+                     else "the Windows port's reserved block (12000-12999)" if num in WINDOWS_BLOCK
                      else "the Windows port's second block (15000-15999)" if num in WINDOWS_SECOND_BLOCK
                      else "14995-14999, reserved for the Windows overflow homes 15995-15999 (8 Nov 26)" if num in RESERVED_FOR_OVERFLOW
                      else "above any agreed block (16000+)")
@@ -129,7 +141,7 @@ def main():
         return 1
 
     print(f"\n[PASS] all {len(ids)} messages sit inside the agreed ranges; "
-          f"none in the Windows port's blocks (12000-12999, 15000-15999)")
+          f"none in the Windows port's blocks (12000-12999, 15000-15999); none of the {len(RETIRED)} retired numbers is back")
     return 0
 
 

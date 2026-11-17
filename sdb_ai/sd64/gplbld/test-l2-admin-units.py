@@ -58,7 +58,7 @@ PREFIX = {
 }
 # What the page derives from its rectangles, at 140 by 43, as the literal it used before: (name, value)
 CONSTS = {
-    "tool_gates": [("VIS", 14), ("CL", 9), ("RW", 7), ("X0", 24), ("mtw", 134), ("ctw", 134), ("rtw", 64), ("stw", 65)],
+    "tool_gates": [("VIS", 14), ("CL", 9), ("RW", 7), ("X0", 19), ("mtw", 134), ("ctw", 134), ("rtw", 64), ("stw", 65)],
     "tool_sessions": [("VS", 11), ("VL", 10), ("VR", 7), ("stw", 134), ("ltw", 134), ("rtw", 134)],
     "tool_audit": [("VL", 17), ("DR", 11), ("ttw", 134), ("ltw", 134), ("dtw", 134)],
     "tool_accounts": [("VA", 17), ("DR", 11), ("ttw", 134), ("ltw", 134), ("dtw", 134)],
@@ -467,7 +467,7 @@ MUTANTS = [
     ("the account rows counted one short", "L2-3", sub("tool_gates", "VIS = mat.h - 5", "VIS = mat.h - 4")),
     ("the counts line one row too low", "L2-3", sub("tool_gates", "at mat.x + 2,mat.y + mat.h - 3 attr 'bold'", "at mat.x + 2,mat.y + mat.h - 2 attr 'bold'")),
     ("the hint of the row box on the border", "L2-3", sub("tool_sessions", "rwb.y + rwb.h - 2", "rwb.y + rwb.h - 1")),
-    ("the first cell's column wrong", "L2-3", sub("tool_gates", "X0 = mat.x + 23", "X0 = mat.x + 24")),
+    ("the first cell's column wrong", "L2-3", sub("tool_gates", "X0 = mat.x + 18", "X0 = mat.x + 19")),      # 17 Nov 26 (S.62 LC3): the name column is 10 wide for 19 cells
     ("the detail rows counted from the wrong constant", "L2-3", sub("tool_audit", "DR = det.h - 2", "DR = det.h - 1")),
     ("a text drawn past the box's right edge at a bigger window (a column fixed to the reference)", "L2-4", sub("tool_accounts", "dtw = det.w - 4", "dtw = det.w + 4")),
     ("the list rows of the audit fixed at the reference", "L2-4", sub("tool_audit", "VL = lst.h - 3", "VL = 17")),
