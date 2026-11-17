@@ -661,9 +661,13 @@ def rows_ctl(env, fm):
             rc == 0 and out.strip() == "" and open(kp).read().strip() == KEY and stat.S_IMODE(os.stat(kp).st_mode) == 0o600 and KEY not in out + err, repr((rc, out, err)))
 
         # 14 Nov 26 (Windows 309): on a TERMINAL the key is shown as one * for each character, never itself.  The client runs on a pseudo-terminal; Backspace takes one back.
-        def run_tty(keys):
+        def run_tty(keys, nonblock=False):
             m, s = pty.openpty()
+            if nonblock:
+                os.set_blocking(s, False)                        # as SD hands its terminal over (17 Nov 26, S.62)
             pr = subprocess.Popen([sys.executable, ctl, "--socket", sock, "key", "openai"], stdin=s, stdout=s, stderr=s, close_fds=True)
+            if nonblock:
+                run_tty.mode_fd = os.dup(s)                      # the same open terminal: its mode after the client has ended is read from here
             os.close(s)
             seen = b""
             sent = False
@@ -678,6 +682,8 @@ def rows_ctl(env, fm):
                         break
                     seen += d
                     if not sent and b"): " in seen:
+                        if nonblock:
+                            time.sleep(0.5)                      # the client is already in its read with nothing to read: the case that failed
                         os.write(m, keys)
                         sent = True
                 elif pr.poll() is not None:
@@ -700,6 +706,12 @@ def rows_ctl(env, fm):
         tail = shown.split("): ", 1)[1] if "): " in shown else ""
         row("key on a terminal: a 101-character key pasted in one go shows 101 *, nothing else, and is stored whole",
             rc == 0 and tail.strip() == "*" * 101 and open(kp).read().strip() == long_key, repr((rc, tail[:200])))
+        rc, shown = run_tty(b"nonblockingkey\r", nonblock=True)
+        tail = shown.split("): ", 1)[1] if "): " in shown else ""
+        still_nonblocking = not os.get_blocking(run_tty.mode_fd)
+        os.close(run_tty.mode_fd)
+        row("key on a terminal handed over NON-BLOCKING, as SD hands it (17 Nov 26): the key is read (14 *), stored whole, and the terminal is non-blocking again afterwards",
+            rc == 0 and tail.strip() == "*" * 14 and open(kp).read().strip() == "nonblockingkey" and still_nonblocking, repr((rc, shown[-300:], still_nonblocking)))
         rc, out, err = run("key", "openai", stdin=KEY + "\n")      # put the file back for the rows after
         rc, out, err = run("show")
         row("show now: openai is [x] with its model, key set, and the key is not printed", rc == 0 and "[x] openai" in out and "model: gpt-test" in out and "key: set" in out and KEY not in out, repr(out))

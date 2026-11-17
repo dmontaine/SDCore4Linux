@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SET.AI KEY AT THE PROMPT TAKES THE KEY AGAIN.
+
+             What        - set.ai key <provider>, typed at SD's prompt, reads the key and shows one * for each character,
+                           as it was meant to since 14 Nov 2026.
+             Why         - SD hands its terminal to the helper's client in a mode in which a read returns at once when
+                           nothing has been typed yet.  The star prompt of 14 Nov did not allow for that: it stopped
+                           with an error before the first character, no key was set, and what was then typed went to
+                           SD's own prompt, where it could be seen.  The client now waits for the keys and puts the
+                           terminal back as it found it.  Found by SD Core Solo's test of the same prompt.
+             Does NOT    - Change the AI page's setup dialog, which hands the key over without this prompt and was not
+                           affected.  Show the key: only its length is visible.
+
 17 Nov 26  AN ACCOUNT IS ENTERED BY ITS REGISTERED NAME ONLY, BY LOGTO AND OVER THE API.
 
              What        - LOGTO, and an API session's account (the login's account and SDLogto), take the name of an

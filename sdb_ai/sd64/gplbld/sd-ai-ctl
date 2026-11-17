@@ -19,6 +19,8 @@
 # printed), 2 the helper could not be reached or the command line is wrong.
 #
 # START-HISTORY:
+# 17 Nov 26 dm  S.62: read_key_stars() makes the terminal blocking for the read and puts its mode back.  SD hands the terminal over non-blocking, so the star prompt of
+#               14 Nov read nothing, set no key, and what was typed went to SD's own prompt (found by Solo's sandbox-ai-solo.py A8b after the carry).
 # 14 Nov 26 dm  Windows 309: key shows one * for each character typed (the key itself stays unseen) and says nothing on success (set.ai prints the one line, after it reads the key back).
 # 8 Nov 26 dm   S.170: models PROVIDER, the provider's own list of model names ("models: N", then one name to a line, indented).
 # 7 Nov 26 dm   S.160: context HEX | - (the standing text); show says whose it is and its length.
@@ -51,6 +53,7 @@ def read_key_stars(prompt):
         import tty
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
+        was_blocking = os.get_blocking(fd)
     except Exception:
         return getpass.getpass(prompt)
     out = sys.stderr
@@ -58,6 +61,9 @@ def read_key_stars(prompt):
     out.flush()
     buf = b""
     try:
+        # 17 Nov 26 (S.62): SD hands its terminal over with O_NONBLOCK still set (linuxio.c sets it for its own key reader and gives it back only at exit),
+        # so the first read raised BlockingIOError and no key was set.  The mode belongs to the open terminal, which SD shares: it is put back below.
+        os.set_blocking(fd, True)
         tty.setcbreak(fd)
         while True:
             ch = os.read(fd, 1)
@@ -88,6 +94,7 @@ def read_key_stars(prompt):
             out.flush()
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        os.set_blocking(fd, was_blocking)
         out.write("\n")
         out.flush()
     return buf.decode("utf-8", "replace")
