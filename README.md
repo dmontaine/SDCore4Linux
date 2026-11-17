@@ -1,16 +1,17 @@
 # SD Core for Linux
 
-SD, the multivalue String Database, for Linux — built to behave the same as
-SD Core for Windows.
+SD, the multivalue String Database, for Linux — one of four SD Core versions
+(Linux and Windows, each multi-user and single-user) that behave the same.
 
 SD is a multivalue database in the Pr1me Information tradition, descended from
 OpenQM and ScarletDME through [sdb64](https://codeberg.org/stringdatabase/sdb64).
-SD Core for Linux starts from sdb64 and brings it into line with
-[SD Core for Windows](https://github.com/dmontaine/SDCore4Windows): the same
-account model, administration only from the SDSYS account, TLS 1.3 and SCRAM
-login for the client API, the same message numbers, and embedded Python. Where
-the two platforms must differ — the installer, file permissions, service
-management — it uses the native Linux mechanism.
+SD Core for Linux starts from sdb64 and adds its own account model,
+administration only from the SDSYS account, TLS 1.3 and SCRAM login for the
+client API, and embedded Python. It is the version the other three follow:
+[SD Core for Windows](https://github.com/dmontaine/SDCore4Windows) and the two
+single-user Solo editions follow its features and differ from it only where the
+operating system or a single user's install requires it — the installer, file
+permissions, service management.
 
 **Version L1.1-3, released 9 October 2026**, paired with SD Core for Windows W1.1-3.
 L1.1-1 was released on 29 September 2026 and L1.1-0 (26 September 2026) was the
@@ -75,8 +76,10 @@ the install.
 
 ## Related repositories
 
+- [SDCore4LinuxSolo](https://github.com/dmontaine/SDCore4LinuxSolo) — SD Core
+  Solo for Linux, a single-user Linux edition.
 - [SDCore4Windows](https://github.com/dmontaine/SDCore4Windows) — SD Core for
-  Windows, the release this one conforms to.
+  Windows, the multi-user Windows version.
 - [SDCore4WindowsSolo](https://github.com/dmontaine/SDCore4WindowsSolo) — a
   single-user Windows edition.
 

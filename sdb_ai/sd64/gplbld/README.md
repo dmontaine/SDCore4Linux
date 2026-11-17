@@ -24,7 +24,19 @@ Binary Free Install process.
     pcode_bld.py (found in gplbld)- Python script to compile the pcode file bytecode object(s).
       Note the list of programs processed is hardcoded into pcode_bld.py.
       Script is executed at install time.
-      
+
+    gen_includes.py (found in gplbld) - Python script to regenerate the BASIC
+      include records that are derived from C headers:
+        gplsrc/revstamp.h -> sdsys/gpl.bp/revstamp.h
+        gplsrc/err.h      -> sdsys/syscom/err.h and sdsys/gpl.bp/errtext.h
+        gplsrc/opcodes.h  -> sdsys/gpl.bp/opcodes.h
+      Run it from sd64 after editing any of those C headers:
+        python3 gplbld/gen_includes.py
+      "--check" reports what is out of date without writing anything; the
+      Makefile runs it that way (target check-includes) before a plain "make",
+      so a C header changed without regenerating its include stops the build.
+      Never edit the four generated records by hand.
+
     BBPROC - BootStrap Command Processor (found in GPL.BP).
       This program is a stripped down command processor based on VBSRVR.
       It compiles the following programs (hardcoded list) using BCOMP compiled by bbcmp.py.
@@ -86,5 +98,5 @@ Binary Free Install process.
       sudo /usr/local/sdsys/bin/sd -asdsys -internal SECOND.COMPILE   
 	  
 	install runs WRITE_INSTALL_DICTS to create system dictionary items.
-      sudo bin/sd RUN GPL.BP WRITE_INSTALL_DICTS NO.PAGE
+      sudo bin/sd RUN gpl.bp write_install_dicts NO.PAGE
  

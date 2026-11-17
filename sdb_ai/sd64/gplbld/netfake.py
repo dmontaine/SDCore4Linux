@@ -6,6 +6,9 @@
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 
+17 Nov 26 dm  S.62 (P-1277): request 3 follows the real server - every name is lower cased and a path (a name holding a '/') is refused with 10003, since apisrvr enters an
+              account by its registered name only; two self-test rows in selftest_files (a path to the accepted account, and a path with every name accepted, with a plain name as the control).
+
 20 Oct 26 dm  S.72b (owner, 20 Oct 2026: of the five S.72 loosenings only RECORDLOCKED() is tightened): request 34 (recordlocked) JOINS FILES_CHANGE.  A files-only login WITHOUT sdfileswrite is
               refused request 34 as it is refused 32 and 33: the ON ERROR reply with message 11521 naming the request ("... (request 34)"), nothing dispatched (the lock table is not
               looked at, so the holder's user number is not told), and the audit line apisrvr writes - FileSession.audit, new here: "api refused request=34 route=sdfiles write=off
@@ -910,15 +913,15 @@ class FileSession:
         return self.error_msg
 
     def r_account(self, data):
-        """vb.account: an account name is lower cased unless it is a path (it holds a '/'); 1 to 32 characters (5037); one the server does not
+        """vb.account: every account name is lower cased; 1 to 32 characters (5037); an account is entered by its registered NAME only (17 Nov 26,
+        S.62 P-1277: the real server refuses a name with no register record, a path included, with 10003 and the audit line 'account refused
+        branch=1 no.path.in.register account=<name>'), so a name holding a '/' is 10003 even when accounts is None; one the server does not
         know, or the user may not enter, is 10003 whichever it is.  The first success is "entered": the files-only gate allows request 3 once."""
-        name = data.decode("latin-1")
-        if "/" not in name:
-            name = _lower(name)
+        name = _lower(data.decode("latin-1"))
         if len(name) < 1 or len(name) > 32:
             return self._fail(msg(5037))
         accts = self.store.accounts
-        if accts is not None and name not in accts:
+        if "/" in name or (accts is not None and name not in accts):
             return self._fail(msg(10003))
         self.account = name
         self.entered = True
@@ -2295,6 +2298,16 @@ def selftest_files(srv, cert, row):
     row("vb.account: 33 characters is 5037", r[0] == 3 and c.error_text() == msg(5037), repr(r))
     r = c.req(R_ACCOUNT, "")
     row("vb.account: no name is 5037", r[0] == 3 and c.error_text() == msg(5037), repr(r))
+    # 17 Nov 26, S.62 P-1277: an account is entered by its registered name only; a path has no register record and is refused 10003
+    r = c.req(R_ACCOUNT, "/fake/acct")
+    row("vb.account: a path whose last directory is the accepted account is 10003 (S.62: entered by its registered name only)",
+        r == (3, 0, b"") and c.error_text() == msg(10003), repr(r))
+    keep, st.accounts = st.accounts, None
+    rp, ep = c.req(R_ACCOUNT, "/fake/acct"), c.error_text()
+    rn = c.req(R_ACCOUNT, "ACCT")
+    st.accounts = keep
+    row("vb.account: with every name accepted (accounts None) a path is still 10003, and the CONTROL, a plain name typed in upper case, is entered",
+        rp == (3, 0, b"") and ep == msg(10003) and rn == (0, 0, b"") and ses.account == "acct", repr((rp, ep, rn, ses.account)))
     r1, r2 = c.req(R_OPEN, "customers"), c.req(R_OPEN, "CUSTOMERS")
     row("vb.open: file numbers are handed out from 1, the name is case blind", r1 == (0, 0, _S(1)) and r2 == (0, 0, _S(2)), repr((r1, r2)))
     r = c.req(R_OPEN, "nosuch")

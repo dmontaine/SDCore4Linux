@@ -19,7 +19,8 @@ subroutine prog_info(obj_dir_path,obj_name,prog_name,prog_obj_sz,prog_comp_time,
 $catalog !prog_info
 *
 *
-$INCLUDE gpl.bp HEADER.H    ;* 13 Sep 26 dm - the file's name is lower case (plan M3 D2)
+* 17 Nov 26 dm - S.62 (P-1285): the include is written in lower case, as every other include of gpl.bp is (it worked only because the name folds).
+$include gpl.bp header.h    ;* 13 Sep 26 dm - the file's name is lower case (plan M3 D2)
 *
 * Header field offsets (from 1)
 * hdr.magic             =     1

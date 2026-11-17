@@ -66,12 +66,23 @@ SONAME_OPT := -soname
 
 RM       := rm
 
-SDHDRS   := $(wildcard *.h)
+# 17 Nov 26 dm - S.62 P-1263/P-1264/P-1265: SDHDRS and TEMPSRCS were
+#   "$(wildcard *.h)" and "$(wildcard *.c)", evaluated in sd64, which holds no
+#   .h or .c file (they are in gplsrc/; $(wildcard) does not consult VPATH), so
+#   both were empty and nothing used them.  Measured with "make -pn": SDHDRS,
+#   TEMPSRCS, SRCS, OBJS and DIROBJS all expanded to nothing, and
+#   "make -n -W gplsrc/dh_int.h sd" recompiled no object of the 29 that
+#   include it.  A header change rebuilt only the objects with explicit rules
+#   below, and every other object kept the struct layout it was compiled
+#   against.  Both now name gplsrc; TEMPSRCS keeps bare names because every
+#   rule target here is a bare "foo.o" found through VPATH.  The dependency
+#   that uses them is next to the .c.o rule at the end of this file.
+SDHDRS   := $(wildcard $(GPLSRC)*.h)
 SDSRCS   := $(shell cat $(GPLDOTSRC))
 SDTEMP   := $(addsuffix .o,$(SDSRCS))
 SDOBJS   := $(SDTEMP)
 SDOBJSD  := $(addprefix $(GPLOBJ),$(SDTEMP))
-TEMPSRCS := $(wildcard *.c)
+TEMPSRCS := $(notdir $(wildcard $(GPLSRC)*.c))
 SRCS     := $(TEMPSRCS)
 OBJS     := $(SRCS:.c=.o)
 DIROBJS  := $(addprefix $(GPLOBJ),$(OBJS))
@@ -202,6 +213,17 @@ sysdump.o: sysdump.c sd.h locks.h revstamp.h config.h
 
 sysseg.o: sysseg.c sd.h locks.h config.h revstamp.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sysseg.o
+
+# 17 Nov 26 dm - S.62 P-1263: every object depends on every header in gplsrc.
+#   Deliberately blunt: any header change rebuilds every object, which is
+#   what "clear gplobj/*.o after a header change" did by hand.  These lines
+#   carry no recipe, so they only ADD prerequisites; the explicit rules above
+#   keep theirs.  SDOBJS is what sd is linked from (gpl.src), OBJS is every
+#   gplsrc/*.c (the tools sdtic, sdfix, sdconv, sdidx, sdlnxd and the client
+#   library), and sd_tls_pic.o is the client library's copy of sd_tls.c.
+$(SDOBJS): $(SDHDRS)
+$(OBJS): $(SDHDRS)
+sd_tls_pic.o: $(SDHDRS)
 
 .c.o:
 	@echo Compiling $@, $(BITSIZE) bit target.

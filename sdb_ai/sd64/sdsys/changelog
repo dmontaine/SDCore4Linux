@@ -1,6 +1,88 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  AN ACCOUNT IS ENTERED BY ITS REGISTERED NAME ONLY, BY LOGTO AND OVER THE API.
+
+             What        - LOGTO, and an API session's account (the login's account and SDLogto), take the name of an
+                           account in the register and nothing else.  A name the register does not hold - a pathname
+                           included - is refused with "User not allowed in requested account", the same answer as an
+                           account the person may not enter, and the audit trail says why ("logto refused account=...
+                           reason=not in the register"; for the API "account refused branch=1 no.path.in.register
+                           account=...").  The session stays in the account it was in.
+             Why         - a name the register lacked was taken as a directory to change to.  Over the API that skipped
+                           the register altogether: a suspended account could be entered by its path, and so could any
+                           directory holding a VOC, judged on whatever account record an earlier request had read.  At
+                           LOGTO the administrator could enter any such directory.  SD Core for Windows has refused both
+                           since August; the tighter behaviour is the one kept.  Found by the four-version parity audit.
+             Does NOT    - Change entry by name: a registered account is entered exactly as before, with the same
+                           suspension and group tests.  LOGTO SDSYS, the administrator's way back, is unchanged.  A
+                           directory that should be an account is registered first (create.account other ... with the
+                           path), and then entered by its name.
+
+17 Nov 26  SD CANNOT BE STARTED AGAIN FROM A SHELL THAT SD STARTED.
+
+             What        - the shell that SH and OS.EXECUTE start carries a mark, and sd refuses to start inside it:
+                           "SD is already running in this session - type exit to return to it."  Every form of the
+                           command is refused there, sd -status and sd --version included.
+             Why         - the owner's rule, which SD Core for Windows has had since August: somebody who shells out of
+                           SD with SH must not be able to run sd again, nesting a second session inside the first.
+             Does NOT    - Make a wall: the mark is an environment variable of that shell and its user can remove it.
+                           Phantoms, SENDMAIL and the spooler's commands are not marked, a command run through sudo does
+                           not see the mark, and nothing outside such a shell is affected.
+
+17 Nov 26  SD -D, -M, -SUSPEND AND -RESUME NEED ROOT.
+
+             What        - these four command line options now refuse with "Command requires administrator privileges"
+                           unless run as root, as -start, -stop, -restart and -k already did.
+             Why         - any member of sdusers could suspend every update on the system with sd -suspend, or dump
+                           every session and the configuration with -d and -m.  SD Core for Windows has gated them since
+                           August.
+             Does NOT    - Change sd -cleanup, sd -u or sd -status, which are as they were.
+
+17 Nov 26  OVER-LONG SH, SH1 AND STARTUP VALUES IN SD.CONF ARE REFUSED.
+
+             What        - a value longer than 80 characters for SH=, SH1= or STARTUP= now stops SD with "SH value is
+                           longer than 80 characters." (or SH1, STARTUP).  On the command line, a terminal type given
+                           to sd -term that is longer than 32 characters is refused in the same way.
+             Why         - each value was copied unchecked into a field of that size and overwrote what was stored
+                           after it.
+             Does NOT    - Change any value that fits.
+
+17 Nov 26  A RESTORED ACCOUNT THAT TAKES OVER A LEFTOVER LINUX USER STARTS WITH ONLY THE ROUTES IT IS GIVEN.
+
+             What        - when create.account, for a restore, takes over a Linux user SD made earlier, the user is taken
+                           out of every route group the new account does not ask for: ssh (sdssh), the API (sdapi), the
+                           files routes (sdfiles, sdfileswrite, sdfilesadmin) and the AI (sdaiusers).
+             Why         - the account step only ever added memberships, so a leftover user kept the remote routes of
+                           the account it belonged to before, and the new account had access nobody had granted.
+             Does NOT    - Touch a user the account is not taking over, or a route the request names; a membership that
+                           cannot be read or removed stops the account with the usual "Unable to change remote access"
+                           message rather than going on.
+
+17 Nov 26  LIST AND COUNT SAY "INVALID NAME" FOR A DIRECTORY FILE'S RECORD SD CANNOT READ BY ITS NAME.
+
+             What        - a record of a directory file whose file is there under a name SD's own naming cannot produce
+                           (a bare % in a file put there from outside) is reported "'name' invalid name" by LIST, COUNT
+                           and REFORMAT, where it used to be "'name' not found".
+             Why         - "not found" was wrong for a file the user can see in the directory; the name is the problem.
+             Does NOT    - Read the record, or look outside the file's own directory: a name holding a slash, . and ..
+                           are still "not found".
+
+17 Nov 26  SMALL CORRECTIONS: A DAMAGED TERMINFO FILE, A SHELL THAT CANNOT START, F1 AT THE PROMPT, THE AI PAGE.
+
+             What        - TERM with a terminal type whose terminfo file is corrupt or cut short keeps the session's
+                           current type (it used to leave the session with none).  When the shell named by SH= or SH1=
+                           cannot be run, the command ends with status 127 instead of a copy of the session carrying on
+                           in the background.  F1 at an empty command prompt shows its message and then the prompt
+                           again, with the cursor where it should be.  The AI administration page no longer mentions an
+                           M key (the model is chosen with S).  An AI answer of nothing but spaces and line feeds is
+                           shown as an empty answer.  The message for a group that is not a Linux group says "Linux
+                           group".
+             Why         - each was found by comparing the four versions: the Windows versions already had these
+                           corrections, or the text described a key that was removed.
+             Does NOT    - Change what F1 says, what any key of the AI page does, or what happens when a terminfo file
+                           is missing (the type was always kept).
+
 17 Nov 26  EVERY ACCOUNT HAS EXAMPLE PROGRAMS: THE FILE EXAMPLES.BP AND THE LOAD.EXAMPLES VERB.
 
              What        - every account now has its own file examples.bp of example programs, already compiled, so

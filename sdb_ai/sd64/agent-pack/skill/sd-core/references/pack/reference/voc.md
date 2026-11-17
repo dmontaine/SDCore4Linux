@@ -250,13 +250,13 @@ target, and the remaining fields carry options.
 
 | Field 2 | Field 3 | What it does |
 |---|---|---|
-| `CA` | *catalog name* | a cataloged program — 165 of the shipped verbs |
+| `CA` | *catalog name* | a cataloged program — 169 of the shipped verbs |
 | `IN` | *number* | internal verb *n*, handled by the command processor itself — 39 verbs |
 | `OS` | *text* | an operating-system command — `sh`, and nothing else |
 | `CS` | *path* | a locally cataloged function |
 
-The first three rows account for all 205 of SDSYS's `V` records (none shipped
-is `CS`). The other four of its 209 verbs are the keyword records described above — `break`, `count`,
+The first three rows account for all 209 of SDSYS's `V` records (none shipped
+is `CS`). The other four of its 213 verbs are the keyword records described above — `break`, `count`,
 `display` and `off` — where field 2 holds a keyword number rather than a
 dispatch type, and it is field 3 that marks the record as a verb.
 

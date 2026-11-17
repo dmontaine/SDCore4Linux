@@ -16,63 +16,67 @@ SDSYS = '/usr/local/sdsys'
 
 DEBUG_DIFF = False
 
-pcode_fs = ["_AK",
-"_BINDKEY"    ,
-"_BREAK"      ,
-"_CCONV"      ,
-"_CHAIN"      ,
-"_DATA"       ,
-"_DELLIST"    ,
-"_EXPAND"     ,
-"_FMTS"       ,
-"_FOLD"       ,
-"_FORMLST"    ,
-"_GETLIST"    ,
-"_GETMSG"     ,
-"_HF"         ,
-"_HOLDLOG"    ,
-"_ICONV"      ,
-"_ICONVS"     ,
-"_IN"         ,
-"_INDICES"    ,
-"_INPUT"      ,
-"_INPUTAT"    ,
-"_ITYPE"      ,
-"_KEYCODE"    ,
-"_KEYEDIT"    ,
-"_MAXIMUM"    ,
-"_MESSAGE"    ,
-"_MINIMUM"    ,
-"_MSGARGS"    ,
-"_NEXTPTR"    ,
-"_OCONV"      ,
-"_OCONVS"     ,
-"_OJOIN"      ,
-"_OVERLAY"    ,
-"_PCLSTART"   ,
-"_PREFIX"     ,
-"_PRFILE"     ,
-"_READLST"    ,
-"_READV"      ,
-"_REPADD"     ,
-"_REPCAT"     ,
-"_REPDIV"     ,
-"_REPMUL"     ,
-"_REPSUB"     ,
-"_REPSUBST"   ,
-"_SAVELST"    ,
-"_SSELCT"     ,
-"_SSELCTV"    ,
-"_SUBST"      ,
-"_SUBSTRN"    ,
-"_SUM"        ,
-"_SUMALL"     ,
-"_SYSTEM"     ,
-"_TCONV"      ,
-"_TRANS"      ,
-"_VOC_CAT"    ,
-"_VOC_REF"    ,
-"_WRITEV"     ]
+# 17 Nov 26 dm - S.62 P-1215 to P-1218: the names are written lower case, as
+#   the records are on disk (sdsys/gpl.bp, pcode.out, gpl.bp.out), and are used
+#   as they stand; they were upper case and lower-cased at each use.  Same
+#   names, same order, so the same pcode file.
+pcode_fs = ["_ak",
+"_bindkey"    ,
+"_break"      ,
+"_cconv"      ,
+"_chain"      ,
+"_data"       ,
+"_dellist"    ,
+"_expand"     ,
+"_fmts"       ,
+"_fold"       ,
+"_formlst"    ,
+"_getlist"    ,
+"_getmsg"     ,
+"_hf"         ,
+"_holdlog"    ,
+"_iconv"      ,
+"_iconvs"     ,
+"_in"         ,
+"_indices"    ,
+"_input"      ,
+"_inputat"    ,
+"_itype"      ,
+"_keycode"    ,
+"_keyedit"    ,
+"_maximum"    ,
+"_message"    ,
+"_minimum"    ,
+"_msgargs"    ,
+"_nextptr"    ,
+"_oconv"      ,
+"_oconvs"     ,
+"_ojoin"      ,
+"_overlay"    ,
+"_pclstart"   ,
+"_prefix"     ,
+"_prfile"     ,
+"_readlst"    ,
+"_readv"      ,
+"_repadd"     ,
+"_repcat"     ,
+"_repdiv"     ,
+"_repmul"     ,
+"_repsub"     ,
+"_repsubst"   ,
+"_savelst"    ,
+"_sselct"     ,
+"_sselctv"    ,
+"_subst"      ,
+"_substrn"    ,
+"_sum"        ,
+"_sumall"     ,
+"_system"     ,
+"_tconv"      ,
+"_trans"      ,
+"_voc_cat"    ,
+"_voc_ref"    ,
+"_writev"     ]
 
 
 def main():
@@ -105,8 +109,8 @@ def main():
         logger.info('**********************************************************************')
         result =   subprocess.run(
             # 13 Sep 26: directories AND record names are lower case on disk (plan
-            # M).  The list keeps the upper-case names bbcmp's headers carry.
-            ['python3',bbcmp,SDSYS,'gpl.bp/'+src.lower(),'pcode.out/'+src.lower()],
+            # M), and so is the list since 17 Nov 26.
+            ['python3',bbcmp,SDSYS,'gpl.bp/'+src,'pcode.out/'+src],
              capture_output=True,
              text = True)
         logger.info(result.stdout)
@@ -122,11 +126,11 @@ def main():
             logger.info('**********************************************************************')
         #diff --suppress-common-lines <(xxd /usr/local/sdsys/GPL.BP.OUT/_HF) <(xxd /usr/local/sdsys/PCODE.OUT/_HF)    
             result =   subprocess.run(
-                ['xxd', SDSYS + '/gpl.bp.out/'+src.lower(), 'bsrc1'])
+                ['xxd', SDSYS + '/gpl.bp.out/'+src, 'bsrc1'])
     #             capture_output=True,
     #             text = True)
             result =   subprocess.run(
-                ['xxd', SDSYS + '/pcode.out/'+src.lower(), 'bsrc2'])
+                ['xxd', SDSYS + '/pcode.out/'+src, 'bsrc2'])
     #             capture_output=True,
     #             text = True)
             
@@ -147,7 +151,7 @@ def main():
     p_idx = 0     # byte index for pcode_file
     for src in pcode_fs:
         f_byte_count = 0  # count of bytes in src file
-        fh = open(SDSYS + os.sep + 'pcode.out' + os.sep + src.lower(), "rb")
+        fh = open(SDSYS + os.sep + 'pcode.out' + os.sep + src, "rb")
         filebytes = bytearray(fh.read())
         for fbyte in filebytes:
             pcode_file[p_idx] = fbyte

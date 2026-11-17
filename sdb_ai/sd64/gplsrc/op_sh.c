@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1225, P-1226: sh_execute()'s child ends with _exit(127) when execv() fails (it fell through into the parent's code), and puts SD_SESSION=1 in the environment of the shell SH and OS.EXECUTE start, which sd.c refuses to start inside.
  * 06 Nov 26 dm  S.152: os_sd_accounts_open() is gone; nothing called it (found by linking with --gc-sections).
  * 02 Nov 26 dm  S.96 M4: resolve_name() refuses a name that is a link whose target does not exist (it used to be taken as a new name and judged
  *               inside the directory, so a write through it created a file wherever the link pointed).  K$PATH.IN and the OS gate both ask it.
@@ -1050,6 +1051,13 @@ Private void sh_execute(char *command) {
     for (i = 3; i < 1024; i++)
       close(i);
 
+    /* 17 Nov 26 dm - S.62 P-1226.  The shell that SH and OS.EXECUTE start is marked as SD's child, so that sd.c refuses to
+       start a second sd inside it (the owner's rule of 15 Aug 26, carried from SD Core for Windows: somebody who shells out
+       of SD with SH must not be able to run sd again).  A GUARD, NOT A BOUNDARY: the variable is in the user's own shell and
+       the user can unset it.  Set in the CHILD, after the fork, so SD's own environment is untouched; a phantom (op_kernel.c,
+       its own environment) and the SENDMAIL and spooler commands (system()) are not marked. */
+    setenv("SD_SESSION", "1", 1);
+
     if (command[0] == '\0') /* Interactive shell */
     {
       clparse((pcfg.sh[0] != '\0') ? pcfg.sh : dflt_sh, argv, 10);
@@ -1067,6 +1075,12 @@ Private void sh_execute(char *command) {
     }
 
     execv(argv[0], argv);
+
+    /* 17 Nov 26 dm - S.62 P-1225.  execv() returns only when it failed, and the child then fell through into the PARENT's
+       code below: a second copy of the session closing the parent's pipes and waiting for itself.  127 is what os.error()
+       callers already read as "the command could not be run".  _exit, not exit: the child must not run the parent's
+       atexit handlers or flush its stdio buffers. */
+    _exit(127);
   } else if (cpid == -1) /* Error */
   {
     /* Modified by Composer AI - 2026/06/10.

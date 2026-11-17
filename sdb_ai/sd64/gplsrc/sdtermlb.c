@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1238, P-1239: tsettermtype() frees the old terminfo entry only after the new file's magic number and header have passed, so a corrupt file keeps the session's terminal type.
  * 14 Nov 26 dm  tsettermtype(): a short read of the terminal's names is ER_TI_INVHDR (it went on with the buffer as it was).
  * 24 Oct 26 dm  W.11 F9: the default terminfo directory is under sd_sysdir() (the configuration file's), not the segment's copy.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -172,9 +173,11 @@ bool tsettermtype(termname) char* termname;
     goto exit_settermtype;
   }
 
-  free_terminfo(); /* Free any old dynamic structures */
-
-  /* Read header */
+  /* Read header.  17 Nov 26 dm - S.62 P-1238, P-1239: the old entry is freed only after the magic number and the header
+     counts have been checked (as SD Core for Windows has done since 26 Aug 26).  free_terminfo() sat here, so a terminfo file
+     that existed but was corrupt or truncated left the session with no terminal capabilities at all instead of the type it
+     had.  A missing file returns above and never reached it.  An allocation failure further down still leaves tinfo half
+     built; these two checks read only into the local buffer. */
 
   if (!read_shorts(fu, buff, 6) || (LOW_MSB(buff) != TERMINFO_MAGIC)) {
     process.status = ER_TI_MAGIC; /* Magic number check failed */
@@ -192,6 +195,8 @@ bool tsettermtype(termname) char* termname;
     process.status = ER_TI_INVHDR; /* Invalid header data */
     goto exit_settermtype;
   }
+
+  free_terminfo(); /* Free any old dynamic structures */
 
   /* ---------- Allocate memory for the string table */
 

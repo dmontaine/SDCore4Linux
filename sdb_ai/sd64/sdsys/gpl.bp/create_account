@@ -17,6 +17,9 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (P-1284): a Linux user SD made that a restore takes over again (CA$REUSE.SD.USER) is taken out of every route group the
+*              request does not name (sdfilesadmin, sdfileswrite, sdfiles, sdaiusers, sdapi, sdssh; leave.route.group), as the Windows port's
+*              create_account does: the joins only added, so it kept the routes of its earlier account.
 * 2 Nov 26 dm  Follow-up (4) of PROJECT_STATUS entry (95): 11579, said after 11012 when sd-elevate sdsys-join failed, no longer speaks of master edits or tells the administrator to type
 *              a sudo command by hand: 11012 has already said what failed and its status, and 11579 says what it means (SDSYS cannot write inside the account) and that
 *              modify.account <name> sdsys-on repairs it.  No code changed.
@@ -588,6 +591,38 @@ PW.TRY.AGAIN:
          gosub join.files.group
          if route.stat # 0 then goto exit.create
       end
+* 17 Nov 26 dm - S.62 (P-1284): A LINUX USER SD MADE, TAKEN OVER AGAIN (a restore's reuse.sd.user), KEEPS NO ROUTE IT WAS NOT GIVEN NOW.
+*   The joins above only ADD, so a leftover user kept whatever memberships its earlier account had - ssh, the API, the files routes, the AI -
+*   and the new account started with routes nobody asked for.  Each route group the request does not name is left, the widest last, as the
+*   Windows port's create_account does for a reused user; a failure is reported (10081) and the account stops here, as for a join.
+      if reuse.sd.user then
+         for leave.i = 1 to 6
+            begin case
+               case leave.i = 1
+                  files.grp.name = 'sdfilesadmin'
+                  leave.it = not(files.admin.want)
+               case leave.i = 2
+                  files.grp.name = 'sdfileswrite'
+                  leave.it = not(files.write.want)
+               case leave.i = 3
+                  files.grp.name = 'sdfiles'
+                  leave.it = not(files.want)
+               case leave.i = 4
+                  files.grp.name = 'sdaiusers'
+                  leave.it = not(ai.want)
+               case leave.i = 5
+                  files.grp.name = 'sdapi'
+                  leave.it = not(access.api)
+               case 1
+                  files.grp.name = 'sdssh'
+                  leave.it = not(access.ssh)
+            end case
+            if leave.it then
+               gosub leave.route.group
+               if route.stat # 0 then goto exit.create
+            end
+         next leave.i
+      end
       begin case
          case access.ssh and access.api
             crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
@@ -769,6 +804,27 @@ check.files.group:
 join.files.group:
    os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" ":files.grp.name
    route.stat = OS.ERROR()
+   if route.stat # 0 then
+      @system.return.code = -ER$FAILED
+      err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1
+   end
+   return
+
+* ======================================================================
+* leave.route.group - take acc.uname out of files.grp.name if it is a member (17 Nov 26, S.62, P-1284).  A non-member is nothing to do;
+*   a membership that cannot be read is a failure, not a "no".  Out: route.stat (0 = done), err set on a failure.
+
+leave.route.group:
+   route.stat = 0
+   leave.member = is_grp_member(acc.uname, files.grp.name)
+   leave.told = status()                                  ;* 1 when !is_grp_member could not tell
+   if leave.told # 0 then
+      route.stat = leave.told
+   end else
+      if not(leave.member) then return
+      os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":acc.uname:" ":files.grp.name
+      route.stat = OS.ERROR()
+   end
    if route.stat # 0 then
       @system.return.code = -ER$FAILED
       err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1

@@ -7,6 +7,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1293, P-1294): the page's text no longer names an M key (gone with S.170); a model is chosen with S.
 * 8 Nov 26 dm   S.170: S is THE setup dialog, the same every time: the key (a password entry; a key already set shows as stars that keep it), the model chosen from the
 *               provider's own list (asked with the key when the dialog opens, and again as soon as a new key is taken), Other name for a model no list holds.  K and M
 *               are gone.  The key is handed to the helper by file (SET.AI KEY p HANDOVER).  The owner: "is there any way to verify the model name entry, or provide a
@@ -393,7 +394,7 @@ draw.detail:
       end
       begin case
          case pmod<r> # ''
-            lines<-1> = fmt('Model', '19L') : pmod<r> : (if pdef<r> = '' then '' else '  (yours; the default is ' : pdef<r> : '; M with a dash goes back to it)')
+            lines<-1> = fmt('Model', '19L') : pmod<r> : (if pdef<r> = '' then '' else '  (yours; the default is ' : pdef<r> : ')')      ;* 17 Nov 26, S.62 (P-1293): there is no M key since S.170
          case pdef<r> # ''
             lines<-1> = fmt('Model', '19L') : pdef<r> : '  (the default that comes with SD; press S to choose another)'
          case 1
@@ -675,7 +676,7 @@ select.provider:
       host = field(purl<pi>, '/', 3)
       if host # '' then el<-1> = 'The text they send leaves this machine for ' : host : ' over https.'
       if pmod<pi> = '' and pdef<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press S.'
-      if pmod<pi> = '' and pdef<pi> # '' then el<-1> = 'It will ask its default model, ' : pdef<pi> : ' (M names another).'
+      if pmod<pi> = '' and pdef<pi> # '' then el<-1> = 'It will ask its default model, ' : pdef<pi> : ' (S chooses another).'      ;* 17 Nov 26, S.62 (P-1294): S, the setup dialog, since S.170
       if not(pkey<pi>) then el<-1> = 'No key is set for it yet, so it cannot be used until you press S.'
       if p = 'custom' and purl<pi> = '' then el<-1> = 'Custom is not filled in yet: press C first (the helper refuses it until then).'
    end

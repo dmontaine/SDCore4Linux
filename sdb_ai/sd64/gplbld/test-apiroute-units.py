@@ -7,6 +7,12 @@
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it
 could not run.  Written 20 Sep 26 for S.29 part 3.
 
+17 Nov 26 dm  S.62 (P-1277): rows R0-R5 hold request 3's new order (every name
+              folded; account.path and acc.rec cleared before the register read;
+              no register record refused with the branch=1 audit line and 10003
+              before account.entry.check and OS$CD; no typed name in account.path),
+              with six mutants from M_S62: --selftest --from=5 runs only those.
+
 ***WHAT THIS IS AND, MORE IMPORTANTLY, WHAT IT IS NOT.***  It reads
 sdsys/gpl.bp/apisrvr as text.  ***IT DOES NOT RUN BASIC, SO IT CANNOT SAY THE
 GATE REFUSES ANYBODY*** - only that the gate is still written, still in the
@@ -128,7 +134,74 @@ def checks(src, messages=MESSAGES):
         ck(f"A9 message {num} carries the %1 the caller substitutes", "%1" in body,
            repr(body[:60]))
 
+    account_entry_checks(lines, ck)
     return out
+
+
+# --------------------------------------------------- request 3: by name only
+#
+# 17 Nov 26 dm - S.62 (P-1277, P-1278, P-1275, P-1276): request 3 (vb.account)
+# enters an account by its REGISTERED NAME only.  A name holding a '/' used to
+# be taken as a path: account.path was set to it before the register was read,
+# and the entry test then judged an acc.rec an earlier call had left.  The
+# rows below hold the new order as text; whether a path is refused is
+# netfake.py's model and a real `sd -Q` (sandbox-req29.py's login()).
+RQ3_FOLD = "new.account = downcase(cmnd)"
+RQ3_READ = "read acc.rec from acc.f, downcase(new.account)"
+RQ3_REFUSE = "if account.path = '' then"
+RQ3_AUDIT = "'account refused branch=1 no.path.in.register account=' : new.account"
+RQ3_ENTRY = "gosub account.entry.check"
+RQ3_CD = "ospath(account.path, OS$CD)"
+
+
+def account_entry_checks(lines, ck):
+    """R1-R5: request 3's order, read from the vb.account block (its label to the private catalogue)."""
+    start = find(lines, "vb.account:")
+    stop = None
+    if start is not None:
+        stop = next((n for n, ln in lines if n > start and "K$PRIVATE.CATALOGUE" in ln), None)
+    block = [(n, ln) for n, ln in lines if start is not None and stop is not None and start < n < stop]
+    ck("R0 the vb.account block is found (its label, and the private catalogue after it)", bool(block),
+       f"vb.account {start}, K$PRIVATE.CATALOGUE {stop}, {len(block)} code lines")
+    if not block:
+        return
+
+    def at(needle, cond=lambda ln: True):
+        return next((n for n, ln in block if needle in ln and cond(ln)), None)
+
+    fold = at(RQ3_FOLD)
+    old_fold = [n for n, ln in block if re.search(r"index\(new\.account,\s*@ds,\s*1\)\s*=\s*0\s+then\s+new\.account\s*=", ln)]
+    ck("R1 every name is folded: new.account = downcase(cmnd), and no 'unless it is a path' fold",
+       fold is not None and not old_fold, f"fold at {fold}, path-exempt fold at {old_fold}")
+
+    read = at(RQ3_READ)
+    clr_path = at("account.path = ''", lambda ln: re.match(r"^\s*account\.path\s*=\s*''", ln) is not None)
+    clr_rec = at("acc.rec = ''", lambda ln: re.match(r"^\s*acc\.rec\s*=\s*''", ln) is not None)
+    ck("R2 account.path = '' and acc.rec = '' are set BEFORE the register is read",
+       None not in (read, clr_path, clr_rec) and clr_path < read and clr_rec < read,
+       f"account.path '' {clr_path}, acc.rec '' {clr_rec}, read {read}")
+
+    refuse = at(RQ3_REFUSE)
+    entry = at(RQ3_ENTRY)
+    cd = at(RQ3_CD)
+    body = []
+    if refuse is not None:
+        for n, ln in block:
+            if n <= refuse:
+                continue
+            if ln.strip() == "end":
+                break
+            body.append(ln)
+    text = "\n".join(body)
+    ck("R3 a name with no register record is refused AFTER the read and BEFORE account.entry.check and OS$CD",
+       None not in (refuse, read, entry, cd) and read < refuse < entry and refuse < cd,
+       f"read {read}, refusal {refuse}, entry check {entry}, OS$CD {cd}")
+    ck("R4 the refusal audits 'account refused branch=1 no.path.in.register', answers 10003 and goes back",
+       RQ3_AUDIT in text and "kernel(K$AUDIT" in text and "sysmsg(10003)" in text and "goto revert.to.old.account" in text,
+       repr(text[:160]))
+    typed = [n for n, ln in block if re.match(r"^\s*account\.path\s*=\s*(new\.account|cmnd)\b", ln)]
+    ck("R5 no line gives account.path the typed name (it is set only from a register record)", not typed,
+       f"assignments at {typed}")
 
 
 # --------------------------------------------------------------- self-test
@@ -150,6 +223,42 @@ MUTANTS = [
     ("the gate moves below K$SET.USERNAME",
      lambda s: _move_gate_after_identity(s)),
 ]
+
+# 17 Nov 26 dm - S.62: request 3 by name only.  --selftest --from=5 runs these alone.
+M_S62 = len(MUTANTS)
+MUTANTS += [
+    ("S.62: a path is not folded again",
+     lambda s: s.replace("new.account = downcase(cmnd)\n",
+                         "new.account = cmnd\nif index(new.account, @ds, 1) = 0 then new.account = downcase(new.account)\n")),
+    ("S.62: acc.rec is not cleared before the read",
+     lambda s: s.replace("\nacc.rec = ''            ;*", "\n* acc.rec = ''          ;*")),
+    ("S.62: the typed name goes back into account.path",
+     lambda s: s.replace("\naccount.path = ''       ;*", "\naccount.path = new.account       ;*")),
+    ("S.62: the refusal moves below account.entry.check",
+     lambda s: _move_refusal_after_entry(s)),
+    ("S.62: the refusal writes no audit line",
+     lambda s: s.replace("   void kernel(K$AUDIT, " + RQ3_AUDIT + ")", "*  no audit")),
+    ("S.62: the refusal answers another message",
+     lambda s: s.replace("   error.msg = sysmsg(10003) ;* User not allowed in requested account\n   abort.message = error.msg",
+                         "   error.msg = sysmsg(5037) ;* Invalid account name\n   abort.message = error.msg")),
+]
+
+
+def _move_refusal_after_entry(src):
+    """Move the 'no register record' refusal (its if to its end) to just after the account.entry.check line."""
+    lines = src.splitlines(keepends=True)
+    start = next((i for i, ln in enumerate(lines) if ln.strip() == RQ3_REFUSE), None)
+    if start is None:
+        return src
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == "end"), None)
+    if end is None:
+        return src
+    block = lines[start:end + 1]
+    rest = lines[:start] + lines[end + 1:]
+    at = next((i for i, ln in enumerate(rest) if RQ3_ENTRY in ln and i > start), None)
+    if at is None:
+        return src
+    return "".join(rest[:at + 1] + block + rest[at + 1:])
 
 
 def _move_gate_after_identity(src):
@@ -175,8 +284,10 @@ def _move_gate_after_identity(src):
     return "".join(rest[:at + 1] + block + rest[at + 1:])
 
 
-def selftest(src):
+def selftest(src, first=0):
     print("--- self-test: each mutation must be CAUGHT by at least one check ---")
+    if first:
+        print(f"    (--from={first}: mutants {first} to {len(MUTANTS) - 1} only)")
     base = checks(src)
     base_bad = [n for n, ok, _ in base if not ok]
     if base_bad:
@@ -184,7 +295,11 @@ def selftest(src):
               file=sys.stderr)
         return 2
     holes = 0
-    for name, fn in MUTANTS:
+    chosen = MUTANTS[first:]
+    if not chosen:
+        print(f"REFUSING - --from={first} selects no mutant (there are {len(MUTANTS)})", file=sys.stderr)
+        return 2
+    for name, fn in chosen:
         mutated = fn(src)
         if mutated == src:
             print(f"  [FAIL] {name}: the mutation did not change the file "
@@ -197,7 +312,7 @@ def selftest(src):
         else:
             print(f"  [FAIL] {name}: NOT CAUGHT by any check")
             holes += 1
-    print(f"\n{len(MUTANTS) - holes} of {len(MUTANTS)} mutants caught")
+    print(f"\n{len(chosen) - holes} of {len(chosen)} mutants caught")
     return 1 if holes else 0
 
 
@@ -212,7 +327,15 @@ def main(argv):
     print(f"messages {MESSAGES}\n")
 
     if "--selftest" in argv:
-        return selftest(src)
+        first = 0
+        for a in argv:
+            if a.startswith("--from="):
+                try:
+                    first = int(a[7:])
+                except ValueError:
+                    print(f"REFUSING - {a} is not a number", file=sys.stderr)
+                    return 2
+        return selftest(src, first)
 
     rows = checks(src)
     failed = 0

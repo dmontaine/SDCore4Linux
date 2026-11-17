@@ -495,7 +495,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 59
+"words": 83
 },
 "basic:func:fcontrol.int": {
 "kind": "basic.internal",
@@ -2665,7 +2665,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 26
+"words": 34
 },
 "basic:stmt:inputcsv": {
 "kind": "basic.statement",
@@ -2693,7 +2693,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 26
+"words": 34
 },
 "basic:stmt:inputnull": {
 "kind": "basic.statement",
@@ -2938,14 +2938,14 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 37
+"words": 47
 },
 "basic:stmt:openpath": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 35
 },
 "basic:stmt:openseq": {
 "kind": "basic.statement",
@@ -3911,7 +3911,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 261
+"words": 271
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -13754,6 +13754,13 @@
 "since": "-",
 "tier": "reference",
 "words": 6
+},
+"msg:14140": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 8
 },
 "msg:1415": {
 "kind": "message",
@@ -29139,7 +29146,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 116
+"words": 167
 },
 "tcl:tool.files": {
 "kind": "tcl.verb",
@@ -29209,7 +29216,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 102
+"words": 103
 },
 "tcl:top.margin": {
 "kind": "tcl.keyword",

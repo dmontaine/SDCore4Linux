@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm S.62 (P-1280, P-1283, P-1282): LOGTO takes a registered account name only.  A name the register lacked was taken as a
+*              pathname (the administrator could enter any directory holding a voc); it is now refused with 10003 and audited
+*              'logto refused ... reason=not in the register', the Windows port's behaviour since 13 Aug 26.  LOGTO SDSYS is unchanged.
+* 17 Nov 26 dm S.62 (P-1281): the F1 help at the command prompt leaves the key loop, so the prompt is drawn again (Windows RELEASE_1.1 108).
 * 15 Nov 26 dm Owner decision (Windows' RELEASE_1.1 310): LOGTO SDSYS is taken by the administrator's session (K$ADMINISTRATOR), so it can come back
 *              from a user's account without signing out; every other session is refused as before (10002).
 * 14 Nov 26 dm Compiler warnings: privileged_commands is built under $ifndef IS_INSTALL, as its one reader is; kept exists.x (a READV that tests the
@@ -1296,6 +1300,10 @@ get.command.line:
             case n = K$F1 and at.command = ''
                s = ''
                gosub f1.help
+* 17 Nov 26 dm - S.62 (P-1281): the message leaves the cursor on a line of its own and this loop does not know it, so nothing
+*   redrew the prompt and the cursor hung (the Windows port's RELEASE_1.1 108).  Leaving the inner loop runs the prompt again,
+*   as Ctrl-G and the Up and Down keys do.
+               exit
             case n >= 32
                if command.overlay then
                   if x <= len(at.command) then at.command[x, 1] = c
@@ -2962,15 +2970,13 @@ int.logto:
 
 * 18 Oct 26 dm - S.66: clear the record first.  A failed openpath of the register would otherwise leave the PREVIOUS LOGTO's record in the
 *   variable, and the account-scoped gates below are read from it.
+   acc.rec = ''
    acc.record = ''
    openpath @sdsys:@ds:'accounts' to acc.f then
 *      readv acc.rec from acc.f, upcase(new.account), ACC$PATH then
       read acc.record from acc.f, downcase(new.account) then
          acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
          new.account = downcase(new.account)
-      end else
-         acc.rec = new.account
-         new.account = ''
       end
       close acc.f
    end
@@ -2979,9 +2985,22 @@ int.logto:
       new.account = 'sdsys'
    end
 
-   * new.account contains the account name, null if attaching by path
+   * new.account contains the account name
    * acc.rec contains the pathname of the account (other fields removed)
-   * acc.record contains the full ACCOUNT record 
+   * acc.record contains the full ACCOUNT record
+
+* 17 Nov 26 dm - S.62 (P-1280, P-1283, P-1282): LOGTO TAKES A REGISTERED ACCOUNT NAME AND NOTHING ELSE.  A name the register
+*   lacks used to be taken as a pathname to change directory to, which let the administrator enter any directory holding a voc
+*   without the register (anyone else then failed the group test below on an empty record).  The Windows port refused it from
+*   13 Aug 26; the tighter behaviour is kept (a conflict from before 13 Oct 26).  The refusal is the one an ungranted account
+*   gives, so the register cannot be probed; the trail says why.  LOGTO SDSYS (into.sdsys, above) is unchanged.
+   if acc.rec = '' then
+      display sysmsg(10003) ;* User not allowed in requested account
+      void kernel(K$AUDIT, 'logto refused account=' : downcase(new.account) : ' reason=not in the register')
+      if ospath(account.path, OS$CD) then return
+      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
+      return to abort.cproc
+   end
 
 * rev 0.9.0 * is user member of account?
 * 09 Sep 26 dm - PRE_RELEASE 20.  AN ADMINISTRATOR PASSES THIS GATE EXPLICITLY
@@ -3072,11 +3091,7 @@ int.logto:
    i = ospath("", os$flush.cache)
    account.path = ospath("", os$cwd)     ;* @PATH
 
-   if new.account = '' then
-      new.account = downcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
-   end
-
-   who = new.account
+   who = new.account                     ;* 17 Nov 26, S.62: always the registered name (no LOGTO by path)
    void kernel(K$SET.ACCOUNT, who)   ;* 14 Oct 26 - the user table's account (LISTU, sheet 24 and 29)
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 

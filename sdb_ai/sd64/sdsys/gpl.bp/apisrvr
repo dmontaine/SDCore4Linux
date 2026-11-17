@@ -19,6 +19,11 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1277, P-1278, P-1275, P-1276): request 3 (SDLogto / the login's account) enters an account by its registered NAME only.
+*               A name holding a '/' was taken as a path, entered without a register read and judged on a stale acc.rec, so a suspended
+*               account could be entered by its path, and so could any directory holding a voc.  Every name is folded, acc.rec is cleared
+*               before the read, and no register record is refused with 10003 and audited 'account refused branch=1 no.path.in.register',
+*               the Windows port's tighter behaviour since 13 Aug 26.
 * 16 Nov 26 dm  S.256: remote administration through the API.  SDSYS from another computer is admitted only when the root-owned setting
 *               (remote.sdsys api on ADDR ...) lists the client's address (14116 names an unlisted one); from this machine the peer's LOGIN must
 *               be sdsys's too (system(44), 10195).  An admitted SDSYS session is the administrator, given after the identity and audited.
@@ -671,7 +676,7 @@ return
 
 * ======================================================================
 * SrvrAccount  -  Logto named account
-* In:  account name or path
+* In:  account name (a registered name; a path is refused, 17 Nov 26)
 
 vb.account:
 * Run the ON.LOGTO paragraph, if it exists
@@ -682,10 +687,13 @@ then execute 'ON.LOGTO' trapping aborts capturing response
 * 14 Sep 26 dm - LOWER CASE, GOING PAST THE PORT, which upcases (plan M: no
 *   account name exists in two casings).  WHO is set from this at the end, so
 *   an upcase here showed ZZREL1 over the API where CPROC's LOGTO shows zzrel1.
-*   A PATH is left as typed - a Linux path is case-sensitive, and upcasing one
-*   could only ever have missed it.
-new.account = cmnd
-if index(new.account, @ds, 1) = 0 then new.account = downcase(new.account)
+* 17 Nov 26 dm - S.62 (P-1277, P-1278, P-1275, P-1276): AN ACCOUNT IS ENTERED BY ITS REGISTERED NAME ONLY.  A name holding
+*   a '/' used to be taken as a PATH: account.path was set to it before the register was read, the register was not read
+*   for it, and the entry test then judged whatever acc.rec an earlier call had left, so a suspended account could be
+*   entered by its path and so could any directory holding a voc.  The Windows port refused this from 13 Aug 26; the
+*   tighter behaviour is kept (a conflict from before 13 Oct 26).  Every name is folded; one with no register record
+*   (a path never has one) is refused with 10003 and audited as branch=1, as the Windows port does.
+new.account = downcase(cmnd)
 
 old.account.path = account.path
 
@@ -695,13 +703,14 @@ if len(new.account) < 1 or len(new.account) > MAX.ACCOUNT.NAME.LEN then
    goto revert.to.old.account
 end
 
-account.path = new.account
+account.path = ''       ;* 17 Nov 26, S.62: set only from a register record (below); '' is refused
+acc.rec = ''            ;* 17 Nov 26, S.62: never judge entry on a record an earlier call read
 acc.suspended = @false
 * 13 Oct 26 dm - S.63 (owner, second sitting: "api should read switches").  The account's SH and OS.EXECUTE
 *   switches are read here from its register record, as LOGIN reads them at sign-on and CPROC's LOGTO
 *   reloads them, and are set only once the account has been entered (below), so a refusal or a revert
 *   leaves the previous account's switches with the previous account.  FAIL CLOSED: both start off for
-*   every call, and an account named by a path, or with no record, keeps them off.  Before this an API
+*   every call, and an account with no record is refused (17 Nov 26, S.62).  Before this an API
 *   session never held either switch, so an account given sh-on or os-on had neither over the API.
 api.sh.grant = @false
 api.os.grant = @false
@@ -729,6 +738,16 @@ if index(new.account, @ds, 1) = 0 then
       end
       close acc.f
    end
+end
+
+* 17 Nov 26 dm - S.62: no register record (no such account, a name given as a path, an unreadable register) is refused here,
+*   before anything is entered; the caller sees 10003, as for every refusal of this routine, and the trail names the branch.
+if account.path = '' then
+   void kernel(K$AUDIT, 'account refused branch=1 no.path.in.register account=' : new.account)
+   server.error = SV$ERROR
+   error.msg = sysmsg(10003) ;* User not allowed in requested account
+   abort.message = error.msg
+   goto revert.to.old.account
 end
 
 * 17 Oct 26 dm - S.64 part 2: SDSYS is the administrator everywhere else (USR_ADMIN passes every edit test), but an API session carries no

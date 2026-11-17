@@ -18,6 +18,8 @@
 * 
 *  
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1258, P-1286, P-1287, P-1288): a directory-file record whose file is there under a name SD's id encoding cannot
+*               produce (a bare '%') is reported "'id' invalid name" (14140) and not "not found", as the Windows port has done since 2 Sep 26.
 * 14 Nov 26 dm  Compiler warnings: removed the unused assignments to bp.data.conv, json.count and sorted.sample.done; kept s.pos (LOCATE needs its SETTING variable).
 * 03 Nov 26 dm  Opus 10c: SELECT / LIST / COUNT ... BY end with the record id as the last ascending key, as SORT always had it, so equal keys come out in id order and not in the order the file gave them; not with SAVING UNIQUE (its last key must stay the one made unique).
 * 31 Oct 26 dm  The A and S dictionary item types are gone: such an item is 'unexpected type' (7275) like a C one, and an index made from one is never used, so a query on its field scans.
@@ -242,6 +244,7 @@ $define MAX.STRINGS    100          ;* For SEARCH command (was 20 until STRINGS 
    sampling = @false             ;* Process every n'th record...
    sample.interval = 1           ;* ...for this value of n
    not.found.list = ''           ;* Record not found
+   invalid.name.list = ''        ;* Record's file is there under a name SD cannot produce (17 Nov 26, S.62)
 
    absent.null = @false          ;* ABSENT.NULL keyword
    locking = @false              ;* LOCKING keyword
@@ -2369,6 +2372,15 @@ done:
          printline =  "'" : remove(not.found.list, not.found.delim) : "' not found"
          if qdisp(QD$EMIT, printline, 'X') then goto qdisp.error
       while not.found.delim
+      repeat
+   end
+
+* 17 Nov 26 dm - S.62: see record.not.found.  Reported apart from the list above: the file IS there and its name is the problem.
+   if (list.command or count.command or reformat.command) and len(invalid.name.list) then
+      loop
+         printline = sysmsg(14140, remove(invalid.name.list, invalid.name.delim)) ;* '%1' invalid name
+         if qdisp(QD$EMIT, printline, 'X') then goto qdisp.error
+      while invalid.name.delim
       repeat
    end
 
@@ -7658,8 +7670,26 @@ record.not.found:
       goto exit.qproc
    end
 
-   locate id in not.found.list<1> setting i else
-      not.found.list<-1> = id
+* 17 Nov 26 dm - S.62 (P-1258, P-1286, P-1287, P-1288): TELL "THE RECORD IS NOT THERE" APART FROM "THE FILE IS THERE UNDER A
+*   NAME SD CANNOT PRODUCE" (the Windows port's PRE_RELEASE_FIXES 128, 2 Sep 26; not an OS matter).  A directory file stores
+*   ids as file names with the restricted characters escaped, and '%' is itself one (it encodes to %P), so a file dropped
+*   in from outside with a bare '%' in its name is listed but cannot be read back, and "not found" is the wrong answer
+*   for a file the user can see.  The file system is asked whether a file of exactly this id is in the directory; only
+*   on this failure path, and only for an id that names an entry of the directory itself (no '/', not . or ..), so the
+*   question can never reach a file outside it.
+   inv.name = @false
+   if is.dir and id # '' and index(id, @ds, 1) = 0 and id # '.' and id # '..' then
+      if ospath(fileinfo(data.f, FL$PATH) : @ds : id, OS$EXISTS) then inv.name = @true
+   end
+
+   if inv.name then
+      locate id in invalid.name.list<1> setting i else
+         invalid.name.list<-1> = id
+      end
+   end else
+      locate id in not.found.list<1> setting i else
+         not.found.list<-1> = id
+      end
    end
 
    return

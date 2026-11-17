@@ -14,6 +14,8 @@
 #
 # START-HISTORY:
 # 14 Oct 26 dm  Written for 1.2-0 bundles A-7, A-9, A-10 and A-11: sheet 449, 146, 296, 396, 490, 268 and 320.
+# 17 Nov 26 dm  S.62 (P-1280): LOGTO takes a registered account name only, so section D's second account gets a register
+#               record and is entered as LOGTO zzacct2 (it was LOGTO <path>, now refused); a WHO after it is the control.
 # END-HISTORY
 #
 # THE INSTRUMENT.  Every session is the real bin/sd with its commands on stdin, run in the SDSYS account as the
@@ -188,6 +190,10 @@ def main():
     out = sd(["BASIC bp zzfix", "RUN bp zzfix"], internal=True)
     if not has(out, r"^FIX done$"):
         bail("the second account was not built:\n" + "\n".join(out[-6:]))
+    # 17 Nov 26 (S.62, P-1280): LOGTO takes a registered account name only, so the account is registered (a register record
+    # written by hand, as sandbox-gates.py writes them: the path, and the sandbox user's own group) and entered by its name
+    group = subprocess.run(["id", "-gn"], capture_output=True, text=True).stdout.strip()
+    put(os.path.join(SYS, "accounts", "zzacct2"), "\n".join([acct2, "", group]) + "\n")
     put(os.path.join(SYS, "bp", "zzfix2"), "   write 'X' to @voc, '$command.stack'\n   crt 'FIX2 done'\nend\n")
     out = sd(["BASIC bp zzfix2", "RUN bp zzfix2"])
     if not has(out, r"^FIX2 done$"):
@@ -300,14 +306,16 @@ def main():
     stacks = os.path.join(SYS, "stacks")
     shutil.rmtree(stacks, ignore_errors=True)
     shutil.rmtree(os.path.join(acct2, "stacks"), ignore_errors=True)
-    out = sd(["WHO", "LOGTO " + acct2, "DATE"])
+    out = sd(["WHO", "LOGTO zzacct2", "WHO", "DATE"])
+    row("CONTROL: the LOGTO entered the account: WHO after it names zzacct2, and nothing was refused",
+        has(out, r"zzacct2") and not has(out, r"User not allowed in requested account"), repr(out[-6:]))
     mine = os.path.join(stacks, USER)
     got = open(mine, encoding="latin-1").read() if os.path.isfile(mine) else None
     row("the stack is in the entry account's stacks directory, under the user's name: %s" % os.path.relpath(mine, BOX),
         got is not None and "WHO" in got and "DATE" in got, repr(got))
     parts = got.split("\n") if got is not None else []
-    row("... and it holds the commands typed AFTER the LOGTO as well as before it (most recent first: OFF, DATE, LOGTO, WHO)",
-        parts[:4] == ["OFF", "DATE", "LOGTO " + acct2, "WHO"], repr(got))
+    row("... and it holds the commands typed AFTER the LOGTO as well as before it (most recent first: OFF, DATE, WHO, LOGTO, WHO)",
+        parts[:5] == ["OFF", "DATE", "WHO", "LOGTO zzacct2", "WHO"], repr(got))
     row("CONTROL: nothing was written to the stacks directory of the account that was LOGTO'd to", not os.path.exists(os.path.join(acct2, "stacks")),
         repr(os.listdir(acct2)))
 

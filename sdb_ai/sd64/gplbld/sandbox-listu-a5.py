@@ -12,6 +12,9 @@
 #
 # START-HISTORY:
 # 14 Oct 26 dm  Written for 1.2-0 bundle A-5, sheet 24, 29, 38, 491 and 577.
+# 17 Nov 26 dm  S.62 (P-1280): the administrator's LOGTO to an account's directory by PATH is now refused (10003, audit
+#               'logto refused account=<path> reason=not in the register'); the row expects that, and a control row shows
+#               the administrator's LOGTO by the registered name still works and audits no refusal.
 # END-HISTORY
 #
 # THE INSTRUMENT.  Sessions are real: bin/sd with a pipe on stdin.  A "foreign" user is a live session that renames itself
@@ -147,6 +150,21 @@ def has(lines, pattern):
 def put(path, text):
     with open(path, "w", encoding="ascii") as f:
         f.write(text)
+
+
+def audit_off():
+    """The audit file's length now (the kernel appends and never creates it, and a sandbox has no audit daemon)."""
+    path = os.path.join(SYS, "audit")
+    if not os.path.exists(path):
+        open(path, "a").close()
+    return os.path.getsize(path)
+
+
+def audit_new(off):
+    """The audit lines written since audit_off() answered off."""
+    with open(os.path.join(SYS, "audit"), "rb") as f:
+        f.seek(off)
+        return f.read().decode("utf-8", "replace").splitlines()
 
 
 def tagged(text, tag):
@@ -368,9 +386,24 @@ def main():
         row("CONTROL: LOGTO to a path is refused for an ordinary user, and the user table still says zzaa",
             has(out, r"User not allowed in requested account") and has(out, r"^MY\[\d+\]\[zzaa\]$")
             and len(by_name(lu_rows(out), USER)) == 1 and by_name(lu_rows(out), USER)[0][2] == "zzaa", repr(out[-5:]))
-        out = adm(["LOGTO " + os.path.join(BOX, "user_accounts", "zzbb"), "RUN bp zzluu"])
-        row("24: ... and for the administrator it is allowed, and the table says the name of the path's last directory (as @WHO does): zzbb",
-            has(out, r"^MY\[\d+\]\[zzbb\]$") and len(by_name(lu_rows(out), USER)) == 1 and by_name(lu_rows(out), USER)[0][2] == "zzbb", repr(out[-5:]))
+        # 17 Nov 26 (S.62, P-1280): LOGTO takes a registered account name only, the administrator's included; a path has no
+        # register record and is refused with 10003 and an audit line.  The administrator's LOGTO by the NAME is the control.
+        zzbb_path = os.path.join(BOX, "user_accounts", "zzbb")
+        off = audit_off()
+        out = adm(["LOGTO " + zzbb_path, "RUN bp zzluu"])
+        aud = audit_new(off)
+        row("24: ... and for the administrator too: LOGTO to a path is refused (10003) and the user table still says sdsys",
+            has(out, r"User not allowed in requested account") and has(out, r"^MY\[\d+\]\[sdsys\]$")
+            and len(by_name(lu_rows(out), USER)) == 1 and by_name(lu_rows(out), USER)[0][2] == "sdsys", repr(out[-5:]))
+        want = "logto refused account=%s reason=not in the register" % zzbb_path.lower()
+        row("24: ... and the audit trail says why: '%s'" % want, any(want in ln for ln in aud), repr(aud[-3:]))
+        off = audit_off()
+        out = adm(["LOGTO zzbb", "RUN bp zzluu"])
+        aud = audit_new(off)
+        row("CONTROL: the administrator's LOGTO by the registered name zzbb is allowed, and the table says zzbb",
+            not has(out, r"User not allowed in requested account") and has(out, r"^MY\[\d+\]\[zzbb\]$")
+            and len(by_name(lu_rows(out), USER)) == 1 and by_name(lu_rows(out), USER)[0][2] == "zzbb", repr(out[-5:]))
+        row("CONTROL: ... and writes no refusal to the audit trail", not any("logto refused" in ln for ln in aud), repr(aud[-3:]))
 
         out = plain("zzaa", ["zzluset"])
         row("24: kernel(K$USERS) carries the account as value 9: it is what LOGIN set (zzaa)",

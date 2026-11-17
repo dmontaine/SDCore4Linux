@@ -236,10 +236,10 @@ cited by: `delacc`, `modifya`
 cited by: `modifya`
 
 ### msg:10024
-> kind=message tier=reference since=- src=sdsys/messages/10024:1#587d66a0
+> kind=message tier=reference since=- src=sdsys/messages/10024:1#ee8e88de
 
 ```
-%1 is not a valid Linux Group
+%1 is not a valid Linux group
 ```
 
 cited by: `modifya`
@@ -11068,6 +11068,15 @@ cited by: `removeexamples`
 ```
 Error %d selecting records
 ```
+
+### msg:14140
+> kind=message tier=reference since=- src=sdsys/messages/14140:1#c35ec60e
+
+```
+'%1' invalid name
+```
+
+cited by: `qproc`
 
 ### msg:1415
 > kind=message tier=reference since=- src=sdsys/messages/1415:1#0b6a0adb

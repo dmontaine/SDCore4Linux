@@ -11,6 +11,8 @@
 # (shared memory keys 0x53434c91/92): stop it afterwards with sandbox-fromtree.py <dir> stop.
 #
 # START-HISTORY:
+# 17 Nov 26 dm  S.62 (P-1226, P-1228): rows B3 - SH sd --version in an SH-yes account is refused ("SD is already running in this
+#               session"), with two controls (sd --version outside SD answers; SH echo still runs and sees SD_SESSION=1).
 # 28 Oct 26 dm  Section E2 (one row, WRITTEN, NOT RUN): SED's PATH: form opens the name K$PATH.OK was asked about and no other.  CORRECTED (L2 review): since S.87 the
 #               branch's final OPEN never succeeds, so the row now shows what a screen can: refused with the gate off, "File not found" with it on.
 # 27 Oct 26 dm  S.87 batch 3: the OPENTEMP rows no longer write ECS (a word that was read and ignored; it is refused now).
@@ -389,6 +391,19 @@ def main():
     out = sd(os.path.join(BOX, "user_accounts", "zzoff"), ["SH touch " + sent], admin=True, account="zzoff")
     row("B: control - an administrator in zzoff is not refused (the gate does not bind SDSYS)", os.path.exists(sent),
         "output=%r" % (out[-3:],))
+    # 17 Nov 26 (S.62, P-1226 / P-1228): the shell SH starts carries SD_SESSION=1, and sd refuses to start inside it (one SD per
+    # session, the owner's rule carried from SD Core for Windows).  zzsh has SH yes.  The control outside SD shows the binary answers
+    # --version; the in-shell control shows SH still runs an ordinary command and that the variable is what the shell was given.
+    direct = subprocess.run([SD, "--version"], capture_output=True, text=True, errors="replace", timeout=60, env=env(False))
+    row("B3: CONTROL - outside SD, the sandbox's sd --version answers with its version line",
+        "Version" in direct.stdout + direct.stderr and "already running" not in direct.stdout + direct.stderr,
+        "output=%r" % ((direct.stdout + direct.stderr)[-200:],))
+    out = plain("zzsh", ["SH " + SD + " --version", "SH echo zzb3ok", "SH printenv SD_SESSION"])
+    row("B3: zzsh (SH yes), SH sd --version: sd refuses to start inside SD's shell ('SD is already running in this session') and prints no version",
+        has(out, r"^SD is already running in this session - type exit to return to it\.$") and not has(out, r"Version L"),
+        "output=%r" % (out[-5:],))
+    row("B3: CONTROL - in the same session SH echo still runs, and the shell was given SD_SESSION=1 (printenv)",
+        has(out, r"^zzb3ok$") and has(out, r"^1$"), "output=%r" % (out[-5:],))
     # 7 Nov 26 (S.156): SH with NO command is the interactive shell.  !valid_shell_cmd refused an empty command, so a bare SH printed
     # "Error 2 executing operating system command" for every account (found on an RC1 container install).  Driven on a pseudo-terminal:
     # through a pipe SD may read ahead the lines meant for the shell.  The evidence is a file the SHELL made from a typed line.

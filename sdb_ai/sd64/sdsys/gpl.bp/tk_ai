@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1289, P-1291, P-1292): an answer of spaces and line feeds only is an empty answer, a line of spaces is an empty line, and an
+*               empty answer still gives the popup one line, as the Windows port's tk_ai does.
 * 15 Nov 26 dm  Windows row 303: read.status keeps which test failed in ai.why (at the END of /tkai/), 'gate' or 'setup', and the op 'why' gives it back, so that HOME can say
 *               "not set up on this computer" instead of blaming the account when no provider, model or key is set.
 * 14 Nov 26 dm  Compiler warning: removed the unused assignments to cx.from (the standing text's 'context-from', read and never used).
@@ -759,6 +761,7 @@ run.ask:
    n.para = dcount(say, char(10))
    for pa = 1 to n.para
       para = field(say, char(10), pa)
+      if trim(para) = '' then para = ''                  ;* 17 Nov 26, S.62 (P-1291): a line of spaces is an empty line, as the Windows port has it
       if para = '' then
          body<-1> = ''
       end else
@@ -768,6 +771,7 @@ run.ask:
          next p
       end
    next pa
+   if body = '' then body<-1> = ' '                       ;* 17 Nov 26, S.62 (P-1289): an empty answer still gives the box one line, as the Windows port has it
    if note.p # '' then
       body<-1> = ''
       body<-1> = note.p
@@ -919,7 +923,7 @@ read.proposal:
    raw = obj{'say'}
    gosub clean.nl
    say = clean.out[1, 65536]
-   if say = '' then say = ' '
+   if trim(say) = '' then say = ' '                      ;* 17 Nov 26, S.62 (P-1292): an answer of spaces and line feeds only is an empty answer
    act = trim(obj{'action'})
    if act # '' and downcase(act) # 'none' then
       found = 0

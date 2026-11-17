@@ -1,13 +1,14 @@
 # SD Core for Linux — source tree
 
-The source of SD Core for Linux, the multivalue String Database built to behave
-the same as SD Core for Windows. The repository's top-level `README.md`
-describes the product and how to install it.
+The source of SD Core for Linux, the multivalue String Database. It is the
+version the other SD Core versions (Windows, and the single-user Solo editions)
+follow. The repository's top-level `README.md` describes the product and how to
+install it.
 
 SD is a multivalue database in the Pr1me Information tradition. It contains open
 source code from OpenQM and ScarletDME, code written by the SD developers after
 their fork from ScarletDME ([sdb64](https://codeberg.org/stringdatabase/sdb64)),
-and the changes made in this project to match SD Core for Windows.
+and the changes made in this project.
 
 The tree contains no binaries. `installsdcore.sh` clones it and builds everything
 from source during the install.

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1227, P-1228: sd refuses to start inside a shell SD started (SD_SESSION, op_sh.c); -D, -M, -SUSPEND and -RESUME take check_admin(); -TERM's value is bounded.
  * 15 Nov 26 dm  S.242 stage 3: main() calls xfer_detect() first; an sftp request sshd sent here is the file transfer server (sd_sftp.c).
  * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
  * 08 Nov 26 dm  S.177: -stop and -restart call stop_sd_ex(TRUE), which ends with SIGKILL what is still attached after the wait.
@@ -324,6 +325,16 @@ Private bool comlin(int argc, char *argv[]) {
   int RxPipe;
   int TxPipe;
 
+  /* 17 Nov 26 dm - S.62 P-1228.  ONE SD PER SESSION, the owner's rule of 15 Aug 26 carried from SD Core for Windows: somebody
+     who shells out of SD with SH must not be able to start a second one.  op_sh.c marks the shell that SH and OS.EXECUTE start
+     with SD_SESSION; seen here, before any option is read, every form of the command is refused (as on Windows), -status and
+     --version included.  A guard, not a boundary: the user can unset the variable in that shell.  The file transfer server
+     (xfer_detect(), called before this) is started by sshd and never runs inside such a shell. */
+  if (getenv("SD_SESSION") != NULL) {
+    fprintf(stderr, "SD is already running in this session - type exit to return to it.\n");
+    exit(1);
+  }
+
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
     if (!stricmp(argv[arg], "-CLEANUP")) {
       cleanup();
@@ -375,8 +386,14 @@ Private bool comlin(int argc, char *argv[]) {
     } else if (!stricmp(argv[arg], "-QUIET")) {
       command_options |= CMD_QUIET;
     } else if (!stricmp(argv[arg], "-TERM")) {
-      if (++arg < argc)
+      if (++arg < argc) {
+        /* 17 Nov 26 dm - S.62: bounded; an unbounded strcpy into the 32 + 1 byte term_type overran struct tio. */
+        if (strlen(argv[arg]) > sizeof(tio.term_type) - 1) {
+          fprintf(stderr, "sd: the terminal type is longer than %d characters\n", (int)(sizeof(tio.term_type) - 1));
+          exit(1);
+        }
         strcpy(tio.term_type, argv[arg]);
+      }
     } else if (!stricmp(argv[arg], "-I")) {    
 /* 20240702 mab Bootstrap build arg must be exactly "-I" */		  
         /* Bootstrap Install*/
@@ -405,6 +422,11 @@ Private bool comlin(int argc, char *argv[]) {
           break;
 
         case 'D': /* Diagnostic report */
+          /* 17 Nov 26 dm - S.62 P-1227: -D, -M, -SUSPEND and -RESUME take check_admin(), as on SD Core for Windows since
+             15 Aug 26: the dumps show every session and the configuration, and -SUSPEND stopped every update on the system
+             for any member of sdusers.  -CLEANUP and -U are NOT gated: SDSYS (not root) is told to run "sd -cleanup", and
+             "sd -u" is documented for every user; gating them is left to the owner (S.62). */
+          check_admin();
           dump_sysseg(TRUE);
           exit(0);
 
@@ -421,6 +443,7 @@ Private bool comlin(int argc, char *argv[]) {
           exit(1);
 
         case 'M': /* Dump memory */
+          check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
           dump_sysseg(FALSE);
           exit(0);
 
@@ -459,6 +482,7 @@ Private bool comlin(int argc, char *argv[]) {
 
         case 'R':
           if (!stricmp(argv[arg], "-RESUME")) {
+            check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
             suspend_resume(FALSE);
             exit(0);
           }
@@ -476,6 +500,7 @@ Private bool comlin(int argc, char *argv[]) {
 
         case 'S':
           if (!stricmp(argv[arg], "-SUSPEND")) {
+            check_admin(); /* 17 Nov 26 dm - S.62 P-1227, see -D */
             suspend_resume(TRUE);
             exit(0);
           }
