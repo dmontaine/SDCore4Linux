@@ -1159,6 +1159,19 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
 #   $PROBE_PUB, not $SPROBE: the repository lives under a home directory the
 #   target users cannot read.
 PROBE_PUB=/var/tmp/sd-witness-scram-probe.py
+# 17 Nov 26 (S.256): the local door admits sdsys only from a REAL sdsys login - the peer's login uid (system(44)) must be sdsys - so `sudo -u sdsys`, whose login
+#   uid is the caller's, is refused (10195).  A real login is made here with PAM's own login stack: systemd-run -p PAMName=login runs pam_loginuid, which sets the
+#   process's login uid to sdsys exactly as a console login does.  Only root can do this; the witness runs as root.
+sprobe_login_as() {   # $1 user, $2 title, $3 password, then scram-probe arguments: the probe in a PAM login session of $1
+    say "  --- scram-probe in a PAM login of $1: $2 ---" >&2
+    say "      > systemd-run --uid=$1 -p PAMName=login --pipe --wait python3 $PROBE_PUB ${*:4}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(timeout 90 systemd-run --quiet --uid="$1" -p PAMName=login --pipe --wait --collect -E SD_SCRAM_PASSWORD="$3" \
+              -E HOME="$(getent passwd "$1" | cut -d: -f6)" sh -c 'echo "loginuid=$(cat /proc/self/loginuid)"; exec python3 "$0" "$@"' "$PROBE_PUB" "${@:4}" 2>&1 < /dev/null)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
 sprobe_as() {   # $1 run-as user, $2 title, $3 password, then scram-probe arguments
     say "  --- scram-probe as $1: $2 ---" >&2
     say "      > sudo -u $1 python3 $PROBE_PUB ${*:4}" >&2
@@ -1387,7 +1400,7 @@ say "  this host's first global IPv4 address: '${LANIP:-none}'"
 say "  TCP listeners on 4247: '${LISTEN:-none}'"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
-    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c sudo -u sdsys refused 10195" "E3c2 not logged in" "E3f0 login uid sdsys" "E3f real sdsys login admitted" "E3f2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
 else
     OUT=$(sprobe "E1 CONTROL: $ACC over the LAN address" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
     E1OK=no
@@ -1398,7 +1411,7 @@ else
     fi
     if [ "$COMMIT" -eq 1 ] && [ "$E1OK" != yes ]; then
         say "  the control failed, so the route over $LANIP does not work here (listeners: ${LISTEN:-none}) - the gate cannot be measured"
-        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c sudo -u sdsys refused 10195" "E3c2 not logged in" "E3f0 login uid sdsys" "E3f real sdsys login admitted" "E3f2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
     else
         # THE TEARDOWN'S DOOR (S.17 became S.28): only SDSYS is refused over
         # the API unless the connection is from this machine.  A throwaway
@@ -1447,7 +1460,7 @@ else
         say "  sdsys credential present before MODIFY.PASSWORD: $(yesno_file "$SDSYS_CRED")   (must be no, or the verb asks for the current one)"
         if [ "$COMMIT" -eq 1 ] && [ -f "$SDSYS_CRED" ]; then
             say "  REFUSING this section: the sdsys credential could not be stashed, and overwriting the administrator's own is not something to do by accident"
-            for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+            for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c sudo -u sdsys refused 10195" "E3c2 not logged in" "E3f0 login uid sdsys" "E3f real sdsys login admitted" "E3f2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
             SDSYS_PW=""
         else
         SDSYS_PW="Zy-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)q2"
@@ -1487,12 +1500,20 @@ else
             cp -f "$SPROBE" "$PROBE_PUB" && chmod 644 "$PROBE_PUB"
         fi
         if [ "$COMMIT" -eq 1 ] && [ -z "$USOCK13E" ]; then
-            for r in "E3c socket as sdsys admitted" "E3d socket as $ACC refused" "E3e audited with the opener"; do not_reached "$r"; done
+            for r in "E3c sudo -u sdsys refused 10195" "E3f real sdsys login admitted" "E3d socket as $ACC refused" "E3e audited with the opener"; do not_reached "$r"; done
         else
-            OUT=$(sprobe_as sdsys "E3c CONTROL: sdsys over the socket, as sdsys" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            # 17 Nov 26 (S.256): E3c is now a REFUSAL - sudo -u sdsys runs as sdsys but its login uid is root's, so the local door refuses it (10195).
+            OUT=$(sprobe_as sdsys "E3c sdsys over the socket from sudo -u sdsys (not a real sdsys login)" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
             if [ "$COMMIT" -eq 1 ]; then
-                ck_says "E3c sdsys over the socket AS sdsys is admitted" "SCRAM: server signature VERIFIED" "$OUT"
-                ck_says "E3c2 and enters its own account" "account sdsys: entered" "$OUT"
+                ck_says "E3c sudo -u sdsys over the socket is refused in 10195's words" "This session runs as sdsys but the machine was not logged in as" "$OUT"
+                ck_absent "E3c2 and did not log in" "server signature VERIFIED" "$OUT"
+            fi
+            # THE CONTROL: a real sdsys login (PAM's login stack sets its login uid), over the same socket, is admitted and enters SDSYS.
+            OUT=$(sprobe_login_as sdsys "E3f CONTROL: a real sdsys login over the socket" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            if [ "$COMMIT" -eq 1 ]; then
+                ck_says "E3f0 the probe's login uid is sdsys's (the null case: else this measured sudo again)" "loginuid=$(id -u sdsys)" "$OUT"
+                ck_says "E3f a real sdsys login over the socket is admitted" "SCRAM: server signature VERIFIED" "$OUT"
+                ck_says "E3f2 and enters its own account" "account sdsys: entered" "$OUT"
             fi
             # THE ROW THE CHANGE EXISTS FOR.  $ACC is an ordinary local SD user
             # with a Linux account - exactly what sits at the far end of an
@@ -1512,7 +1533,7 @@ else
         fi
         OUT=$(sprobe "E4 LEG B: the same account and password over $LANIP" "$SDSYS_PW" --host "$LANIP" --user sdsys --account sdsys)
         if [ "$COMMIT" -eq 1 ]; then
-            ck_says "E4 refused at 48 in 10174's words" "SCRAM: login REFUSED at request 48: SDSYS may be reached through the API only from this machine" "$OUT"
+            ck_says "E4 refused at 48 in 10174's words (S.256: shut as delivered until remote.sdsys api on)" "SCRAM: login REFUSED at request 48: SDSYS may be reached through the API from another computer only when the" "$OUT"
             ck_absent "E4b and did not log in" "server signature VERIFIED" "$OUT"
             NEW=$(tail -n +"$((N0 + 1))" "$AUD")
             printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
