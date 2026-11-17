@@ -977,10 +977,21 @@ if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl
     printf "%b\n" "$NC"
     exit 1
 fi
-if ! sudo apt-get -y install gpm; then
-    sudo apt-get -y remove gpm > /dev/null 2>&1 || true
+# 17 Nov 26 - gpm is NOT ASKED FOR where there is no console mouse device (/dev/input/mice): a container (measured: an LXC host, 17 Nov,
+#   "Could not open /dev/input/mice", the package's postinst fails, dpkg keeps it half-configured and every later apt-get on the machine
+#   stops on it - the owner's remote install) or a machine with no console mouse, where gpm could do nothing anyway.  And where it is asked
+#   for and fails, it is PURGED (dpkg --purge --force-remove-reinstreq when apt-get cannot, as a package whose own scripts fail is exactly
+#   the case), and the install says the command to finish if dpkg still holds it.  SD_CONSOLE_MOUSE names another device, for the free check.
+console_mouse=${SD_CONSOLE_MOUSE:-/dev/input/mice}
+if [ ! -e "$console_mouse" ]; then
+    echo "This machine has no console mouse device ($console_mouse): gpm is not installed (SD runs without it; there is no mouse on a bare console)."
+elif ! sudo apt-get -y install gpm; then
+    sudo apt-get -y purge gpm > /dev/null 2>&1 || sudo dpkg --purge --force-remove-reinstreq gpm > /dev/null 2>&1 || true
     printf "%b\n" "$RED"
     echo "WARNING: gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
+    if dpkg -s gpm > /dev/null 2>&1; then
+        echo "WARNING: dpkg still holds gpm half-installed, and other apt-get commands will fail until it is gone:  sudo dpkg --purge --force-remove-reinstreq gpm"
+    fi
     printf "%b\n" "$NC"
 fi
 # PACKAGES-END

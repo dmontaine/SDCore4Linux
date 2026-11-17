@@ -51,9 +51,12 @@ if [ "${1:-}" = "--selftest" ]; then
   B='/^# PACKAGES-BEGIN/,/^# PACKAGES-END/'
   inst_mutant gpm-back-in-required  "$B s/ lynx libsodium-dev / lynx gpm libsodium-dev /"
   inst_mutant gpm-call-gone         "$B s/apt-get -y install gpm; then/true; then/"
-  inst_mutant gpm-fatal             "$B{/apt-get -y remove gpm/a\\    exit 1
+  inst_mutant gpm-fatal             "$B{/apt-get -y purge gpm/a\\    exit 1
 }"
-  inst_mutant gpm-no-remove         "$B s/sudo apt-get -y remove gpm/true/"
+  inst_mutant gpm-no-remove         "$B s/sudo apt-get -y purge gpm/true/"
+  inst_mutant gpm-no-device-test    "$B s/if \\[ ! -e \"\$console_mouse\" \\]; then/if false; then/"
+  inst_mutant gpm-no-dpkg-fallback  "$B s/ || sudo dpkg --purge --force-remove-reinstreq gpm > \\/dev\\/null 2>\\&1 / /"
+  inst_mutant gpm-held-not-said     "$B s/if dpkg -s gpm > \\/dev\\/null 2>\\&1; then/if false; then/"
   inst_mutant gpm-no-warning        "$B s/WARNING: gpm could not be installed/gpm skipped/"
   inst_mutant gpm-first             "$B s/apt-get -y install git build-essential/apt-get -y install gpm git build-essential/"
   inst_mutant lynx-gone             "$B s/ micro lynx / micro /"
@@ -83,8 +86,10 @@ row() {   # name, ok(0/1), detail
   if [ "$2" -eq 0 ]; then pass=$((pass+1)); echo "  [PASS] $1"; else fail=$((fail+1)); echo "  [FAIL] $1   <- $3"; fi
 }
 
-runblock() {   # log rc-required rc-gpm -> output; the return code is the block's (exit inside the block ends the bash -c)
-  OPTS="$OPTS" IFSL="$IFSL" BLOCK="$BLOCK" LOG="$1" RC_REQ="$2" RC_GPM="$3" bash -c '
+: > "$T/mice"   # a console mouse device that exists; "$T/no-mice" does not
+# runblock log rc-required rc-gpm [mouse device] [rc of apt-get purge] [1 when dpkg still holds gpm] -> output; the return code is the block's
+runblock() {
+  OPTS="$OPTS" IFSL="$IFSL" BLOCK="$BLOCK" LOG="$1" RC_REQ="$2" RC_GPM="$3" SD_CONSOLE_MOUSE="${4:-$T/mice}" RC_PURGE="${5:-0}" HELD="${6:-0}" bash -c '
       eval "$OPTS"; eval "$IFSL"
       RED=""; NC=""
       sudo() { "$@"; }
@@ -93,8 +98,17 @@ runblock() {   # log rc-required rc-gpm -> output; the return code is the block'
         local IFS=" "
         case " $* " in
           *" remove "*) return 0 ;;
+          *" purge "*) return "$RC_PURGE" ;;
           *" install gpm ") return "$RC_GPM" ;;
           *) return "$RC_REQ" ;;
+        esac
+      }
+      dpkg() {
+        { printf "dpkg"; printf " %s" "$@"; echo; } >> "$LOG"
+        local IFS=" "
+        case " $* " in
+          *" -s gpm "*) [ "$HELD" = 1 ] && return 0 || return 1 ;;
+          *) return 0 ;;
         esac
       }
       eval "$BLOCK"
@@ -128,8 +142,20 @@ row "P2 a failing required apt-get stops the installer with exit 1 and the same 
 : > "$T/p6.log"
 out=$(runblock "$T/p6.log" 0 100); rc=$?
 echo "  P6 apt-get was called: $(tr '\n' '|' < "$T/p6.log")"
-row "P6 a failing gpm install warns, removes gpm and goes on to the end with status 0" \
-    "$([ "$rc" = 0 ] && [[ "$out" == *REACHED-END* ]] && [[ "$out" == *"WARNING: gpm could not be installed"* ]] && grep -qx 'apt-get -y remove gpm' "$T/p6.log" && echo 0 || echo 1)" "rc=$rc log: $(tr '\n' '|' < "$T/p6.log") out: $out"
+row "P6 a failing gpm install warns, purges gpm and goes on to the end with status 0" \
+    "$([ "$rc" = 0 ] && [[ "$out" == *REACHED-END* ]] && [[ "$out" == *"WARNING: gpm could not be installed"* ]] && grep -qx 'apt-get -y purge gpm' "$T/p6.log" && ! grep -q -- '--force-remove-reinstreq' "$T/p6.log" && [[ "$out" != *"still holds gpm"* ]] && echo 0 || echo 1)" "rc=$rc log: $(tr '\n' '|' < "$T/p6.log") out: $out"
+
+# P7 (17 Nov 26, the owner's remote install in an LXC container): no console mouse device - gpm is not asked for at all, one line says why
+: > "$T/p7.log"
+out=$(runblock "$T/p7.log" 0 0 "$T/no-mice"); rc=$?
+row "P7 no console mouse device: gpm is not asked for, the install says why and goes on to the end" \
+    "$([ "$rc" = 0 ] && [[ "$out" == *REACHED-END* ]] && [[ "$out" == *"has no console mouse device"* ]] && ! grep -q 'gpm' "$T/p7.log" && [ "$(grep -c '^apt-get' "$T/p7.log")" = 1 ] && echo 0 || echo 1)" "rc=$rc log: $(tr '\n' '|' < "$T/p7.log") out: $out"
+
+# P8: the gpm install fails AND apt-get cannot purge it (its own scripts fail): dpkg --purge --force-remove-reinstreq; if dpkg still holds it, the command is said
+: > "$T/p8.log"
+out=$(runblock "$T/p8.log" 0 100 "$T/mice" 100 1); rc=$?
+row "P8 a purge apt-get cannot do falls back to dpkg --purge --force-remove-reinstreq, and a package dpkg still holds is named with the command" \
+    "$([ "$rc" = 0 ] && [[ "$out" == *REACHED-END* ]] && grep -qx 'dpkg --purge --force-remove-reinstreq gpm' "$T/p8.log" && [[ "$out" == *"dpkg still holds gpm half-installed"* ]] && echo 0 || echo 1)" "rc=$rc log: $(tr '\n' '|' < "$T/p8.log") out: $out"
 
 # P3: nothing else in the installer touches gpm as a service or installs it again
 code=$(grep -v '^ *#' "$INST")

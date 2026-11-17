@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  THE INSTALLER NO LONGER LEAVES A BROKEN GPM IN A CONTAINER.
+
+             What        - gpm, the console mouse daemon, is installed only where the machine has a console mouse device
+                           (/dev/input/mice); in a container, which has none, the installer says so in one line and goes on.
+                           Where gpm is tried and fails, it is purged (with dpkg's own purge when apt-get cannot), and the
+                           installer names the command to finish if dpkg still holds it.
+             Why         - in an LXC container gpm's setup failed ("Could not open /dev/input/mice"), dpkg kept the package
+                           half-configured, and every later apt-get on the machine stopped on it, the install with them.
+             Does NOT    - Change anything on a machine with a console: gpm is installed and started as before.
+
 16 Nov 26  THE INSTALLER'S "OPEN EVERY ACCESS GATE" ALSO OPENS FILE TRANSFER.
 
              What        - a y to "Open every access gate for <you>'s SD account?" (default No, new accounts only) now also
