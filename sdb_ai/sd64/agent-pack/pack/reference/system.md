@@ -522,7 +522,7 @@ Account word `ai-off`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> ai-off`
 - turns the `ai-` gate OFF for the account
-- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 61
+- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 60
 
 ### sys:word:ai-on
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:656#ffefe965 src2=sdsys/gpl.bp/createa:282#b989bd5a src3=sdsys/gpl.bp/createa:185#67e048b7
@@ -532,7 +532,7 @@ Account word `ai-on`
 - typed by the administrator (SDSYS) only: `modify.account <account> ai-on`; `create.account user <name> ai-on`
 - turns the `ai` gate ON for the account; the delivered default is OFF (high security is delivered, the administrator loosens it)
 - what it is (createa's description): (23 Oct 26, S.69 step 2) the person joins the Linux group sdaiusers: the right to use the AI provider's API through the helper sd-ai (one provider and
-- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 61
+- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 60
 
 ### sys:word:api
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:656#ffefe965 src2=sdsys/gpl.bp/createa:282#b989bd5a src3=sdsys/gpl.bp/createa:169#b49c2c50
@@ -604,7 +604,7 @@ Account word `files-admin-off`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> files-admin-off`
 - turns the `files-admin-` gate OFF for the account
-- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 42
+- docs: `Administrator/markdown/01-accounts-and-security-5-files-write-ai-pointers.md` line 41
 
 ### sys:word:files-admin-on
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:656#ffefe965 src2=sdsys/gpl.bp/createa:282#b989bd5a

@@ -764,7 +764,7 @@ def sec_d2():
                 not has(out, "has no OS access") and not has(out, "Unexpected token"), "output=%r" % (out[-3:],))
         else:
             row("D2: %s the OSCOPY verb is refused in 11180's words, and nothing came in" % name,
-                has(out, re.escape("%s has no OS access, so a file or directory outside its own account cannot be reached" % name))
+                has(out, re.escape("%s has no OS access, so outside its own account it can reach by pathname only a directory" % name))
                 and not os.path.exists(gotf) and not has(out, r"copied to tcl-got"), "output=%r" % (out,))
             refusals = sum(1 for ln in out if "has no OS access" in ln)
             selected = [ln for ln in out if re.match(r"^\d+ record\(s\) selected", ln)]

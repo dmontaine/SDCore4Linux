@@ -452,7 +452,8 @@ def section_c1(rows, kinds):
     a0 = len(audit_lines())
     forced = run_probe()
     arow("C1a", "the probe (CONFIG() of every key of the table, in a separate administrator session) answered for them all, and it can read what the page says it cannot not (the null case: the instrument measured)",
-         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["BACKUPDIR", "NETDIRS", "SDSYS"], repr(     # NETDIRS (17 Nov 26, S.62): not readable with CONFIG(), by designsorted(k for k, v in forced.items() if v is None)))
+         # NETDIRS (17 Nov 26, S.62): not readable with CONFIG(), by design.  (17 Nov 26, L4 C4: this comment had been put in the middle of the line and cut it - a SyntaxError.)
+         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["BACKUPDIR", "NETDIRS", "SDSYS"], repr(sorted(k for k, v in forced.items() if v is None)))
     p = Page()
     if "The parameter under the cursor" not in p.text():
         dump(p.h)

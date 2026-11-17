@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (S.263, L4 C3): a kept Linux user also leaves sdfilesadmin, sdfileswrite, sdfiles and sdaiusers, after sdapi and before sdusers; it kept them.
 * 17 Nov 26 dm  S.62 (LC3): a kept Linux user (one SD did not make) also leaves sdsshnokey, after sdusers; the rest of S.263 is not touched here.
 * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the account's copies are no longer dropped (there are none).
 * 28 Oct 26 dm  S.87: multifiles are gone; the cross-reference scan looks at the first value of field 2 of an F record and not at every value.
@@ -437,6 +438,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                strip.user = os.user
                strip.group = 'sdssh'   ; gosub strip.membership
                strip.group = 'sdapi'   ; gosub strip.membership
+* 17 Nov 26 dm - S.62 (S.263): and the other groups SD gives a Linux user a right through - the files-only route and its two rights, and the AI gate - with the routes and
+*   BEFORE sdusers, the widest right first, so an interrupted strip leaves fewer rights, never more.  Left behind, they handed a later account that reused this
+*   user the files route, the right to change and to administer files, and the AI gate (create_account's leave.route.group, 17 Nov, is the other half).
+               strip.group = 'sdfilesadmin' ; gosub strip.membership
+               strip.group = 'sdfileswrite' ; gosub strip.membership
+               strip.group = 'sdfiles'      ; gosub strip.membership
+               strip.group = 'sdaiusers'    ; gosub strip.membership
                strip.group = 'sdusers' ; gosub strip.membership
 * 17 Nov 26 dm - S.62 (LC3): and sdsshnokey, the group whose members sshd offers no key sign-in.  SD puts only a user it made in it, so a kept user is in it only by an
 *   administrator's own hand; it goes LAST because leaving it gives MORE (the machine's own key sign-in back), the opposite of the three above.

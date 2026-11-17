@@ -6,6 +6,9 @@
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.
 
+17 Nov 26 (S.62, S.263): F21 - delete.account takes a KEPT Linux user out of every group sd-elevate's require_sd_group names exactly (the routes, the files rights,
+sdaiusers, sdusers, sdsshnokey) in a fixed order; it forgot sdfiles, sdfileswrite, sdfilesadmin and sdaiusers.  4 mutants.  Text only: the removal is a VM row.
+
 20 Oct 26 (S.72b, RECORDLOCKED() of a remote file becomes write-governed; the owner's decision of that day): request 34 JOINS THE CHANGE SET, so a files-only login without sdfileswrite that sends
 request 34 is refused by the generic gate of apisrvr (message 11521, the audit line `api refused request=34 route=sdfiles write=off ...`), exactly as for 32 and 33, and a login with the group is served as before.  The
 reads (6, 40, 41 with flag 0 ...) and release (15) still need sdfiles alone.  Written BEFORE the code and shown red on the unchanged tree.  CHANGE gains 34 (F1 and F2a follow); F17 flips (34 stays in the allow table AND
@@ -56,7 +59,10 @@ ROOT = os.path.normpath(os.path.join(SD64, "..", ".."))
 GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 SDSYS = os.path.join(SD64, "sdsys")
 
-BP = ("apifilesok", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea")
+BP = ("apifilesok", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea", "delacc")
+# 17 Nov 26 (S.62, S.263): the groups delete.account takes a KEPT Linux user out of, in this order (F21): the routes and the rights first, the widest first, sdusers after
+# them, sdsshnokey last (leaving it gives more).  Every exact name sd-elevate's require_sd_group accepts is here.
+DELACC_STRIP = ("sdssh", "sdapi", "sdfilesadmin", "sdfileswrite", "sdfiles", "sdaiusers", "sdusers", "sdsshnokey")
 SH = {"installsdcore.sh": ROOT, "deletesdcore.sh": ROOT, "sd-elevate": HERE}
 
 CHANGE = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34)    # written here from the spec, not read from the program (34, recordlocked: S.72b, 20 Oct 26)
@@ -508,6 +514,25 @@ def run_checks(raw):
        and mo.count("sysmsg(11526, acc.name)") == 1 and mo.count("11526") == 1 and ca2.count("err = 11526:@vm:acc.name") == 1 and ca2.count("11526") == 1
        and not any(re.search(r"\b1152[456]\b", c[n_]) for n_ in ("createa", "acc_os_info", "restorea", "apifilesok")) and not stray2,
        repr((m24, m25, m26, stray2)))
+
+    # ---- F21. delete.account leaves every group SD gives a right through (17 Nov 26, S.62 / S.263) -------------------------------------------
+    da = c["delacc"]
+    s0 = da.find("strip.user = os.user")
+    s1 = da.find("end case", s0) if s0 >= 0 else -1
+    blk = da[s0:s1] if 0 <= s0 < s1 else ""
+    got = re.findall(r"strip\.group = '([a-z_]+)'\s*; gosub strip\.membership", blk)
+    rq = re.search(r"^require_sd_group\(\)\s*\{(.*?)^\}", se, re.M | re.S)
+    exact = set()
+    for line in (rq.group(1) if rq else "").split("\n"):
+        mm = re.match(r"\s*([a-z|]+)\)\s*:\s*;;", line)
+        if mm:
+            exact.update(mm.group(1).split("|"))
+    ck("F21 delete.account takes a KEPT Linux user out of exactly these groups, in this order, each once, all through strip.membership (sd-elevate delgroup): "
+       + " ".join(DELACC_STRIP) + " - the routes and rights before sdusers, sdsshnokey last; and that list is every exact group name sd-elevate's require_sd_group accepts "
+       "(a group SD adds a user to and delete.account forgets hands a later account of the same user that right)",
+       tuple(got) == DELACC_STRIP and len(exact) >= 8 and exact == set(DELACC_STRIP)
+       and "sd-elevate delgroup" in raw["delacc"],
+       repr((got, sorted(exact))))
     return res
 
 
@@ -645,8 +670,9 @@ def mutants(raw):
     m("the write group is joined as sdfiles", "create_account", "         files.grp.name = 'sdfileswrite'\n         gosub join.files.group", "         files.grp.name = 'sdfiles'\n         gosub join.files.group")
     m("the write group needs no files-on", "create_account", "       if not(files.want) then\n         @system.return.code = -ER$ARGS\n         err = 11523",
       "       if 0 then\n         @system.return.code = -ER$ARGS\n         err = 11523")
-    m("a group account is no longer refused the write group", "create_account", "     if files.want or files.write.want or files.admin.want then\n       @system.return.code = -ER$ARGS\n       err = 10087",
-      "     if files.want or files.admin.want then\n       @system.return.code = -ER$ARGS\n       err = 10087")
+    # 17 Nov 26: the text follows create_account, where S.69 step 2 (23 Oct 26) added "or ai.want" and the mutant stopped matching (the selftest was refused there)
+    m("a group account is no longer refused the write group", "create_account", "     if files.want or files.write.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: and no AI gate to give, for the same reason\n       @system.return.code = -ER$ARGS\n       err = 10087",
+      "     if files.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: and no AI gate to give, for the same reason\n       @system.return.code = -ER$ARGS\n       err = 10087")
     m("the manifest has no write key", "acc_os_info", "         info<-1> = 'route.files.write: ':(if is_grp_member(user, 'sdfileswrite') then 1 else 0)", "")
     m("the restore gives the write group without the files route", "restorea", "if m.route.files = '1' and m.route.files.write = '1' then settings<CA$FILESWRITE> = 1", "if m.route.files.write = '1' then settings<CA$FILESWRITE> = 1")
     # S.73 item 3 (21 Oct 26): the administration group at creation, in the manifest and in the restore
@@ -682,6 +708,13 @@ def mutants(raw):
     m("message 11525 spells its keyword in capitals (the lower case rule)", "msg:11525", "Account %1 has files-admin %2", "Account %1 has FILES-ADMIN %2")
     m("message 11526 spells its keywords in capitals (the lower case rule)", "msg:11526", "so it cannot be given files-admin:", "so it cannot be given FILES-ADMIN:")
     m("message 11526 does not name the word to use first", "msg:11526", "use files-write-on first", "use the other word first")
+    # 17 Nov 26 (S.62, S.263): delete.account and the groups of a kept user
+    m("delete.account forgets sdfiles", "delacc", "               strip.group = 'sdfiles'      ; gosub strip.membership\n", "")
+    m("delete.account forgets sdaiusers", "delacc", "               strip.group = 'sdaiusers'    ; gosub strip.membership\n", "")
+    m("delete.account takes sdusers before the files rights", "delacc",
+      "               strip.group = 'sdfilesadmin' ; gosub strip.membership\n",
+      "               strip.group = 'sdusers' ; gosub strip.membership\n               strip.group = 'sdfilesadmin' ; gosub strip.membership\n")
+    m("sd-elevate accepts a group delete.account does not strip", "sd-elevate", "    sdsshnokey) : ;;\n", "    sdsshnokey) : ;;\n    sdnewroute) : ;;\n")
     return M
 
 

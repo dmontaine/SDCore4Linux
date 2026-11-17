@@ -1676,7 +1676,7 @@ else
 
     OUT=$(probe "K4 OSCOPY of a file outside the account over the API, os-off" --user "$ACC" --account "$ACC" "OSCOPY /etc/hostname $SENT_OS")
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "K4 refused in 11180's words" "has no OS access, so a file or directory outside its own account cannot be reached" "$OUT"
+        ck_says "K4 refused in 11180's words" "has no OS access, so outside its own account it can reach by pathname only a directory" "$OUT"
         ck "K4b and nothing was copied" no "$( [ -e "$SENT_OS" ] && echo yes || echo no )"
     fi
 

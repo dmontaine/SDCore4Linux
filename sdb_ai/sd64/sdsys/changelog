@@ -1,6 +1,38 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  DELETE.ACCOUNT TAKES A KEPT LINUX USER OUT OF THE FILES AND AI GROUPS TOO.
+
+             What        - when delete.account keeps the account's Linux user (one SD did not make), it now takes that
+                           user out of sdfilesadmin, sdfileswrite, sdfiles and sdaiusers as well as sdssh, sdapi,
+                           sdusers and sdsshnokey, each through the root helper, with a line for each group it leaves.
+             Why         - those four groups are how SD gives a person the files-only route over the API, the right
+                           to change and to administer files there, and the use of the AI.  Left behind, they handed a
+                           later account made for the same Linux user rights nobody gave it.  create.account already
+                           takes a reused user out of the routes it was not given; this is the other half.
+             Does NOT    - Touch a Linux user SD made (it is removed whole, with its groups), or any group SD does not
+                           manage.  Change what happens to the account's files, its register record or its password.
+
+17 Nov 26  THE "NO OS ACCESS" MESSAGE NAMES THE DIRECTORIES THE ADMINISTRATOR OPENED.
+
+             What        - an account without os-on that names a file or directory outside its own account by
+                           pathname is now told "<account> has no OS access, so outside its own account it can reach
+                           by pathname only a directory the administrator opened to all (SDSYS can give it:
+                           modify.account <account> os-on)".
+             Why         - since sd.conf's NETDIRS the administrator can list directories such an account may still
+                           reach; the old words said nothing outside the account could be reached, which was no longer
+                           always true.
+             Does NOT    - Change what is refused or allowed; only the words.
+
+17 Nov 26  THE IDE'S HELP NO LONGER SAYS A RECORD WITH CHARACTERS OUTSIDE ASCII OPENS READ-ONLY.
+
+             What        - the IDE's help (F1) now says that a record holding bytes 128 to 247 is edited like any other
+                           and that the bytes are kept as they are.
+             Why         - that is what the IDE has done since 9 Nov 2026; the help still described the read-only rule
+                           it replaced.
+             Does NOT    - Change the editor.  Import into the text still refuses a record holding marks or bytes
+                           outside ASCII.
+
 17 Nov 26  SET.AI KEY NO LONGER SAYS A KEY IS SET WHEN THE HELPER'S CLIENT FAILED.
 
              What        - set.ai key <provider>, typed at the prompt or handed over by the AI page's setup dialog, now

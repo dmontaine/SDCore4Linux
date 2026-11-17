@@ -19,7 +19,8 @@
 #   R0   an ordinary account has no tool.remote; a VOC entry that points at the program gets the page's own refusal
 #   R1   the page opens: one audit line; the doors' first lines are the verbs'; the doors view lists the verbs' words
 #   R2   A and S: a bad word is refused before a box; local shows its sentence; on wants OPEN typed (a wrong word runs nothing); Esc runs nothing
-#   R3   the routes view: one row for each USER account (a Python reader of the register), the NET gate, no remote door for an account whose Linux user is in no door's group
+#   R3   the routes view: one row for each USER account (a Python reader of the register), the NET gate, and the doors the account's Linux user's REAL groups give (17 Nov 26: none
+#        for a user that does not exist; zzme's user is whoever runs this, judged against that user's groups, so the row no longer depends on what the host's user is in)
 #   R4   the servers view: the rows are LIST.SERVERS's; X shows 'delete.server', Esc runs nothing, Run removes exactly that definition (LIST.SERVERS afterwards)
 #   R5   N: every field is checked and refused in words at the first that is wrong; a good set shows the set.server sentence and says the terminal is given to the verb; Esc defines nothing
 #   R6   the connected view: a second session is listed with its account, as LISTU gives; the counts line
@@ -29,7 +30,9 @@
 #        where the sandbox user could sudo the helper they would really open or shut ssh for sdsys
 # NOT HELD: a door opened or closed, a key trusted, the terminal handed to set.server (the VM), the help text itself (sandbox-docs.py).
 import getpass
+import grp
 import importlib.util
+import pwd
 import os
 import re
 import shutil
@@ -86,6 +89,8 @@ HAND = {
     "zzaa": ("sdu_zzaa", ["no", "no", "no", "no", "no", "no"], ["", "", "yes"]),
     "zzab": ("sdu_zzab", ["no", "no", "no", "no", "no", "no"], ["", "", "no"]),
     "zzgrp": ("sdg_zzgrp", ["no", "no", "no", "no", "no", "no"], ["", "", ""]),
+    # 17 Nov 26 (S.62, L4 C4): a user account whose Linux user is the one running this suite, which EXISTS, so R3b always judges one row against real groups
+    "zzme": ("sdu_" + getpass.getuser(), ["no", "no", "no", "no", "no", "no"], ["", "", "no"]),
 }
 
 
@@ -297,16 +302,42 @@ def section_r3(p):
     rows = [r for r in p.rows() if r.strip()]
     names = [r[:20].strip() for r in rows]
     arow("R3a", "the routes view has one row for each USER account of the register, in name order, and no other (%s)" % " ".join(users), names == users, repr((names, users)))
+    # 17 Nov 26 (S.62, L4 C4): the doors are what the account's Linux user's real groups give, read here with the grp module, so a row is right on a host where that user exists
+    # and is in sdssh / sdapi / sdfiles... (the sandbox user's own sdu_<user> account, made by another suite on a shared sandbox, showed doors and the row failed).  A user that does
+    # not exist is in no group: no door and 'no remote door', as before.  The rows that were judged against a real user are counted and printed.
+    def real_groups(user):
+        try:
+            pw = pwd.getpwnam(user)
+        except KeyError:
+            return None
+        mine = {gr.gr_name for gr in grp.getgrall() if user in gr.gr_mem}
+        try:
+            mine.add(grp.getgrgid(pw.pw_gid).gr_name)
+        except KeyError:
+            pass
+        return mine
     bad = []
+    real = []
     for r in rows:
         name = r[:20].strip()
         f = read_fields(name)
         net = "yes" if f[14].strip().upper() == "YES" else "no"
         cells = r[20:].split()
-        want = ["no", "no", "no", "no", "no", net]
-        if cells[:6] != want or "no remote door" not in r:
+        lu = f[2][4:] if len(f) > 2 and f[2].startswith("sdu_") else ""
+        rg = real_groups(lu) if lu else None
+        if rg is None:
+            want = ["no", "no", "no", "no", "no", net]
+            reach = "no remote door"
+        else:
+            real.append(lu)
+            yn = ["yes" if x in rg else "no" for x in ("sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdfilesadmin")]
+            want = yn + [net]
+            reach = None if "yes" in yn[:3] else "no remote door"
+        if cells[:6] != want or (reach is not None and reach not in r):
             bad.append((name, cells[:8], want))
-    arow("R3b", "each row shows no door for an account whose Linux user is in no door's group (the sandbox's fixtures have no Linux user), the NET gate as the register has it, and says 'no remote door'", not bad and len(rows) == len(users), repr(bad[:2]))
+    arow("R3b", "each row shows the doors its Linux user's groups give (none, and 'no remote door', for a user that does not exist on this host: the sandbox's own fixtures), the NET gate as the register "
+         "has it (judged against the real groups of %d existing user(s): %s; zzme's user exists, so at least one)" % (len(real), " ".join(real) or "none"),
+         not bad and len(rows) == len(users) and len(real) >= 1, repr((bad[:2], real)))
     T = p.detail()
     arow("R3c", "the foot box explains the groups sdssh, sdapi, sdfiles and that the switches are TOOL.GATES's", "sdssh" in T and "sdapi" in T and "sdfiles" in T and "TOOL.GATES" in T, T[:300])
 
@@ -435,10 +466,12 @@ def section_r8(p):
     T = norm(" ".join(out))
     arow("R8a", "an ordinary account has no remote.sdsys (SDSYS's VOC alone has the verb): no report and no usage", len(out) > 0 and "sdsys-arm" not in T and "remote.sdsys on off" not in T and "opens ssh for sdsys" not in T, T[:300])
     a0 = len(audit_lines())
-    out = g.adm(["REMOTE.SDSYS BOGUS", "REMOTE.SDSYS ON EXTRA", "REMOTE.SDSYS RECOVERY", "REMOTE.SDSYS LOCAL ON"])
+    # 17 Nov 26 (S.62, L4 C4): the usage follows the verb, which gained its ssh and api forms in S.256 (3f8d2fa2); two of those forms that are refused join the four
+    out = g.adm(["REMOTE.SDSYS BOGUS", "REMOTE.SDSYS ON EXTRA", "REMOTE.SDSYS RECOVERY", "REMOTE.SDSYS LOCAL ON", "REMOTE.SDSYS SSH ON EXTRA", "REMOTE.SDSYS API OFF 10.0.0.1"])
     T = norm(" ".join(out))
-    arow("R8b", "a keyword that is not on or off (recovery and local went with the authenticator code), and a second word after one, each get the usage (11923) and run nothing: four times the usage, no audit line",
-         T.count("remote.sdsys on off ON opens ssh for sdsys") == 4                  # norm() makes the bars spaces
+    arow("R8b", "a keyword that is not on or off (recovery and local went with the authenticator code), a second word after one, a word after ssh on, and an address after api off, "
+         "each get the usage (11923, with its ssh and api forms) and run nothing: six times the usage, no audit line",
+         T.count("remote.sdsys {on off} remote.sdsys ssh {on off} remote.sdsys api {on address ... off}") == 6     # norm() makes the bars spaces
          and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], T[:300])
     # ON and OFF are NEVER run here: on a machine where the sandbox user could sudo the helper they would really open or shut ssh for sdsys (the VM witness's rows)
     rep = [norm(x) for x in g.adm(["REMOTE.SDSYS"]) if x.strip()]
