@@ -28,6 +28,8 @@ SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 SRC = os.path.join(SD64, "gplsrc")
 DOCS07 = os.path.join(os.environ.get("SD_DOCS_CHECKOUT", "/home/don/Projects/SDCore4LinuxDocs"), "Administrator", "markdown", "07-sd-admin-configuration.md")
+DOCS07_PARTS = [os.path.join(os.path.dirname(DOCS07), n) for n in ("07a-sd-admin-configuration-changing-from-sd.md",
+                                                                   "07b-sd-admin-configuration-api-printing-and-netfiles.md")]
 FILES = {
     "page": os.path.join(GPL, "tool_config"),
     "table": os.path.join(SDSYS, "config.table"),
@@ -63,6 +65,15 @@ def load():
                 raw[k] = f.read()
         except OSError:
             raw[k] = ""
+    # 17 Nov 26 (S.62): page 07 was split to the docs' page-length rule (07, 07a "changing from SD", 07b "API, printing and
+    # NETFILES").  The guide is the three parts read as one text, in order; a missing part is simply absent, and the rows that
+    # need what it held fail.
+    for part in DOCS07_PARTS:
+        try:
+            with open(part, encoding="latin-1") as f:
+                raw["doc"] += "\n" + f.read()
+        except OSError:
+            pass
     raw["newvoc_has"] = "1" if os.path.exists(NEWVOC) else ""
     raw["newvoc_verb_has"] = "1" if os.path.exists(os.path.join(SDSYS, "newvoc", "set.config")) else ""
     raw["msgs"] = {}

@@ -45,7 +45,17 @@ say, row, bail, has, dump, adm, H, g = sh.say, sh.row, sh.bail, sh.has, sh.dump,
 sh.KEYS["f1"] = "\x1b[[A"
 OLD = 1000000000                                  # the modification time given to a fixture document: a viewer that touches it moves it
 HELPSRC = os.path.join(HERE, os.pardir, "sdsys", "helptext")
-DOCS = {"administrator-01-accounts-and-security.pdf": b"%PDF-1.4\naccounts\n", "guide-one.pdf": b"%PDF-1.4\none\n", "guide-two.pdf": b"%PDF-1.4\ntwo\n", "Upper.pdf": b"%PDF-1.4\nupper\n",
+# 17 Nov 26 (S.62): the documentation pages were split to the docs' page-length rule, and a help record's line 2 names the page
+# (and so the document) that holds its section.  The two records these rows show are READ for their page, so that the rows hold
+# whatever page a record names instead of pinning a name: tool.menus.pins (rows H) and tool.menus.default (the box of rows M).
+def page_of(key):
+    with open(os.path.join(HELPSRC, key), encoding="utf-8") as f:
+        return f.read().split("\n")[1].strip()
+
+
+PINS_DOC = page_of("tool.menus.pins")
+DEFAULT_DOC = page_of("tool.menus.default")
+DOCS = {PINS_DOC + ".pdf": b"%PDF-1.4\naccounts\n", DEFAULT_DOC + ".pdf": b"%PDF-1.4\nstarts\n", "guide-one.pdf": b"%PDF-1.4\none\n", "guide-two.pdf": b"%PDF-1.4\ntwo\n", "Upper.pdf": b"%PDF-1.4\nupper\n",
         "notes.txt": b"not a pdf\n"}
 
 
@@ -296,7 +306,7 @@ def main():
             os.remove(os.path.join(sh.SYS, "helptext", bad))
 
         t, d, ls, out = hlook("zzhd", "tool.menus.pins")
-        row("an ORDINARY account reads it: the title, the document (administrator-01-accounts-and-security: the book, then the page, S.228) and the paragraphs of the shipped file", t == "Programs of the account's own" and d == "administrator-01-accounts-and-security" and len(ls) == 3 and ls[0].startswith("Off as delivered."), repr((t, d, ls[:1])))
+        row("an ORDINARY account reads it: the title, the document (administrator-01-accounts-and-security: the book, then the page, S.228) and the paragraphs of the shipped file", t == "Programs of the account's own" and d == PINS_DOC and d.startswith("administrator-01-accounts-and-security") and len(ls) == 3 and ls[0].startswith("Off as delivered."), repr((t, d, ls[:1])))
         sh.g.reg_write("zzhd", [os.path.join(sh.BOX, "user_accounts", "zzhd"), "", g.GROUP, "", "", "", "no", "no", "no", "yes", "yes", "yes", "no", "", "", ""])
         t, d, ls, out = hlook("zzhd", "tool.menus.starts-in")
         row("...and so does an account whose shared.read is withdrawn (field 13 = no): the help is the product's documentation, not data", t == "Where an account starts" and len(ls) == 3, repr((t, out[-3:])))
@@ -327,7 +337,7 @@ def main():
         row("...the copy is on the disk, the same bytes, mode 0644; the others are not there", os.path.exists(dest) and open(dest, "rb").read() == b"%PDF-1.5\ngood\n" and (os.stat(dest).st_mode & 0o777) == 0o644
             and not os.path.exists(pdfp("fake.pdf")) and not os.path.exists(pdfp("Bad.pdf")) and not os.path.exists(pdfp("text.txt")), repr(sorted(os.listdir(os.path.join(S(), "pdf")))))
         row("...and it is a regular file of the pdf directory, beside the fixture documents (the pdf verb that listed them is gone, S.187)",
-            os.path.isfile(dest) and not os.path.islink(dest) and "administrator-01-accounts-and-security.pdf" in os.listdir(os.path.join(S(), "pdf")), repr(sorted(os.listdir(os.path.join(S(), "pdf")))))
+            os.path.isfile(dest) and not os.path.islink(dest) and PINS_DOC + ".pdf" in os.listdir(os.path.join(S(), "pdf")), repr(sorted(os.listdir(os.path.join(S(), "pdf")))))
         out = adm("docs.install /tmp/../etc")
         row("a path with .. in it is refused (11721) and nothing is read", has(out, r"^The directory /tmp/\.\./etc cannot be read, or is not a plain path"), repr(out[-3:]))
         out = adm("docs.install /nonexistent-directory-for-docs")
@@ -381,14 +391,14 @@ def main():
         h.key("f1", idle=1.2)
         reset_times()
         h.key("enter", idle=1.4)
-        row("Enter in the box chooses Close, the default: the box closes and no program was started", "Where an account with no setting starts" not in h.text() and untouched("administrator-01-accounts-and-security", 1.5), h.text()[-300:])
+        row("Enter in the box chooses Close, the default: the box closes and no program was started", "Where an account with no setting starts" not in h.text() and untouched(DEFAULT_DOC, 1.5), h.text()[-300:])
         h.key("f1", idle=1.2)
         T = h.text()
         row("the box's last line names the document the record names (message 14046: administrator-01-accounts-and-security.pdf, in the pdf directory of the shared account)",
-            "administrator-01-accounts-and-security.pdf" in T and "pdf directory" in T, T[-700:])
+            DEFAULT_DOC + ".pdf" in T and "pdf directory" in T, T[-700:])
         h.typed("d", idle=2.0)
         row("...and 'd' (the old Documentation button's letter) starts nothing: no document was touched and no 'Opened' on the status line",
-            untouched("administrator-01-accounts-and-security", 1.5) and "Opened" not in h.line(40), repr(h.line(40)))
+            untouched(DEFAULT_DOC, 1.5) and "Opened" not in h.line(40), repr(h.line(40)))
         h.key("esc", idle=0.8)
         h.key("ctrl-q", idle=1.5)
         h.end()

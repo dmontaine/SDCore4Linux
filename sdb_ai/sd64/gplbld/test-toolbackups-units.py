@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
-DOCS = "/home/don/Projects/SDCore4LinuxDocs/Administrator/markdown/01a-account-maintenance.md"
+DOCS = "/home/don/Projects/SDCore4LinuxDocs/Administrator/markdown/01b-backup-and-restore.md"   # 17 Nov 26 (S.62): backup and restore moved to a page of their own
 FILES = {
     "page": os.path.join(GPL, "tool_backups"),
     "voc": os.path.join(SDSYS, "voc_template", "tool.backups"),
@@ -124,7 +124,7 @@ def checks(raw):
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 3, "read.all x%d" % pg.count("gosub read.all"))
     ck("TB13", "the page has a [?] and F1, ? and a click show tool.backups.page, whose record exists with a title, the account maintenance page of the administrator guide (which has a section on tool.backups) and a body",
        pg.count("'tool.backups.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
-       and raw["help"].split("\n")[1].strip() == "administrator-01a-account-maintenance" and raw["help"].split("\n")[2].strip() != "" and "## Backups and restores on one screen: `tool.backups`" in raw["doc"], "")
+       and raw["help"].split("\n")[1].strip() == "administrator-01b-backup-and-restore" and raw["help"].split("\n")[2].strip() != "" and "## Backups and restores on one screen: `tool.backups`" in raw["doc"], "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     dd = block(pg, "draw.detail")
@@ -192,7 +192,7 @@ MUTANTS = [
     ("a key is added to the table", "TB11", sub("page", "   call $tk_keys('add', keys, 'd', 'directory', 'directory', '', 1)\n", "   call $tk_keys('add', keys, 'd', 'directory', 'directory', '', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("the page reads on a timer", "TB12", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "TB13", sub("page", "call $tk_help('box', 'tool.backups.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.backups.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
-    ("the help record names no page", "TB13", sub("help", "01a-account-maintenance", "")),
+    ("the help record names no page", "TB13", sub("help", "01b-backup-and-restore", "")),
     ("the archives box overruns the manifest", "TB14", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
     ("the page draws a box at a literal place again", "TB14", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title 'Archives'", "screen box at 1,7 size 138,20 title 'Archives'")),
     ("the 'more accounts' line counts from a literal again", "TB14", sub("page", "na - (DV - 4)", "na - 7")),
