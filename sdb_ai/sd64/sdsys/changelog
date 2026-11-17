@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  EVERY ACCOUNT HAS EXAMPLE PROGRAMS: THE FILE EXAMPLES.BP AND THE LOAD.EXAMPLES VERB.
+
+             What        - every account now has its own file examples.bp of example programs, already compiled, so
+                           "run examples.bp cs01.hello" works at once.  It holds the five programs of the SD Text User
+                           Interface - Programmer's Guide (hello, menus, notes, browse, stock) and 23 programs of a first
+                           course in programming, cs01.hello to cs23.bank: variables, decisions, loops, FizzBuzz, tables,
+                           subroutines, recursion, arrays, dynamic arrays, strings, word counts, primes, Euclid's
+                           algorithm, sorting, searching, a stack and a queue, files, a guessing game, dates and a small
+                           ledger.  The installer gives it to every account and refreshes it on an upgrade; create.account
+                           gives it to each new account; the administrator's load.examples (all accounts, or one) does it
+                           by hand.  A program the administrator adds to an account's examples.bp is kept.
+             Why         - the owner: "there should be a examples.bp file available to all users that contains those
+                           programs and a set of training programs typical for a Computer Science 101 course"; a tester
+                           could not find the guide's programs, which until now were only printed in the guide.
+             Does NOT    - Open any access: examples.bp is an ordinary program file of its account, so bp.edit decides
+                           whether its person may change it (off as delivered); a person who wants to change a program
+                           copies it to bp, which needs bp-on.  It is not a shared file and no account's VOC points
+                           outside the account.  A suspended account is skipped until it is back.
+
 17 Nov 26  THE INSTALLER NO LONGER LEAVES A BROKEN GPM IN A CONTAINER.
 
              What        - gpm, the console mouse daemon, is installed only where the machine has a console mouse device

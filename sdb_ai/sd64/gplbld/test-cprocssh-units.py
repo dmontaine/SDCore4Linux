@@ -40,7 +40,13 @@ def rows_for(path, bp_dir):
             n = strip_comments(open(p, encoding="utf-8", errors="replace").read()).count("kernel(K$ADMINISTRATOR, 1)")
             if n:
                 sites[name] = n
-    row("K$ADMINISTRATOR is set at four places and all are in CPROC (the install arm, the scheduled job, the local arm, the ssh arm)", sites == {"cproc": 4}, "%s" % sites)
+    row("K$ADMINISTRATOR is set at four places in CPROC (the install arm, the scheduled job, the local arm, the ssh arm) and at ONE in APISRVR (S.256, 16 Nov 26: an "
+        "SDSYS API session the door admitted), and nowhere else", sites == {"cproc": 4, "apisrvr": 1}, "%s" % sites)
+    api = strip_comments(open(os.path.join(bp_dir, "apisrvr"), encoding="utf-8", errors="replace").read())
+    ag = api.find("void kernel(K$ADMINISTRATOR, 1)")
+    row("APISRVR's one grant is given only when a door admitted SDSYS (sdsys.api.from not null), after the Linux identity was assumed",
+        ag > 0 and re.search(r"if sdsys\.api\.from # '' then\s*\n\s*void kernel\(K\$ADMINISTRATOR, 1\)", api) is not None
+        and 0 < api.rfind("if not(kernel(K$ASSUME.USER, scram.user)) then", 0, ag) < ag, "")
     row("the local arm's line is exactly the one the sandbox tools patch by its text", code.count(LOCAL_LINE) == 1, "")
     i = code.find("\n      end else", code.find(LOCAL_LINE))      # the OUTER else (six spaces): the inner one of the local arm has nine
     arm = code[i:code.find("$endif", i)]

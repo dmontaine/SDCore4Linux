@@ -2367,6 +2367,25 @@ fi
 sudo rm -f "${sdsysdir}/viewers"
 # SHARED-CONTENT-END
 
+# 17 Nov 26 dm - THE EXAMPLE PROGRAMS (owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and
+#            a set of training programs typical for a Computer Science 101 course"; asked how every account reaches it, "A copy in every account").
+#            LOAD.EXAMPLES gives every registered account in service its own examples.bp from /usr/local/sdsys/examples, compiled (create.account
+#            does the same for each account it makes, the installing person's included): an upgrade refreshes the shipped programs in every kept
+#            account and keeps any other program in the file.  No gate changes: examples.bp is an ordinary program file of its account.  A failure
+#            prints a WARNING and says what to run; it does not stop the install.  test-examples-units.py holds this block.
+# EXAMPLES-BEGIN
+echo
+echo "Putting the example programs into every account (examples.bp)."
+examples_out=$(sudo bin/sd -internal load.examples < /dev/null 2>&1) || true
+printf '%s\n' "$examples_out" | grep -E '^(Example programs in examples\.bp|Compiled |.* was not loaded:)' || true
+if ! printf '%s\n' "$examples_out" | grep -qE '^Example programs in examples\.bp of [1-9][0-9]* account\(s\)'; then
+    printf "%b\n" "$RED"
+    echo "WARNING: the example programs were not put into the accounts."
+    echo "  Signed in as sdsys, run:  load.examples"
+    printf "%b\n" "$NC"
+fi
+# EXAMPLES-END
+
 # 24 Oct 26 dm  THE CHANGES DOCUMENT TRAVELS WITH THE INSTALLER AND IS COPIED INTO THE SHARED ACCOUNT (owner, 24 Oct 2026: "included with the installer as an
 #            additional document and upon installation also copied into the 'shared' directory").  A release package holds, beside this script, the
 #            document in three forms named sd-core-for-linux-<version>-changes.pdf / .html / .md (lower case, the names docs.install takes).  Each

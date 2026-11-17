@@ -283,6 +283,12 @@ sdsys/messages/1409?         : sftp
 sdsys/messages/1410?         : sftp
 sdsys/messages/1411[0-3]     : sftp
 sdsys/gpl.bp/xfer            : sftp
+# 17 Nov 26: the example programs in every account's examples.bp (LOAD.EXAMPLES, create.account's call of it, the shipped programs and messages)
+gplbld/sandbox-examples.py   : @self
+sdsys/gpl.bp/loadexamples    : examples
+sdsys/examples/*             : examples
+sdsys/voc_template/load.examples : examples
+sdsys/messages/1412[1-6]     : examples
 # S.256 (16 Nov 26): remote administration through the API.  The address rule runs in sandbox-addrmatch.py; the doors themselves need an
 # sdsys login and another computer, so they are the VM witness's, and the messages are free text checks (test-sdsysapi-units.py).
 sdsys/gpl.bp/addrmatch       : addrmatch
@@ -874,7 +880,7 @@ sdsys/voc_template/remote.sdsys : tool-remote
 sdsys/gpl.bp/cred_*          : gates qmclient
 # 26 Oct 26 (F6 and the home work): create.account no longer puts the sdsys user into the account's group, and takes the start and pins words
 sdsys/gpl.bp/create_account  : gates editgates shared tool-accounts home2 @core
-sdsys/gpl.bp/createa         : gates editgates shared tool-accounts home2 @system
+sdsys/gpl.bp/createa         : gates editgates shared tool-accounts home2 examples @system
 sdsys/gpl.bp/create*         : @files gates @system editgates net shared
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
 sdsys/gpl.bp/phantom         : q5 q4 listu-a5 ipc

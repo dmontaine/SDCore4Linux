@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Nov 26 dm The new account gets its own examples.bp (the example programs, compiled) from LOAD.EXAMPLES, after its audit line.
 * 14 Nov 26 dm S.242 stage 1: XFER-ON, the new user account's person may move files over the ssh login with RECEIVE / SEND (off unless typed); CA$XFER in createacc.h;
 *           !create_account refuses it for a group or other account (14075); the audit gates= list names it.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): RECOVERY-ON, the new user account's editors keep a recovery copy of unsaved text (off unless typed); CA$RECOVERY in createacc.h; !create_account
@@ -329,6 +330,14 @@ $include createacc.h
    start.audit = ''
    if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)
    void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)
+
+* 17 Nov 26 dm - THE EXAMPLE PROGRAMS (owner, 17 Nov 2026: "there should be a examples.bp file available to all users", asked how, "A copy in every
+*   account"): the new account gets its own examples.bp, compiled, from LOAD.EXAMPLES; its two summary lines are shown.  A failure there does not
+*   undo the account (it is made and audited above); the administrator runs load.examples <name> again.
+   execute 'load.examples ' : downcase(acc.name) capturing ex.out
+   for ex.i = 1 to dcount(ex.out, @fm)
+      if index(ex.out<ex.i>, 'Example programs in examples.bp', 1) or ex.out<ex.i>[1, 9] = 'Compiled ' or index(ex.out<ex.i>, 'was not loaded', 1) then crt ex.out<ex.i>
+   next ex.i
 
    return
 

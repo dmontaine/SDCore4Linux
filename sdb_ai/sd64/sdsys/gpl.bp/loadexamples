@@ -1,0 +1,203 @@
+* LOADEXAMPLES
+* LOAD.EXAMPLES verb: put the shipped example programs into the file examples.bp of every account (or of one) and compile them there.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 17 Nov 26 dm  New (the owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and a set of
+*               training programs typical for a Computer Science 101 course", then "all four versions should deliver with examples.bp").  Asked how
+*               every account reaches it - the shared account's lookup serves no program file (S.66), and an F-pointer outside an account is refused by
+*               the OS gate - he chose "A copy in every account": no gate changes.  Made from loadhelp, which fills context.help the same way.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   LOAD.EXAMPLES               every registered account
+*   LOAD.EXAMPLES account       that account only (create.account runs it for the account it made)
+*
+*   The administrator's verb, run by the installer, by create.account, and by hand after the programs under examples change.  Every file of the
+*   examples directory of the SD system directory (/usr/local/sdsys/examples) is one program, the FILE NAME its record id (a lower case letter
+*   first, then a-z 0-9 dot dash underscore, up to 80 characters): the five programs of the SD Text User Interface - Programmer's Guide (hello,
+*   menus, notes, browse, stock) and the training programs cs01 to cs23.  In each account they go into examples.bp, a directory file of the account,
+*   made when it is not there; a record that is already the same is not written; a program under an id that is not shipped is kept; a shipped one is
+*   replaced, so a change to a shipped program is made under examples, not in the file.  Then each program that is new, changed, or has no object
+*   yet is compiled there (BASIC examples.bp name), so the account's person can run it where it is (RUN examples.bp name) or copy it to bp to change
+*   it.  "Compiled N of M" counts those M.
+*
+*   NO GATE IS TOUCHED: examples.bp is an ordinary program file of the account (a name ending .bp), so the edit gate bp.edit decides whether its
+*   person may change it - off as delivered, so it is read-only to them.  It enters each account with LOGTO, as the administrator may (an
+*   administrator's LOGTO runs no LOGIN paragraph), and goes back to the account it began in.  An account it cannot enter or make the file in is named
+*   and skipped; a program that does not compile is named.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program load.examples
+$catalog $loadexamples
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   @system.return.code = -ER$ARGS
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   keychars = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
+   src = @sdsys : @ds : 'examples'
+   entries = dir(src)
+   if entries = '' then stop sysmsg(14121, src)                   ;* The example programs directory is missing or empty: %1
+
+*  The programs, read once: names and texts
+   names = '' ; texts = ''
+   n.bad = 0
+   for i = 1 to dcount(entries, @fm)
+      name = entries<i, 1>
+      if entries<i, 2> # 'F' then continue
+      gosub read.one
+   next i
+   if names = '' then stop sysmsg(14121, src)
+
+*  The accounts: one named, or every one in the register
+   want = downcase(trim(field(trim(@sentence), ' ', 2)))
+   openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(6003)
+   accts = ''
+   if want # '' then
+      read arec from acc.f, want else
+         close acc.f
+         @system.return.code = -ER$FAILED
+         stop sysmsg(14122, want)                                ;* No account is registered as %1 ...
+      end
+      accts = want
+   end else
+      select acc.f to 11
+      loop
+         readnext aid from 11 else exit
+         read arec from acc.f, aid else continue
+         if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue     ;* a suspended account is not entered (LOGTO refuses it); it is given them when it is back
+         locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>
+      repeat
+   end
+   close acc.f
+
+   origin = @who
+   n.acc = 0 ; n.new = 0 ; n.changed = 0 ; n.same = 0 ; n.kept = 0 ; n.compiled = 0 ; n.tried = 0
+   for a = 1 to dcount(accts, @fm)
+      acct = accts<a>
+      gosub do.account
+   next a
+   if downcase(@who) # downcase(origin) then execute 'logto ' : origin capturing lt
+
+   void kernel(K$AUDIT, 'load.examples accounts=' : n.acc : ' new=' : n.new : ' changed=' : n.changed : ' same=' : n.same : ' kept=' : n.kept : ' compiled=' : n.compiled : ' of=' : n.tried : ' skipped=' : n.bad)
+   display sysmsg(14124, n.acc, n.new, n.changed, n.same)           ;* SYSMSG takes four places
+   display sysmsg(14125, n.compiled, n.tried, n.kept)
+   @system.return.code = (if n.bad then -ER$FAILED else 0)
+   stop
+
+* ------------------------------------------------------------------------------------------------- one account
+
+do.account:
+   if downcase(@who) # acct then execute 'logto ' : acct capturing lt
+   if downcase(@who) # acct then
+      display sysmsg(14123, acct)                                ;* Could not enter the account %1 ...
+      n.bad += 1
+      return
+   end
+   open 'examples.bp' to xf else
+      execute 'create.file examples.bp directory' capturing mk
+      open 'examples.bp' to xf else
+         display sysmsg(14123, acct)
+         n.bad += 1
+         return
+      end
+   end
+   n.acc += 1
+   todo = ''                                                     ;* the programs to compile here: new, changed, or with no object yet
+   have.obj = @false
+   open 'examples.bp.out' to of then have.obj = @true
+   for p = 1 to dcount(names, @fm)
+      rec = raise(texts<p>)
+      old = ''
+      read old from xf, names<p> then
+         if old = rec then
+            n.same += 1
+            obj = ''
+            if have.obj then read obj from of, names<p> else obj = ''
+            if obj = '' then todo<-1> = names<p>
+            continue
+         end
+         n.changed += 1
+      end else
+         n.new += 1
+      end
+      todo<-1> = names<p>
+      wok = @true
+      write rec to xf, names<p> on error wok = @false
+      if not(wok) then
+         display sysmsg(14126, acct : ' ' : names<p>, 'it could not be written')
+         n.bad += 1
+      end
+   next p
+   select xf to 12
+   loop
+      readnext rid from 12 else exit
+      locate rid in names<1> setting kp else n.kept += 1
+   repeat
+   close xf
+   if have.obj then close of
+*  Each program to compile, one at a time, judged on the compiler's own success line
+   for p = 1 to dcount(todo, @fm)
+      n.tried += 1
+      execute 'basic examples.bp ' : todo<p> capturing out
+      if index(out, 'Compiled 1 program(s) with no errors', 1) then
+         n.compiled += 1
+      end else
+         display sysmsg(14126, acct : ' ' : todo<p>, 'it did not compile')
+         n.bad += 1
+      end
+   next p
+   return
+
+* ------------------------------------------------------------------------------------------------- one shipped file
+
+read.one:
+   ok = (len(name) >= 1 and len(name) <= 80 and index('abcdefghijklmnopqrstuvwxyz', name[1, 1], 1) > 0)
+   if ok then
+      for ci = 2 to len(name)
+         if index(keychars, name[ci, 1], 1) = 0 then ok = 0
+      next ci
+   end
+   if not(ok) then
+      display sysmsg(14126, name, 'not a key')
+      n.bad += 1
+      return
+   end
+   rec = ''
+   nf = 0
+   got = 0
+   openseq src : @ds : name readonly to sf then
+      got = 1
+      loop
+         readseq ln from sf else exit
+         nf += 1
+         rec<nf> = trimb(ln)
+      repeat
+      close sf
+   end
+   if not(got) or nf = 0 then
+      display sysmsg(14126, name, 'cannot be read')
+      n.bad += 1
+      return
+   end
+   locate name in names<1> by 'AL' setting np else
+      ins name before names<np>
+      ins lower(rec) before texts<np>
+   end
+   return
+
+end
+
+* END-CODE

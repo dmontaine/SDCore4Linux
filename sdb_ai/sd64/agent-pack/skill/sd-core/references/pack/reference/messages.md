@@ -10956,6 +10956,60 @@ The API is open for sdsys from EVERY address: anyone who can reach this\ncompute
 
 cited by: `remotesdsys`
 
+### msg:14121
+> kind=message tier=reference since=- src=sdsys/messages/14121:1#3aea67a7
+
+```
+The example programs directory is missing or empty: %1
+```
+
+cited by: `loadexamples`
+
+### msg:14122
+> kind=message tier=reference since=- src=sdsys/messages/14122:1#0eda3557
+
+```
+No account is registered as %1, so no example programs were put there
+```
+
+cited by: `loadexamples`
+
+### msg:14123
+> kind=message tier=reference since=- src=sdsys/messages/14123:1#66839c1b
+
+```
+Could not enter the account %1, or make the file examples.bp there; it was left as it is
+```
+
+cited by: `loadexamples`
+
+### msg:14124
+> kind=message tier=reference since=- src=sdsys/messages/14124:1#77f98dbe
+
+```
+Example programs in examples.bp of %1 account(s): %2 new, %3 changed, %4 the same
+```
+
+cited by: `loadexamples`
+
+### msg:14125
+> kind=message tier=reference since=- src=sdsys/messages/14125:1#fcd2f6fc
+
+```
+Compiled %1 of the %2 that were new, changed or not yet compiled; programs added by the administrator, kept: %3
+```
+
+cited by: `loadexamples`
+
+### msg:14126
+> kind=message tier=reference since=- src=sdsys/messages/14126:1#4c173ea8
+
+```
+%1 was not loaded: %2
+```
+
+cited by: `loadexamples`
+
 ### msg:1413
 > kind=message tier=reference since=- src=sdsys/messages/1413:1#5333f220
 
@@ -11580,7 +11634,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 23 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -17508,7 +17562,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `loadhelp`, `modifya`, `settile`
+cited by: `loadexamples`, `loadhelp`, `modifya`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01
