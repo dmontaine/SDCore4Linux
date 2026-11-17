@@ -459,6 +459,8 @@
       *   (MODIFY.ACCOUNT XFER-ON / XFER-OFF; CREATE.ACCOUNT takes XFER-ON).  Read by the transfer server itself at each connection, never loaded into a session.
       *   No upgrade walk: existing accounts stay off.
       $define ACC$XFER         22    ;* may move files in and out over ssh with RECEIVE / SEND (yes/no; blank = no)
+      * 17 Nov 26 dm - FIELD 23 IS RESERVED FOR SD CORE FOR LINUX SOLO (S.247): its scheduled-jobs switch (ACC$JOBS).  This product's jobs are the administrator's,
+      *   through the root helper, and have no register field; do not use 23 for anything else without moving Solo's.
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

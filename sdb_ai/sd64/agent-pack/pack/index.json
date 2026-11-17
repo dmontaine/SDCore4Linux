@@ -28439,7 +28439,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 34
+"words": 49
 },
 "tcl:remote.ssh": {
 "kind": "tcl.verb",
