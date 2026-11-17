@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """sandbox-examples.py - the example programs: LOAD.EXAMPLES gives every account its own examples.bp, compiled, and an ordinary account uses it.
 
-    SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,reach,run]
+    SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,reach,run,remove]
 
 No install, no sudo; <dir> a SHORT path under /tmp.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  (17 Nov 2026; the owner: "there should be
 a examples.bp file available to all users that contains those programs and a set of training programs typical for a Computer Science 101 course", then, asked
@@ -13,6 +13,8 @@ The fixture accounts are sandbox-home.py's (zzhd zzhm zzht zzhv in service, zzhs
          the administrator added is kept and a shipped one changed by hand is put back, LOAD.EXAMPLES NAME does that account only
   reach  an ORDINARY fixture account (zzhd): its VOC holds examples.bp as its own file, COUNT counts the programs, RUN examples.bp NAME runs one where
          it is, COPY to its own bp, BASIC and RUN give the same; it cannot write into examples.bp (bp.edit off as delivered)
+  remove REMOVE.EXAMPLES with a list, with an unregistered name, with no name; the administrator's own program kept with its file; LOAD.EXAMPLES
+         with a list; an ordinary account cannot run it (WRITTEN 17 Nov 2026, NOT RUN)
   run    every training program, run from the ordinary account, against an answer this suite works out in Python (fizzbuzz, the primes, the
          gcds, the sorts, the searches...), lines compared with runs of spaces made one; cs03 and cs21 with input on the pipe; cs20 makes and removes
          its file in zzhd; cs22 depends on today, so only its shape is held
@@ -291,6 +293,48 @@ def section_run():
     row("X cs20.files left no file behind in zzhd", not os.path.exists(os.path.join(sh.BOX, "user_accounts", "zzhd", "cs20.data")))
 
 
+def rcounts(out):
+    """(accounts, programs, files) and (accounts with none, kept) of REMOVE.EXAMPLES's two lines, or None"""
+    a = b = None
+    for l in out:
+        m = re.match(r"^Example programs removed from (\d+) account\(s\): (\d+) programs, (\d+) files examples\.bp deleted \(nothing else was in them\)$", l)
+        if m:
+            a = tuple(int(x) for x in m.groups())
+        m = re.match(r"^Accounts that had no examples\.bp: (\d+); programs added by the administrator, kept: (\d+)$", l)
+        if m:
+            b = tuple(int(x) for x in m.groups())
+    return a, b
+
+
+def section_remove():
+    """WRITTEN WITH THE VERB (17 Nov 2026) AND NOT YET RUN: the first run of this section is the first measurement of REMOVE.EXAMPLES and of the lists."""
+    say("\n--- remove: REMOVE.EXAMPLES, and both verbs with a list of accounts (runs after run, on what load left)")
+    names = shipped()
+    n = len(names)
+    every = INSERVICE + ("sdsys",)
+    out = adm("remove.examples zzhd zzhm")
+    row("M1 REMOVE.EXAMPLES zzhd zzhm (a list): each loses its n programs and its examples.bp, none was left behind",
+        rcounts(out) == ((2, 2 * n, 2), (0, 0)), repr((rcounts(out), out[-5:])))
+    row("M1b zzhd and zzhm have neither examples.bp nor examples.bp.out on the disk; zzht, not named, still has both",
+        not any(os.path.exists(os.path.join(adir(a), x)) for a in ("zzhd", "zzhm") for x in ("examples.bp", "examples.bp.out"))
+        and os.path.isdir(os.path.join(adir("zzht"), "examples.bp")) and os.path.isdir(os.path.join(adir("zzht"), "examples.bp.out")))
+    g.put(xbp("zzmine", "zzht"), "* zzmine - the administrator's own\n   crt 'mine'\nend\n")
+    out = adm("remove.examples zzht zznone zzhm")
+    row("M2 a program the administrator added is KEPT with the file; an unregistered name is said (14130) and the others go on; an account with no examples.bp is counted",
+        rcounts(out) == ((1, n, 0), (1, 1)) and has(out, r"No account is registered as zznone, so no example programs were removed there"), repr((rcounts(out), out[-6:])))
+    row("M2b in zzht the shipped programs and their objects are gone, zzmine is still there",
+        os.path.exists(xbp("zzmine", "zzht")) and not any(os.path.exists(xbp(x, "zzht")) or os.path.exists(os.path.join(adir("zzht"), "examples.bp.out", x)) for x in names))
+    out = load("zzhd zzhm zzht")
+    row("M3 LOAD.EXAMPLES zzhd zzhm zzht (a list): all three given every program again, compiled, the added one kept",
+        counts(out) == ((3, 3 * n, 0, 0), (3 * n, 3 * n, 1)) and all(os.path.isfile(os.path.join(adir(a), "examples.bp.out", x)) for a in ("zzhd", "zzhm", "zzht") for x in names), repr((counts(out), out[-4:])))
+    out = g.plain("zzhd", ["remove.examples"])
+    row("M4 an ordinary account cannot run REMOVE.EXAMPLES (the verb is not in its VOC)", has(out, r"not in your VOC"), repr(out[:4]))
+    out = adm("remove.examples")
+    row("M5 REMOVE.EXAMPLES with no name: every account in service and SDSYS; zzht keeps its file for the added program, the others lose theirs",
+        rcounts(out) == ((len(every), len(every) * n, len(every) - 1), (0, 1)) and os.path.exists(xbp("zzmine", "zzht")), repr((rcounts(out), out[-5:])))
+    row("M5b zzhs, SUSPENDED, was not entered and has no examples.bp either way", not os.path.exists(xbp("", "zzhs")))
+
+
 def main():
     try:
         sh.setup("sandbox-examples.py")
@@ -299,6 +343,8 @@ def main():
             section_reach()
         if ONLY is None or "run" in ONLY:
             section_run()
+        if ONLY is None or "remove" in ONLY:
+            section_remove()
     finally:
         sh.teardown()
     sh.summary("sandbox-examples")                  # prints "N passed, M failed" and exits 0 only when every row passed and one did

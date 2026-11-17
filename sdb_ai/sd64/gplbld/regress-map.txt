@@ -287,8 +287,11 @@ sdsys/gpl.bp/xfer            : sftp
 gplbld/sandbox-examples.py   : @self
 sdsys/gpl.bp/loadexamples    : examples
 sdsys/examples/*             : examples
+sdsys/gpl.bp/removeexamples  : examples
 sdsys/voc_template/load.examples : examples
-sdsys/messages/1412[1-6]     : examples
+sdsys/voc_template/remove.examples : examples
+sdsys/messages/1412[1-9]     : examples
+sdsys/messages/1413[01]      : examples
 # S.256 (16 Nov 26): remote administration through the API.  The address rule runs in sandbox-addrmatch.py; the doors themselves need an
 # sdsys login and another computer, so they are the VM witness's, and the messages are free text checks (test-sdsysapi-units.py).
 sdsys/gpl.bp/addrmatch       : addrmatch

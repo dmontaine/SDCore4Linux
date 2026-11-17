@@ -10963,7 +10963,7 @@ cited by: `remotesdsys`
 The example programs directory is missing or empty: %1
 ```
 
-cited by: `loadexamples`
+cited by: `loadexamples`, `removeexamples`
 
 ### msg:14122
 > kind=message tier=reference since=- src=sdsys/messages/14122:1#0eda3557
@@ -11010,12 +11010,57 @@ cited by: `loadexamples`
 
 cited by: `loadexamples`
 
+### msg:14127
+> kind=message tier=reference since=- src=sdsys/messages/14127:1#505314b0
+
+```
+Example programs removed from %1 account(s): %2 programs, %3 files examples.bp deleted (nothing else was in them)
+```
+
+cited by: `removeexamples`
+
+### msg:14128
+> kind=message tier=reference since=- src=sdsys/messages/14128:1#916ddde3
+
+```
+Accounts that had no examples.bp: %1; programs added by the administrator, kept: %2
+```
+
+cited by: `removeexamples`
+
+### msg:14129
+> kind=message tier=reference since=- src=sdsys/messages/14129:1#edb8d92f
+
+```
+%1 was not removed: %2
+```
+
+cited by: `removeexamples`
+
 ### msg:1413
 > kind=message tier=reference since=- src=sdsys/messages/1413:1#5333f220
 
 ```
 Illegal file type for SELECT
 ```
+
+### msg:14130
+> kind=message tier=reference since=- src=sdsys/messages/14130:1#c74ae22c
+
+```
+No account is registered as %1, so no example programs were removed there
+```
+
+cited by: `removeexamples`
+
+### msg:14131
+> kind=message tier=reference since=- src=sdsys/messages/14131:1#15838a5f
+
+```
+Could not enter the account %1; its example programs were left as they are
+```
+
+cited by: `removeexamples`
 
 ### msg:1414
 > kind=message tier=reference since=- src=sdsys/messages/1414:1#647ce696
@@ -11634,7 +11679,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 23 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 24 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -17562,7 +17607,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `loadexamples`, `loadhelp`, `modifya`, `settile`
+cited by: `loadexamples`, `loadhelp`, `modifya`, `removeexamples`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01

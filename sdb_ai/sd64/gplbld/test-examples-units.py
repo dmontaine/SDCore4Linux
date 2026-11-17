@@ -14,6 +14,9 @@ for a Computer Science 101 course"; asked how every account reaches it, "A copy 
   X5  create.account runs load.examples for the account it made, after its audit line
   X6  the installer's EXAMPLES block is there once, after SHARED-CONTENT and before SOURCE-GONE, runs load.examples internally and warns on failure
   X7  load.examples is the administrator's verb: in voc_template, not in newvoc; the messages it cites exist
+  X8, X9  LOAD.EXAMPLES and REMOVE.EXAMPLES take a LIST of accounts (owner, 17 Nov 2026), an unregistered name said and skipped
+  X10, X11  REMOVE.EXAMPLES, the companion: only the shipped names deleted with their objects, the file only when nothing is left, back to the account it
+      began in, one audit line; its VOC record in voc_template only and its messages exist
 It cannot say a program runs or what it prints: that is sandbox-examples.py.
 """
 import importlib.util
@@ -45,7 +48,9 @@ def rd(p):
 def load():
     raw = {"load": rd(os.path.join(SDSYS, "gpl.bp", "loadexamples")), "createa": rd(os.path.join(SDSYS, "gpl.bp", "createa")),
            "inst": rd(os.path.join(ROOT, "installsdcore.sh")), "vt": rd(os.path.join(SDSYS, "voc_template", "load.examples")),
-           "nv": rd(os.path.join(SDSYS, "newvoc", "load.examples"))}
+           "nv": rd(os.path.join(SDSYS, "newvoc", "load.examples")),
+           "rm": rd(os.path.join(SDSYS, "gpl.bp", "removeexamples")), "vtr": rd(os.path.join(SDSYS, "voc_template", "remove.examples")),
+           "nvr": rd(os.path.join(SDSYS, "newvoc", "remove.examples"))}
     raw["files"] = {n: rd(os.path.join(EX, n)) for n in sorted(os.listdir(EX))} if os.path.isdir(EX) else {}
     raw["guide"] = {n: rd(os.path.join(GUIDE, p + ".md")) for n, p in PAGES}
     return raw
@@ -105,6 +110,23 @@ def checks(raw):
     gone = sorted(n for n in cited if not os.path.exists(os.path.join(SDSYS, "messages", n)))
     ck("X7", "load.examples is in voc_template (V CA $loadexamples) and not in newvoc; the %d messages it cites exist" % len(cited),
        (raw["vt"] or "").split("\n")[:3] == ["V", "CA", "$loadexamples"] and raw["nv"] is None and cited and not gone, repr(gone))
+    # THE LIST (owner, 17 Nov 2026: "both load.examples and remove.examples should take a list of accounts") and the companion verb
+    rm = code(raw["rm"])
+    for who, t in (("LOAD.EXAMPLES", ld), ("REMOVE.EXAMPLES", rm)):
+        ck("X8" if who[0] == "L" else "X9", "%s takes a LIST of accounts: each word after the verb, each once, an unregistered name said and skipped, the others go on" % who,
+           t and "for w = 2 to dcount(want, ' ')" in t and t.count("locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>") == 2     # the list and the register
+           and "stop sysmsg(14122, want)" not in t and "n.bad += 1\n            continue" in t)
+    ck("X10", "REMOVE.EXAMPLES: the administrator first, only the SHIPPED names deleted (each read first), the compiled object with its program, examples.bp and its .out "
+              "deleted only when nothing is left (left = 0) and judged on a reopen, back to the account it began in, one audit line, a SUSPENDED account skipped",
+       raw["rm"] is not None and 0 <= rm.find("if not(kernel(K$ADMINISTRATOR, -1)) then") < rm.find("dir(src)")
+       and "read old from xf, names<p> then" in rm and "delete xf, names<p> on error dok = @false" in rm and "delete of, names<p> on error dok = @false" in rm
+       and 0 < rm.find("if left = 0 then") < rm.find("execute 'delete.file examples.bp' capturing out") < rm.find("execute 'delete.file examples.bp.out' capturing out")
+       and "select xf to 12" in rm and rm.count("delete.file") == 2 and "execute 'logto ' : origin capturing lt" in rm and rm.count("kernel(K$AUDIT") == 1
+       and "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue" in rm and "delete xf" in rm and "clear.file" not in rm and "select" in rm)
+    cited_r = set(re.findall(r"sysmsg\((\d+)", rm))
+    gone_r = sorted(n for n in cited_r if not os.path.exists(os.path.join(SDSYS, "messages", n)))
+    ck("X11", "remove.examples is in voc_template (V CA $removeexamples) and not in newvoc; the %d messages it cites exist" % len(cited_r),
+       (raw["vtr"] or "").split("\n")[:3] == ["V", "CA", "$removeexamples"] and raw["nvr"] is None and cited_r and not gone_r, repr(gone_r))
     return rows
 
 
@@ -141,6 +163,21 @@ MUTANTS = [
     ("the installer block does not warn", "X6", sub("inst", "    echo \"WARNING: the example programs were not put into the accounts.\"\n", "")),
     ("the installer block runs load.examples as root's session, not internally", "X6", sub("inst", "sudo bin/sd -internal load.examples < /dev/null", "sudo bin/sd load.examples < /dev/null")),
     ("load.examples is given to every account", "X7", lambda raw: dict(raw, nv="V\nCA\n$loadexamples\n")),
+    ("load.examples takes one account again", "X8", sub("load", "for w = 2 to dcount(want, ' ')", "for w = 2 to 2")),
+    ("load.examples stops at an unregistered name", "X8", sub("load", "            display sysmsg(14122, aid)                           ;* No account is registered as %1 ...\n            n.bad += 1\n            continue",
+                                                              "            stop sysmsg(14122, want)")),
+    ("remove.examples takes one account only", "X9", sub("rm", "for w = 2 to dcount(want, ' ')", "for w = 2 to 2")),
+    ("remove.examples lists a name twice", "X9", sub("rm", "locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>\n      next w",
+                                                     "ins aid before accts<1>\n      next w")),
+    ("remove.examples does not ask for the administrator", "X10", sub("rm", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001)", "   if 0 then\n      stop sysmsg(2001)")),
+    ("remove.examples deletes a program the system does not ship (clears the file)", "X10", sub("rm", "   for p = 1 to dcount(names, @fm)\n      read old from xf, names<p> then",
+                                                                                                "   execute 'clear.file examples.bp' capturing out\n   for p = 1 to dcount(names, @fm)\n      read old from xf, names<p> then")),
+    ("remove.examples deletes the file although programs are left", "X10", sub("rm", "   if left = 0 then", "   if 1 then")),
+    ("remove.examples keeps the compiled object", "X10", sub("rm", "delete of, names<p> on error dok = @false", "dok = @true")),
+    ("remove.examples is not judged on a reopen", "X10", sub("rm", "      open 'examples.bp' to xf then\n         close xf\n         display sysmsg(14129, acct : ' examples.bp', 'the file could not be deleted')",
+                                                             "      open 'examples.bp' to xf then\n         close xf\n         display sysmsg(14129, acct : ' examples.bp', 'the file could not be deleted')\n         execute 'delete.file examples.bp' capturing out")),
+    ("remove.examples does not go back to the account it began in", "X10", sub("rm", "execute 'logto ' : origin capturing lt", "null")),
+    ("remove.examples is given to every account", "X11", lambda raw: dict(raw, nvr="V\nCA\n$removeexamples\n")),
 ]
 
 

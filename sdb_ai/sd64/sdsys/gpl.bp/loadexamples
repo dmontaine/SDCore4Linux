@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  The verb takes a LIST of accounts (the owner, 17 Nov 2026: "both load.examples and remove.examples should take a list of accounts"); an unknown name is
+*               said (14122) and skipped instead of ending the command.  Its companion is REMOVE.EXAMPLES (removeexamples).
 * 17 Nov 26 dm  New (the owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and a set of
 *               training programs typical for a Computer Science 101 course", then "all four versions should deliver with examples.bp").  Asked how
 *               every account reaches it - the shared account's lookup serves no program file (S.66), and an F-pointer outside an account is refused by
@@ -12,8 +14,9 @@
 *
 * START-DESCRIPTION:
 *
-*   LOAD.EXAMPLES               every registered account
-*   LOAD.EXAMPLES account       that account only (create.account runs it for the account it made)
+*   LOAD.EXAMPLES                       every registered account
+*   LOAD.EXAMPLES account ...           the accounts named, a list (create.account runs it for the account it made); a name that is not
+*                                       registered is said and skipped, and the others go on
 *
 *   The administrator's verb, run by the installer, by create.account, and by hand after the programs under examples change.  Every file of the
 *   examples directory of the SD system directory (/usr/local/sdsys/examples) is one program, the FILE NAME its record id (a lower case letter
@@ -61,17 +64,20 @@ $include err.h
    next i
    if names = '' then stop sysmsg(14121, src)
 
-*  The accounts: one named, or every one in the register
-   want = downcase(trim(field(trim(@sentence), ' ', 2)))
+*  The accounts: those named (a list, each once), or every one in the register.  A name that is not registered is said and skipped.
+   want = downcase(trim(@sentence))                              ;* the verb, then the account names
    openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(6003)
    accts = ''
-   if want # '' then
-      read arec from acc.f, want else
-         close acc.f
-         @system.return.code = -ER$FAILED
-         stop sysmsg(14122, want)                                ;* No account is registered as %1 ...
-      end
-      accts = want
+   if dcount(want, ' ') > 1 then
+      for w = 2 to dcount(want, ' ')
+         aid = field(want, ' ', w)
+         read arec from acc.f, aid else
+            display sysmsg(14122, aid)                           ;* No account is registered as %1 ...
+            n.bad += 1
+            continue
+         end
+         locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>
+      next w
    end else
       select acc.f to 11
       loop
