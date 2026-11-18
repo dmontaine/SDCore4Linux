@@ -279,6 +279,33 @@ def main():
         out = sess(box, "BASIC bp zztxin", "BASIC bp %s" % prog, "RUN bp %s" % prog)
         row("an exception thrown inside an EXECUTEd program is not caught by a TRY around the EXECUTE",
             has(out, r"Unhandled exception across: execute") and not has(out, r"WRONGLY_CAUGHT"), out[-300:].replace("\n", " | "))
+
+        # S.270 (18 Nov 26): EXECUTE ... CAPTURING around a program whose own EXECUTE ... TRAPPING ABORTS CAPTURING traps an abort.
+        # The kernel emptied the WHOLE e-stack on the abort, so the outer CAPTURE read below its base: signal 11 ("Fault type 11"
+        # in the error log, the session gone).  Red on the tree before: the session ended at the outer RUN with exit -11.
+        ab = os.path.join(bp, "zztxab")
+        mid = os.path.join(bp, "zztxmid")
+        outp = os.path.join(bp, "zztxout")
+        rtn = os.path.join(bp, "zztxrtn")
+        unt = os.path.join(bp, "zztxunt")
+        write(ab, "   crt 'AB_SAYS'\n   abort 'AB_ABORTS'\nend\n")
+        write(mid, "   execute 'RUN bp zztxab' trapping aborts capturing x\n   crt 'MID_BACK code=' : @abort.code\nend\n")
+        write(outp, "   execute 'RUN bp zztxmid' capturing out\n   crt 'OUT_GOT[' : convert(@fm, '|', out) : ']'\n   crt 'OUT_DONE'\nend\n")
+        write(rtn, "   execute 'RUN bp zztxmid' trapping aborts rtnlist rl capturing y\n   crt 'RTN_GOT[' : convert(@fm, '|', y) : ']'\nend\n")
+        write(unt, "   execute 'RUN bp zztxab' capturing z\n   crt 'UNT_SHOULD_NOT_PRINT'\nend\n")
+        made.extend([ab, mid, outp, rtn, unt])
+        errlog = os.path.join(sysd, "errlog")
+        faults0 = open(errlog, errors="replace").read().count("Fault type") if os.path.exists(errlog) else 0
+        out = sess(box, "BASIC bp zztxab zztxmid zztxout zztxrtn zztxunt", "RUN bp zztxout", "RUN bp zztxrtn", "RUN bp zztxunt", "WHO")
+        faults = (open(errlog, errors="replace").read().count("Fault type") if os.path.exists(errlog) else 0) - faults0
+        row("S.270: a trapped abort under an outer EXECUTE ... CAPTURING: the outer program captures the middle one's output and goes on, "
+            "and the error log gains no fault",
+            has(out, r"OUT_GOT\[MID_BACK code=1\]") and has(out, r"^OUT_DONE") and faults == 0, "faults=%d | %s" % (faults, out[-300:].replace("\n", " | ")))
+        row("S.270: ...the same nesting with TRAPPING ABORTS RTNLIST CAPTURING at the outer level comes back too",
+            has(out, r"RTN_GOT\[MID_BACK code=1\]"), out[-300:].replace("\n", " | "))
+        row("S.270 CONTROL: an abort NOT trapped still ends the command (the program after it does not go on) and the session lives on",
+            not has(out, r"UNT_SHOULD_NOT_PRINT") and has(out, r"^\d+ [a-z][a-z0-9_.]*\s*$"),   # WHO's "<user number> <account>" (not "0 error(s)")
+            out[-300:].replace("\n", " | "))
     finally:
         sess(box, *["DELETE.CATALOG %s" % nm for nm in catalogued])
         for p in made:

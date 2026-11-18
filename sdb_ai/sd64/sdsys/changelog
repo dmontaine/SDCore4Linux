@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  A SESSION NO LONGER CRASHES WHEN A CAPTURED COMMAND TRAPS AN ABORT INSIDE IT.
+
+             What        - EXECUTE ... CAPTURING around a program that itself runs a command with EXECUTE ...
+                           TRAPPING ABORTS, where that command aborts, now works: the inner program carries on, and
+                           the outer one captures its output and carries on too.  The session used to end at once
+                           ("Fault type 11" in the error log).
+             Why         - when an abort was caught, SD threw away the working values of every program in the
+                           session, not just those of the programs the abort ended.  The outer program's CAPTURING
+                           then read a value that was no longer there.  The fault came from the code SD started
+                           from and was found when create.account began to load the example programs.
+             Does NOT    - Change what an abort does: one that is not trapped still ends the command, and a
+                           trapped one still sets @ABORT.CODE.
+
 18 Nov 26  CREATE.ACCOUNT NO LONGER LEAVES THE ADMINISTRATOR IN THE NEW ACCOUNT.
 
              What        - after create.account makes a user account, the administrator's session is back in the
