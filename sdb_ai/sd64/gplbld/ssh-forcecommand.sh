@@ -3,6 +3,8 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 18 Nov 26 dm S.267: --refuse runs /usr/local/bin/sd-sdsys instead of refusing when the requested command is exactly sd-sdsys (a listed user reaching SDSYS from
+#           this computer; the root helper behind the wrapper decides, and refuses everyone else).  No change to the block sshd is given.
 # 17 Nov 26 dm S.62 (LC3, the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes, and the administrator turns it on per account): a
 #           fourth arm, "Match Group sdsshnokey User *,!root,!sdsys" with "PubkeyAuthentication no" and nothing else, written directly AFTER the sdsys arm and BEFORE the two
 #           Match Group sdusers arms.  create.account puts a Linux user it MAKES in sdsshnokey; modify.account <name> ssh-key-on / ssh-key-off take it out and put it back.  A user
@@ -262,6 +264,9 @@ NOKEY_GROUP=sdsshnokey
 # installer or the unit test runs it from gplbld/.
 REFUSE_BIN=${SD_SSH_REFUSE_BIN:-/usr/local/sbin/ssh-forcecommand}
 
+# 18 Nov 26 (S.267): the wrapper `ssh -t <user>@localhost sd-sdsys` is handed to from the refusal arm.  A fixed path, never from the environment.
+SDSYS_LOCAL_WRAPPER=/usr/local/bin/sd-sdsys
+
 # Where --refuse reads message 10074 from.  The installed message directory,
 # world-readable, is the single source of the wording.
 MSG_DIR=${SD_MESSAGE_DIR:-/usr/local/sdsys/messages}
@@ -356,6 +361,12 @@ block_lines() {
 # closed with a blank error" into something an administrator can act on.
 refuse_now() {
   local who=${USER:-$(id -un 2>/dev/null)} msg=$MSG_DIR/10074
+  # 18 Nov 26 dm - S.267: `ssh -t <user>@localhost sd-sdsys` from an SD user whose ssh route is off reaches the same wrapper as from one whose login sd
+  # runs (sd_localsdsys.c sdsys_local_detect).  The wrapper decides nothing and the root helper refuses everyone but a user the administrator listed with
+  # local.sdsys ssh, from this computer; an exec failure falls through to the refusal below.
+  if [[ ${SSH_ORIGINAL_COMMAND:-} == sd-sdsys && -n ${SSH_CONNECTION:-} && -x $SDSYS_LOCAL_WRAPPER ]]; then
+    exec "$SDSYS_LOCAL_WRAPPER"
+  fi
   if [[ -r $msg ]]; then
     sed -e "s|%1|${who:-this account}|g" -- "$msg" >&2
   else

@@ -3,6 +3,11 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 18 Nov 26 dm - S.267 (owner, 17-18 Nov 2026: SDSYS reached from this computer by listed users, ssh and API, both lists empty as delivered): sdsys-local
+#                ssh|api add|remove|clear|status, the administrator's two lists /etc/sdcore/sdsys-local-ssh and -api (root, 0644, one rename); and sdsys-session,
+#                the one new form %sdusers may run: a listed user's ssh login from this computer (login uid, sudo's caller, the logind session scope and record:
+#                sshd, remote, a literal loopback address) becomes sd as the sdsys user through setpriv.  The functions are between "# BEGIN sdsys_local_functions"
+#                and its END for gplbld/test-localsdsys-units.py.
 # 17 Nov 26 dm - S.62: NETDIRS, a new sd.conf parameter, is fixed - not changed by set.config (confset_fixed).
 # 17 Nov 26 dm - S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes): sdsshnokey is the seventh named group (after sdaiusers), the one whose
 #                members sshd offers no key sign-in (ssh-forcecommand's key arm).  require_sd_group takes it by its exact name; groupdel never deletes it (a deny group that is
@@ -229,6 +234,12 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] sdsys-api on <address|range>... | on any | off | status
                                   (SDSYS over the API from other computers, shut as delivered; on lists the client addresses or CIDR ranges, at most 32,
                                   or the word any alone for every address)
+  sd-elevate [--dry-run] sdsys-local ssh|api add <user> | remove <user> | clear | status
+                                  (the users who may reach sdsys from THIS computer: by an ssh login (ssh) or over the API's Unix
+                                  socket (api), with the SD password of sdsys; both lists empty as delivered, at most 32 names each)
+  sd-elevate [--dry-run] sdsys-session
+                                  (a listed user's ssh login from this computer becomes sd as the sdsys user; no argument, the
+                                  caller is from sudo and the facts from the operating system)
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
   sd-elevate [--dry-run] netcred-dir            (makes the caller's own /var/lib/sd-net/<user>, mode 0700, for
@@ -777,6 +788,237 @@ sdsys_api() {   # sdsys_api on <entry>... | off | status
       ;;
     *) die "internal: no sdsys-api word '$want'" ;;
   esac
+}
+
+# 18 Nov 26 dm - S.267.  SDSYS REACHED FROM THIS COMPUTER BY THE USERS THE ADMINISTRATOR LISTS (owner, 17 Nov 2026: "restricted to only usernames listed in
+# a text field rather than a gate"; "one for a list of users who have local access through ssh and the other for local access through api.  Again delivered
+# with that access off and the admin can decide if he wants to open up that capability").  Two root files, one Linux user name to a line, at most 32:
+#   /etc/sdcore/sdsys-local-ssh   the users whose ssh login FROM THIS COMPUTER (ssh -t <name>@localhost sd-sdsys) may become sdsys with the SD password of sdsys;
+#   /etc/sdcore/sdsys-local-api   the users whose programs on this computer may sign in as SDSYS over the API's Unix socket (APISRVR asks the kernel).
+# Absent as delivered: a missing file is an empty list and changes nothing.  root:root 0644 (the names are not secret, and the kernel reads the ssh list as the sdsys
+# user); a file that is a link, not regular, has a second link, is not root's or is writable by group or others, or lies in a directory (or a parent) of which the same
+# is not true, is EMPTY to everything that reads it, here and in the kernel (gplsrc/sd_localsdsys.c), which asks the same questions again on its own.
+#
+#   sdsys-local ssh|api add NAME | remove NAME | clear | status   the administrator's (local.sdsys); a NAME that may be listed is ^[a-z_][a-z0-9_-]{0,31}$, an
+#                                existing Linux user, uid 1000 or more, not root, not sdsys, in sdusers; each change is one rename (or a removal), logged.
+#   sdsys-session                the ONE new form %sdusers may run (sdcore.sudoers): from the operating system only - the audit login uid of this process, which is
+#                                sudo's caller and on the ssh list; the logind session scope this process is in, whose root-written record says sshd, remote, that
+#                                uid, this audit session and a LITERAL loopback address - it replaces itself with sd as the sdsys user (setpriv; no shell between).
+#                                CPROC then asks the kernel the same and asks for the SD password of sdsys before anything is granted.
+# The functions between the markers are cut out and run on scratch files by gplbld/test-localsdsys-units.py: every path, owner and fact is an ARGUMENT, so the
+# decision can be driven without root.  The verbs below pass the real paths and root (0) as the owner; nothing in the environment moves them.
+SDSYS_LOCAL_DIR=/etc/sdcore
+# BEGIN sdsys_local_functions
+SDSYS_LOCAL_MAX=32
+SDSYS_LOCAL_UID_MIN=1000
+
+sdsys_local_safe_dir() {   # sdsys_local_safe_dir DIR OWNER - a directory, not a link, owned by OWNER, not writable by group or others
+  local d=$1 o=$2 st
+  [[ -d $d && ! -L $d ]] || return 1
+  st=$(stat -c '%u %a' -- "$d" 2>/dev/null) || return 1
+  [[ ${st% *} == "$o" ]] || return 1
+  (( (8#${st#* } & 8#022) == 0 ))
+}
+
+sdsys_local_safe_file() {   # sdsys_local_safe_file FILE OWNER - a regular file, not a link, one link, owned by OWNER, not writable by group or others, under 8 KB
+  local f=$1 o=$2 st u m h s
+  [[ -f $f && ! -L $f ]] || return 1
+  st=$(stat -c '%u %a %h %s' -- "$f" 2>/dev/null) || return 1
+  read -r u m h s <<<"$st"
+  [[ $u == "$o" && $h == 1 && $s =~ ^[0-9]+$ && $s -lt 8192 ]] || return 1
+  (( (8#$m & 8#022) == 0 ))
+}
+
+sdsys_local_read() {   # sdsys_local_read FILE OWNER - sets SL_NAMES (0 to 32 names); false with SL_WHY=list-unsafe when the file or a directory above it is not safe
+  local f=$1 o=$2 d line
+  SL_NAMES=()
+  SL_WHY=
+  d=${f%/*}
+  if ! sdsys_local_safe_dir "${d%/*}" "$o"; then SL_WHY=list-unsafe; return 1; fi
+  [[ -e $d || -L $d ]] || return 0
+  if ! sdsys_local_safe_dir "$d" "$o"; then SL_WHY=list-unsafe; return 1; fi
+  [[ -e $f || -L $f ]] || return 0
+  if ! sdsys_local_safe_file "$f" "$o"; then SL_WHY=list-unsafe; return 1; fi
+  if ! tr -d '\000' < "$f" | cmp -s - "$f"; then SL_WHY=list-unsafe; return 1; fi
+  while IFS= read -r line || [[ -n $line ]]; do
+    if [[ ! $line =~ ^[a-z_][a-z0-9_-]{0,31}$ || ${#SL_NAMES[@]} -ge $SDSYS_LOCAL_MAX ]]; then
+      SL_NAMES=()
+      SL_WHY=list-unsafe
+      return 1
+    fi
+    SL_NAMES+=("$line")
+  done < "$f"
+  return 0
+}
+
+sdsys_local_user_ok() {   # sdsys_local_user_ok NAME GROUP - true when NAME may be listed; false with SL_UWHY saying why.  Sets SL_UID.
+  local n=$1 g=$2
+  SL_UWHY=
+  SL_UID=
+  if [[ ! $n =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then SL_UWHY="'$n' is not a Linux user name (a lower-case letter or _, then up to 31 lower-case letters, digits, _ or -)"; return 1; fi
+  if [[ $n == root ]]; then SL_UWHY="root is never listed"; return 1; fi
+  if [[ $n == sdsys ]]; then SL_UWHY="sdsys is the administrator itself and is never listed"; return 1; fi
+  SL_UID=$(id -u "$n" 2>/dev/null) || SL_UID=
+  if [[ ! $SL_UID =~ ^[0-9]+$ ]]; then SL_UWHY="there is no Linux user '$n'"; return 1; fi
+  if (( SL_UID == 0 || SL_UID < SDSYS_LOCAL_UID_MIN )); then SL_UWHY="'$n' has uid $SL_UID, below $SDSYS_LOCAL_UID_MIN - a system account"; return 1; fi
+  if [[ " $(id -nG "$n" 2>/dev/null) " != *" $g "* ]]; then SL_UWHY="'$n' is not in the group $g, so it is not an SD user"; return 1; fi
+  return 0
+}
+
+sdsys_local_status() {   # sdsys_local_status FILE OWNER - one line in fixed words: "sdsys local <kind>: none listed", "... listed <names>", "... unsafe, treated as none listed"
+  local k=${1##*-}
+  if ! sdsys_local_read "$1" "$2"; then
+    printf 'sdsys local %s: unsafe, treated as none listed (%s is not a plain file of root'"'"'s; clear removes it)\n' "$k" "$1"
+  elif (( ${#SL_NAMES[@]} == 0 )); then
+    printf 'sdsys local %s: none listed\n' "$k"
+  else
+    printf 'sdsys local %s: listed %s\n' "$k" "${SL_NAMES[*]}"
+  fi
+}
+
+sdsys_local_change() {   # sdsys_local_change FILE OWNER GROUP add|remove|clear [NAME] - one line saying what was done; dies on a refusal, changing nothing
+  local f=$1 o=$2 g=$3 what=$4 n=${5:-} k=${1##*-} d=${1%/*} tmp i found=0
+  local -a keep=()
+  if [[ $what == clear ]]; then
+    if [[ ! -e $f && ! -L $f ]]; then
+      printf '%s: sdsys local %s: none listed already; nothing was changed\n' "$PROG" "$k"
+      return 0
+    fi
+    if [[ $DRY -eq 1 ]]; then printf '%s: would remove %s\n' "$PROG" "$f"; return 0; fi
+    rm -f -- "$f" || die "could not remove $f"
+    logger -t sd-elevate "sdsys-local $k clear: $f removed" 2>/dev/null || true
+    printf '%s: sdsys local %s: cleared, none listed\n' "$PROG" "$k"
+    return 0
+  fi
+  if [[ $what == add ]]; then
+    sdsys_local_user_ok "$n" "$g" || die "$SL_UWHY; nothing was changed"
+  elif [[ $what == remove ]]; then
+    [[ $n =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || die "'$n' is not a Linux user name; nothing was changed"
+  else
+    die "internal: no sdsys-local word '$what'"
+  fi
+  [[ ! -L $f ]] || die "$f is a link: refused, nothing was changed (clear removes it)"
+  sdsys_local_read "$f" "$o" || die "$f, or a directory above it, is not a plain one of root's ($SL_WHY): nothing was changed (clear removes the file)"
+  for i in "${SL_NAMES[@]}"; do
+    if [[ $i == "$n" ]]; then found=1; else keep+=("$i"); fi
+  done
+  if [[ $what == add ]]; then
+    if (( found )); then printf '%s: sdsys local %s: %s is listed already; nothing was changed\n' "$PROG" "$k" "$n"; return 0; fi
+    (( ${#keep[@]} < SDSYS_LOCAL_MAX )) || die "the $k list holds $SDSYS_LOCAL_MAX names already, the most it takes: nothing was changed"
+    keep+=("$n")
+  else
+    if (( ! found )); then printf '%s: sdsys local %s: %s is not listed; nothing was changed\n' "$PROG" "$k" "$n"; return 0; fi
+  fi
+  if [[ $DRY -eq 1 ]]; then
+    if (( ${#keep[@]} )); then printf '%s: would write %s: %s\n' "$PROG" "$f" "${keep[*]}"; else printf '%s: would remove %s\n' "$PROG" "$f"; fi
+    return 0
+  fi
+  if [[ ! -e $d ]]; then mkdir -m 0755 -- "$d" || die "could not make $d"; fi
+  sdsys_local_safe_dir "$d" "$o" || die "$d is not a plain directory of root's, closed to others: nothing was changed"
+  if (( ${#keep[@]} == 0 )); then
+    rm -f -- "$f" || die "could not remove $f"
+  else
+    tmp=$(mktemp -- "$d/.sdsys-local.XXXXXX") || die "could not make a file in $d"
+    chmod 0644 -- "$tmp" || { rm -f -- "$tmp"; die "could not set the mode of $tmp"; }
+    printf '%s\n' "${keep[@]}" > "$tmp" || { rm -f -- "$tmp"; die "could not write $tmp"; }
+    mv -f -T -- "$tmp" "$f" || { rm -f -- "$tmp"; die "could not put $f in place"; }
+  fi
+  logger -t sd-elevate "sdsys-local $k $what $n: listed now: ${keep[*]:-none}" 2>/dev/null || true
+  printf '%s: sdsys local %s: %s %s; listed now: %s\n' "$PROG" "$k" "$( [[ $what == add ]] && printf 'added' || printf 'removed')" "$n" "${keep[*]:-none}"
+  return 0
+}
+
+sdsys_local_loopback() {   # sdsys_local_loopback TEXT - true when TEXT is a LITERAL loopback address: dotted 127.0.0.0/8 or the IPv6 loopback; never a host name
+  local h=$1 a b c
+  if [[ $h =~ ^127\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+    a=${BASH_REMATCH[1]} b=${BASH_REMATCH[2]} c=${BASH_REMATCH[3]}
+    (( a <= 255 && b <= 255 && c <= 255 ))
+    return
+  fi
+  [[ $h =~ ^[0-9a-fA-F:]{2,39}$ ]] || return 1
+  python3 -I -c 'import ipaddress, sys
+a = ipaddress.ip_address(sys.argv[1])
+sys.exit(0 if a.version == 6 and int(a) == 1 else 1)' "$h" 2>/dev/null
+}
+
+# sdsys_local_decide OWNER LIST GROUP SESSIONS LOGINUID SUDO_UID SESSIONID CGROUP - may this process become sdsys?  True with SL_USER (the listed user) and
+# SL_SESSION; false with SL_WHY, the kernel's reason words (sd_localsdsys.c).  Every fact is an argument: the verb passes what /proc/self and sudo say.
+sdsys_local_decide() {
+  local o=$1 list=$2 g=$3 sdir=$4 lu=$5 su=$6 sid=$7 cg=$8 ent user id sf line key
+  local -A kv=()
+  SL_USER=
+  SL_SESSION=
+  SL_WHY=
+  sdsys_local_read "$list" "$o" || return 1
+  if (( ${#SL_NAMES[@]} == 0 )); then SL_WHY=list-empty; return 1; fi
+  if [[ ! $lu =~ ^[0-9]{1,10}$ || $lu == 4294967295 ]]; then SL_WHY=no-login; return 1; fi
+  if [[ ! $su =~ ^[0-9]{1,10}$ || $su != "$lu" ]]; then SL_WHY=other-user; return 1; fi
+  ent=$(getent passwd "$lu" 2>/dev/null) || ent=
+  user=${ent%%:*}
+  if [[ -z $ent || -z $user ]]; then SL_WHY=no-user; return 1; fi
+  if ! sdsys_local_user_ok "$user" "$g" || [[ $SL_UID != "$lu" ]]; then SL_WHY=not-sd-user; return 1; fi
+  if [[ " ${SL_NAMES[*]} " != *" $user "* ]]; then SL_WHY=not-listed; return 1; fi
+  if [[ ! $cg =~ ^0::/user\.slice/user-${lu}\.slice/session-([a-z0-9]{1,32})\.scope$ ]]; then SL_WHY=no-session; return 1; fi
+  id=${BASH_REMATCH[1]}
+  sf=$sdir/$id
+  if [[ ! -e $sf && ! -L $sf ]]; then SL_WHY=no-session; return 1; fi
+  if ! sdsys_local_safe_dir "${sdir%/*}" "$o" || ! sdsys_local_safe_dir "$sdir" "$o" || ! sdsys_local_safe_file "$sf" "$o"; then SL_WHY=session-unsafe; return 1; fi
+  if ! tr -d '\000' < "$sf" | cmp -s - "$sf"; then SL_WHY=session-unsafe; return 1; fi
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line == *=* ]] || continue
+    key=${line%%=*}
+    [[ $key =~ ^[A-Z_]{1,32}$ ]] || continue
+    if [[ -n ${kv[$key]+x} ]]; then kv[$key]=$'\n'; else kv[$key]=${line#*=}; fi    # a key given twice is no answer (a newline is no value)
+  done < "$sf"
+  if [[ ${kv[UID]-} != "$lu" ]]; then SL_WHY=other-user; return 1; fi
+  if [[ ${kv[SCOPE]-} != "session-$id.scope" ]]; then SL_WHY=no-session; return 1; fi
+  if [[ ! $sid =~ ^[0-9]{1,10}$ || $sid == 4294967295 || ${kv[AUDIT]-} != "$sid" ]]; then SL_WHY=other-session; return 1; fi
+  if [[ ${kv[SERVICE]-} != sshd || ${kv[REMOTE]-} != 1 ]]; then SL_WHY=not-ssh; return 1; fi
+  if ! sdsys_local_loopback "${kv[REMOTE_HOST]-}"; then SL_WHY=not-local; return 1; fi
+  SL_USER=$user
+  SL_SESSION=$id
+  return 0
+}
+# END sdsys_local_functions
+
+sdsys_local_caller() {   # sdsys_local_caller - dies unless sudo says the caller is sdsys; a run by root with no sudo (SUDO_USER unset) is not asked
+  [[ -z ${SUDO_USER:-} || ${SUDO_USER:-} == sdsys ]] || die "the local sdsys lists are the administrator's (the user sdsys); sudo says they were asked for by another user"
+}
+
+# sdsys-session: the door.  Refusals are one line naming the reason word, exit 2 and a system log line; --dry-run prints what it would run and runs nothing.
+SDSYS_LOCAL_SD=/usr/local/sdsys/bin/sd
+sdsys_session() {
+  local suid=${SUDO_UID:-} lu sid cg ent home sp t l
+  local -a cmd=()
+  [[ -n $suid ]] || die "sdsys-session is reached only through sudo (no SUDO_UID): nothing was started"
+  lu=$(cat /proc/self/loginuid 2>/dev/null) || lu=
+  sid=$(cat /proc/self/sessionid 2>/dev/null) || sid=
+  cg=$(cat /proc/self/cgroup 2>/dev/null) || cg=
+  if ! sdsys_local_decide 0 "$SDSYS_LOCAL_DIR/sdsys-local-ssh" sdusers /run/systemd/sessions "$lu" "$suid" "$sid" "$cg"; then
+    [[ $DRY -eq 1 ]] || logger -t sd-elevate "sdsys-session refused: $SL_WHY (sudo uid $suid, login uid ${lu:-unknown})" 2>/dev/null || true
+    die "sdsys-session: $SL_WHY - this login is not a listed user's ssh login from this computer (local.sdsys ssh): nothing was started"
+  fi
+  ent=$(getent passwd sdsys) || die "the user sdsys does not exist: nothing was started"
+  home=$(printf '%s\n' "$ent" | cut -d: -f6)
+  [[ $home == /* && -d $home ]] || die "the home of sdsys '$home' is not a directory: nothing was started"
+  getent group sdusers >/dev/null 2>&1 || die "the group sdusers does not exist: nothing was started"
+  sp=$(command -v setpriv) || die "setpriv (util-linux) is not installed: nothing was started"
+  [[ -x $SDSYS_LOCAL_SD ]] || die "$SDSYS_LOCAL_SD is not installed: nothing was started"
+  cmd=(env -i)
+  t=${TERM:-}
+  [[ $t =~ ^[A-Za-z0-9._+-]{1,64}$ ]] && cmd+=("TERM=$t")
+  l=${LANG:-}
+  [[ $l =~ ^[A-Za-z0-9._@-]{1,64}$ ]] && cmd+=("LANG=$l")
+  cmd+=("HOME=$home" USER=sdsys LOGNAME=sdsys "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "$sp" --reuid=sdsys --regid=sdusers --init-groups -- "$SDSYS_LOCAL_SD")
+  if [[ $DRY -eq 1 ]]; then
+    printf '%s: %s (as %s, logind session %s)\n' "$PROG" "${cmd[*]}" "$SL_USER" "$SL_SESSION"
+    exit 0
+  fi
+  need_root
+  cd -- "$home" || die "could not enter $home: nothing was started"
+  logger -t sd-elevate "sdsys-session: $SL_USER admitted (logind session $SL_SESSION, ssh from loopback): ${cmd[*]}" 2>/dev/null || true
+  exec "${cmd[@]}"
 }
 
 # ---------------------------------------------------------------- validation
@@ -2826,6 +3068,33 @@ case $verb in
       *) die "sdsys-api takes on, off or status - not '$1'" ;;
     esac
     sdsys_api "$@"
+    ;;
+
+  # 18 Nov 26 dm - S.267.  See "SDSYS REACHED FROM THIS COMPUTER" above.  The file is $SDSYS_LOCAL_DIR/sdsys-local-ssh or -api and nothing a caller passes
+  # moves it; the owner every file must have is root (0).
+  sdsys-local)
+    [[ $# -ge 2 ]] || usage
+    case $1 in ssh|api) ;; *) die "sdsys-local takes ssh or api - not '$1'" ;; esac
+    case $2 in
+      add|remove)   [[ $# -eq 3 ]] || die "sdsys-local $1 $2 takes one Linux user name" ;;
+      clear|status) [[ $# -eq 2 ]] || die "sdsys-local $1 $2 takes no name" ;;
+      *) die "sdsys-local $1 takes add, remove, clear or status - not '$2'" ;;
+    esac
+    if [[ $2 == status ]]; then
+      sdsys_local_status "$SDSYS_LOCAL_DIR/sdsys-local-$1" 0
+      exit 0
+    fi
+    if [[ $DRY -eq 0 ]]; then
+      need_root
+      sdsys_local_caller
+    fi
+    sdsys_local_change "$SDSYS_LOCAL_DIR/sdsys-local-$1" 0 sdusers "$2" "${3:-}"
+    exit 0
+    ;;
+
+  sdsys-session)
+    [[ $# -eq 0 ]] || die "sdsys-session takes no argument"
+    sdsys_session
     ;;
 
   *)

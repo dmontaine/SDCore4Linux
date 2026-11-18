@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.267: the local SDSYS door also admits a peer process on the Unix socket whose Linux user is on /etc/sdcore/sdsys-local-api (the kernel,
+*               K$SDSYS.LOCAL 'api', asked while still root) and whose login is that same user; audited "from=this machine user=<name>".  Empty as delivered.
 * 17 Nov 26 dm  S.62 P-4907 to P-4911: a group lookup that could not be made is audited as that ('the sdusers group could not be read,
 *               status N'; 'branch=4 group.lookup.failed'), not as "not a member"; both still refuse.  P-1896, P-1898: request 70
 *               operation 1 is analyze.file in the audit line too (the verb that runs).
@@ -1925,26 +1927,53 @@ vb.scram.final:
                   sdsys.api.ok = @true
                   if api.peer.addr[1,1] # '/' then sdsys.api.ok = @false
                   if api.peer.user # 'sdsys' then sdsys.api.ok = @false
-                  if not(sdsys.api.ok) then
-                     if api.peer.user = '' then
-                        scram.refuse.reason = 'sdsys API session with no socket credential from ' : api.peer.addr
+* 18 Nov 26 dm - S.267: A LISTED USER'S PROGRAM ON THIS COMPUTER (owner, 17 Nov 2026: "the other for local access through api.  Again delivered with
+*   that access off and the admin can decide if he wants to open up that capability").  Only on the Unix socket (a loopback TCP connection stays
+*   refused for SDSYS, as above: it has no credential), only when the peer process is NOT sdsys, only when the kernel, asked while this process is
+*   still root, says the peer's Linux user is on the root-owned list /etc/sdcore/sdsys-local-api (local.sdsys api add; absent, so empty, as
+*   delivered, and held to the same file rules as the ssh list), and only when the LOGIN behind the peer process is that same user (system(44),
+*   its audit login uid), so that "sudo -u <listed user>" from somebody else's login is refused.  SCRAM has already proved the SD password of
+*   sdsys; nothing more is asked.  The grant below is then audited "from=this machine user=<name>".  Anything else meets the refusals that were
+*   here before, with the same message and reason text; a list in use adds the kernel's reason word to the reason.
+                  api.local.user = ''
+                  api.local.why = ''
+                  if api.peer.addr[1,1] = '/' and api.peer.user # 'sdsys' and api.peer.user # '' then
+                     if kernel(K$SDSYS.LOCAL, 'api' : @fm : api.peer.user) = 1 then
+                        api.local.login = downcase(trim(system(44)))
+                        if api.local.login = api.peer.user then
+                           api.local.user = api.peer.user
+                        end else
+                           api.local.why = ' (listed by local.sdsys api, but the login behind it is ' : (if api.local.login = '' then 'unknown' else api.local.login) : ')'
+                        end
                      end else
-                        scram.refuse.reason = 'sdsys API session opened by ' : api.peer.user : ' from ' : api.peer.addr
+                        api.local.word = kernel(K$SDSYS.LOCAL, 1)
+                        if api.local.word # 'list-empty' then api.local.why = ' why=' : api.local.word
                      end
-                     abort.message = sysmsg(10922)
-                     * SDSYS may use the API only from a process running as sdsys
-                     server.error = SV$ON.ERROR
-                     goto exit.vb.scram.fail
                   end
-                  api.peer.login = downcase(trim(system(44)))
-                  if api.peer.login # 'sdsys' then
-                     scram.refuse.reason = 'sdsys API session from a process whose login is ' : (if api.peer.login = '' then 'unknown' else api.peer.login)
-                     abort.message = sysmsg(10195)
-                     * This session runs as sdsys but the machine was not logged in as sdsys
-                     server.error = SV$ON.ERROR
-                     goto exit.vb.scram.fail
+                  if api.local.user # '' then
+                     sdsys.api.from = 'this machine user=' : api.local.user
+                  end else
+                     if not(sdsys.api.ok) then
+                        if api.peer.user = '' then
+                           scram.refuse.reason = 'sdsys API session with no socket credential from ' : api.peer.addr
+                        end else
+                           scram.refuse.reason = 'sdsys API session opened by ' : api.peer.user : ' from ' : api.peer.addr : api.local.why
+                        end
+                        abort.message = sysmsg(10922)
+                        * SDSYS may use the API only from a process running as sdsys
+                        server.error = SV$ON.ERROR
+                        goto exit.vb.scram.fail
+                     end
+                     api.peer.login = downcase(trim(system(44)))
+                     if api.peer.login # 'sdsys' then
+                        scram.refuse.reason = 'sdsys API session from a process whose login is ' : (if api.peer.login = '' then 'unknown' else api.peer.login)
+                        abort.message = sysmsg(10195)
+                        * This session runs as sdsys but the machine was not logged in as sdsys
+                        server.error = SV$ON.ERROR
+                        goto exit.vb.scram.fail
+                     end
+                     sdsys.api.from = 'this machine'
                   end
-                  sdsys.api.from = 'this machine'
                end
 
                * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no

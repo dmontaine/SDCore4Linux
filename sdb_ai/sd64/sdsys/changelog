@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  SDSYS CAN BE REACHED FROM THIS COMPUTER BY THE LINUX USERS THE ADMINISTRATOR LISTS.
+
+             What        - a new administrator's verb, local.sdsys, keeps two lists of Linux users, both EMPTY as
+                           delivered.  A user on the ssh list (local.sdsys ssh add <user>) can type
+                           "ssh -t <user>@localhost sd-sdsys" on this computer and, after typing the SD password of
+                           sdsys, is the administrator in an sdsys session - without logging out and in again as
+                           sdsys.  A user on the api list (local.sdsys api add <user>) can have a program of theirs
+                           on this computer sign in as sdsys over the Unix socket of the API with the SD password of
+                           sdsys.  local.sdsys with no word shows both lists; remove and clear take names off.
+                           Every change, every grant and every refusal is written to the audit trail
+                           (local.sdsys ssh add user=<name> status=ok; elevation granted reason=sdsys local ssh
+                           user=<name>; elevation granted reason=sdsys api from=this machine user=<name>).
+             Why         - the owner wanted the administrator to reach sdsys without switching logins, restricted
+                           to the user names he lists rather than opened by a switch, and delivered off.  A listed
+                           user is checked from what the operating system says - the login the session began with,
+                           the logind session it runs in, that the session is sshd's from a loopback address - by
+                           the root helper and again, separately, by SD's kernel; the SD password of sdsys is still
+                           required each time.
+             Does NOT    - Open anything as installed: with both lists empty every sdsys session that was refused
+                           before is refused exactly as before, with the same message and audit line.  It does not
+                           let a listed user in over ssh from another computer (only a login from this computer's
+                           loopback address), nor over the API by TCP, nor from the console or a desktop terminal;
+                           su and sudo -u sdsys from any other login are refused as before.  It does not apply to
+                           SD Core Solo, which has no sdsys.  A listed user who is
+                           logged in to this computer from the network can still use it from that login, which is
+                           why "add" says so and asks first.
+
 18 Nov 26  MODIFY.PASSWORD FORGETS BOTH TYPED PASSWORDS AS SOON AS THEY DO NOT MATCH.
 
              What        - when the two passwords typed to modify.password differ, SD now clears both from the

@@ -28,6 +28,12 @@
 #   R8   (S.95 stage 1b, S.106; run before R7, which ends the page) REMOTE.SDSYS: not an ordinary account's verb; a bad keyword (recovery and local too) gets the usage; view 6 lists the
 #        verb's report; O and F show their boxes, R and L open none, and Esc runs nothing.  NOT HELD: ssh opened or shut for sdsys (sudo; the VM).  ON and OFF are never run here: on a machine
 #        where the sandbox user could sudo the helper they would really open or shut ssh for sdsys
+#   local (S.267, 18 Nov 26; run before R7) the sdsys view's two fields, Local ssh users and Local API users: each shows the helper's words or, in a sandbox (no root helper),
+#        'not read: ' and the verb's first line, without the page failing; Up / Down choose the list X and U act on; U refuses a bad name in 14184's words, shows the add sentence
+#        and 14179 / 14180 in a box, and a WRONG name typed again runs nothing; Esc runs nothing; C shows the clear sentence; the keys do nothing on another view.  NOTHING IS
+#        RUN: no add, remove or clear (on a machine where the sandbox user could sudo the helper they would really change the lists).  NOT HELD: a real add / remove / clear,
+#        a list read, X's pick of real names, the helper's refusal of a real name (the VM witness).
+#   --only=NAME[,NAME] (18 Nov 26) runs the build, the fixtures and R1 (which opens the page), then only the sections named: r0 r2 r3 r4 r5 r6 r8 local r7.
 # NOT HELD: a door opened or closed, a key trusted, the terminal handed to set.server (the VM), the help text itself (sandbox-docs.py).
 import getpass
 import grp
@@ -478,7 +484,7 @@ def section_r8(p):
     p.key("6", 4.0)
     p.key("f5", 4.0)
     T = p.text()
-    rows = [norm(r) for r in p.rows() if r.strip()]
+    rows = [norm(r) for r in p.rows() if r.strip() and not r.startswith(("Local ssh users:", "Local API users:"))]     # 18 Nov 26 (S.267): the two fields under the report are section local's
     arow("R8c", "key 6 shows the sdsys login view (its box title and header) and its rows are what REMOTE.SDSYS printed for a separate administrator session (a sandbox cannot reach the root helper, so that is "
          "its refusal; any other row is the helper's own 'sudo:' line)",
          "The sdsys login over ssh" in T and "REMOTE.SDSYS, with no keyword" in T and len(rep) >= 1 and len(rows) >= 1
@@ -501,6 +507,82 @@ def section_r8(p):
     p.key("1", 3.0)
     p.key("o", 1.5)
     arow("R8h", "Esc ran nothing (no remote.sdsys audit line), and O on the doors view opens no box", not box_open(p) and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], st(p))
+
+
+def section_local(p):
+    """S.267: the two fields of the sdsys view (Local ssh users, Local API users) and the U, X and C boxes.  A sandbox has no root helper, so local.sdsys cannot read either list
+    here: each field must then say 'not read: ' with the verb's first line, and the page must go on.  Nothing is ever RUN: on a machine where the sandbox user could sudo the
+    helper, Run would really change the lists (the VM witness's rows); the add box is answered with a WRONG name, the others with Esc."""
+    say("\n--- local (S.267): the two fields of local.sdsys on the sdsys view")
+    rep = [norm(x) for x in g.adm(["LOCAL.SDSYS"]) if x.strip()]
+    a0 = len(audit_lines())
+    p.key("6", 4.0)
+    p.key("f5", 4.0)
+    T = p.text()
+    rows = p.rows()
+    f_ssh = next((r for r in rows if r.startswith("Local ssh users: ")), None)
+    f_api = next((r for r in rows if r.startswith("Local API users: ")), None)
+
+    def field_ok(f):
+        if f is None:
+            return False
+        v = f.split(": ", 1)[1]
+        return v == "none listed" or v.startswith("not read: ") and len(v) > len("not read: ") or v.startswith("unsafe") or re.fullmatch(r"[a-z_][a-z0-9_-]*( [a-z_][a-z0-9_-]*)*( \.\.\.)?", v) is not None
+    arow("L1", "key 6 shows the two fields under the report, Local ssh users then Local API users, each either the helper's words (none listed, the names, unsafe) or 'not read: ' with the verb's first line "
+         "(a sandbox cannot reach the root helper); a separate administrator session's local.sdsys printed something (the null case), and the page is still drawn",
+         "About this view" in T and field_ok(f_ssh) and field_ok(f_api) and rows.index(f_api) == rows.index(f_ssh) + 1 and len(rep) >= 1, repr((f_ssh, f_api, rep[:3])))
+    readable = f_ssh is not None and not f_ssh.split(": ", 1)[1].startswith("not read: ")
+    # Esc only when X opened its list of names: with no box open, Esc on the page goes back to the doors view (the page's Esc rule)
+    p.key("down", 1.0)
+    p.key("x", 1.5)
+    s_api = st(p)
+    if readable:
+        p.key("esc", 1.0)
+    p.key("up", 1.0)
+    p.key("x", 1.5)
+    s_ssh = st(p)
+    if readable:
+        p.key("esc", 1.0)
+    say("    fields: %r / %r" % (f_ssh, f_api))
+    arow("L2", "Down puts the cursor on Local API users and Up on Local ssh users: X then names that list (with no list read there is no name to remove, and no box opens)",
+         readable or ("Local API users: no name is listed" in s_api and "Local ssh users: no name is listed" in s_ssh and not box_open(p)), repr((s_api, s_ssh)))
+    p.key("u", 1.5)
+    T = norm(p.text())
+    asked = "Linux user name to add to Local ssh users" in T
+    p.ask("Bad!Name")
+    s = st(p)
+    arow("L3", "U asks for a name; one that is not a Linux user name is refused in 14184's words before any box", asked and "is not a Linux user name" in s and not box_open(p), repr((asked, s)))
+    p.key("u", 1.5)
+    p.ask("zzlocal")
+    T = norm(p.text())
+    arow("L4", "U with a good name shows 'local.sdsys ssh add zzlocal no.query' in a box with Run and Cancel that says what listing means (14179: the administrator, ssh -t zzlocal@localhost sd-sdsys)",
+         box_open(p) and "local.sdsys ssh add zzlocal no.query" in T and "administrator" in T and "zzlocal@localhost" in T, T[-600:])
+    p.key("r", 1.5)
+    T = norm(p.text())
+    wants = "zzlocal" in T
+    p.ask("zzother")
+    s = st(p)
+    arow("L5", "Run asks for the name typed again; a different name runs nothing (11810 names the name asked for)", wants and "nothing was run" in s and "zzlocal" in s, repr((wants, s)))
+    p.key("u", 1.5)
+    p.ask("zzlocal")
+    p.key("esc", 1.2)
+    s = st(p)
+    arow("L6", "Esc (Cancel) at the add box runs nothing", "nothing was run" in s and not box_open(p), s)
+    p.key("down", 1.0)
+    p.key("u", 1.5)
+    p.ask("zzlocal")
+    T = norm(p.text())
+    arow("L7", "on Local API users U shows 'local.sdsys api add zzlocal no.query' and 14180's words (the Unix socket of the API)", box_open(p) and "local.sdsys api add zzlocal no.query" in T and "Unix socket" in T, T[-600:])
+    p.key("esc", 1.2)
+    p.key("c", 1.5)
+    T = norm(p.text())
+    arow("L8", "C shows 'local.sdsys api clear' in a box that says it tightens; Esc runs nothing", box_open(p) and "local.sdsys api clear" in T and "tightens" in T, T[-600:])
+    p.key("esc", 1.2)
+    p.key("1", 3.0)
+    p.key("u", 1.5)
+    T = norm(p.text())
+    arow("L9", "U on the doors view asks nothing (the keys are the sdsys view's alone), and no local.sdsys audit line was written in this section (nothing ran)",
+         "Linux user name to add" not in T and not box_open(p) and not [ln for ln in audit_lines()[a0:] if "local.sdsys" in ln], T[-300:])
 
 
 def section_r7(p):
@@ -550,12 +632,38 @@ def section_r7(p):
     arow("R7f", "a page whose input ends ends by itself within 20 seconds; the output shows it did start (the null case)", ended and "About this view" in drawn, "took %.1f s, drawn: %r" % (time.time() - t0, drawn[-200:]))
 
 
+SECTIONS = ["r0", "r2", "r3", "r4", "r5", "r6", "r8", "local", "r7"]     # 18 Nov 26 (S.267): --only=NAME[,NAME]; R1 opens the page and always runs (with the build and the fixtures)
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
-        bail("usage: sandbox-tool-remote.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+        bail("usage: sandbox-tool-remote.py <dir> [--build] [--mutant=%s] [--only=%s]" % ("|".join(MUTANTS), ",".join(SECTIONS)))
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None:
+        only = [w.strip().lower() for w in only.split(",") if w.strip()]
+        if not only or any(w not in SECTIONS for w in only) or mutant is not None:
+            bail("usage: --only=NAME[,NAME] with NAME one of %s, and not with --mutant" % ",".join(SECTIONS))
+        say("sandbox-tool-remote: --only=%s (R1, which opens the page, always runs)" % ",".join(only))
     global MUTANT
     MUTANT = mutant
+    if only is not None:
+        p = None
+        try:
+            sh.setup("sandbox-tool-remote.py")
+            setup_pages()
+            if "r0" in only:
+                section_r0()
+            p = section_r1()
+            for name, fn in (("r2", section_r2), ("r3", section_r3), ("r4", section_r4), ("r5", section_r5), ("r6", section_r6), ("r8", section_r8), ("local", section_local), ("r7", section_r7)):
+                if name in only:
+                    fn(p)
+            if "r7" not in only:
+                p.quit()
+        finally:
+            sh.teardown()
+        say("\nsandbox-tool-remote: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))
+        return 0 if sh.tkb.failed == 0 and sh.tkb.passed > 0 else 1
     last = MUTANTS[mutant][3] if mutant else "R7"
     order = ["R2", "R3", "R4", "R5", "R6", "R7"]
 
@@ -583,6 +691,7 @@ def main():
         if mutant is None:
             section_r6(p)
             section_r8(p)
+            section_local(p)
             section_r7(p)
         else:
             p.quit()

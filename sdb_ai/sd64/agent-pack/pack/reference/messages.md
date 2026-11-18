@@ -11041,12 +11041,102 @@ run.in: %1 in account %2 names a path outside the account; nothing was run
 
 cited by: `cproc`
 
+### msg:14175
+> kind=message tier=reference since=- src=sdsys/messages/14175:1#03b055e8
+
+```
+The SD password of sdsys was not right, so this session is not the\nadministrator and ends here.
+```
+
+cited by: `cproc`
+
+### msg:14176
+> kind=message tier=reference since=- src=sdsys/messages/14176:1#4a9c4349
+
+```
+sdsys has no SD password, so it cannot be reached from another user's login;\nthis session ends here.  Set one with modify.password from a sdsys login.
+```
+
+cited by: `cproc`
+
+### msg:14177
+> kind=message tier=reference since=- src=sdsys/messages/14177:1#94124aa3
+
+```
+SD administration granted: this session is the sdsys OS user, reached from\nthe ssh login of %1 on this computer with the SD password of sdsys
+```
+
+cited by: `cproc`
+
+### msg:14178
+> kind=message tier=reference since=- src=sdsys/messages/14178:1#bf1521bf
+
+```
+local.sdsys\nlocal.sdsys {ssh | api}\nlocal.sdsys {ssh | api} add user {no.query}\nlocal.sdsys {ssh | api} remove user\nlocal.sdsys {ssh | api} clear\n\nSSH   the users whose ssh login from this computer (ssh -t user@localhost\n      sd-sdsys) may become sdsys with the SD password of sdsys.\nAPI   the users whose programs on this computer may sign in as sdsys over\n      the Unix socket of the API.\nBoth lists are empty as delivered and take at most 32 names each.  With no\nkeyword it reports both lists and changes nothing.
+```
+
+cited by: `localsdsys`
+
+### msg:14179
+> kind=message tier=reference since=- src=sdsys/messages/14179:1#dfb5fc9b
+
+```
+Listing %1 lets that user, from any session of theirs on this computer - one\nthey reached over the network included - become the administrator with the\nSD password of sdsys (ssh -t %1@localhost sd-sdsys).
+```
+
+cited by: `localsdsys`
+
 ### msg:1418
 > kind=message tier=reference since=- src=sdsys/messages/1418:1#91241493
 
 ```
 WEOFSEQ on non-sequential file
 ```
+
+### msg:14180
+> kind=message tier=reference since=- src=sdsys/messages/14180:1#e274ef9a
+
+```
+Listing %1 lets the programs of that user, from any session of theirs on this\ncomputer - one they reached over the network included - sign in as sdsys over\nthe Unix socket of the API with the SD password of sdsys and be the administrator.
+```
+
+cited by: `localsdsys`
+
+### msg:14181
+> kind=message tier=reference since=- src=sdsys/messages/14181:1#862f6e4b
+
+```
+List %1 for sdsys over %2? (y/<n>)
+```
+
+cited by: `localsdsys`
+
+### msg:14182
+> kind=message tier=reference since=- src=sdsys/messages/14182:1#90d95e2c
+
+```
+%1 was not listed; nothing was changed.
+```
+
+cited by: `localsdsys`
+
+### msg:14183
+> kind=message tier=reference since=- src=sdsys/messages/14183:1#dfeba70e
+
+```
+local.sdsys %1 did not succeed (status %2); the lines above say why.
+```
+
+cited by: `localsdsys`
+
+### msg:14184
+> kind=message tier=reference since=- src=sdsys/messages/14184:1#758670bb
+
+```
+%1 is not a Linux user name: a lower-case letter or _, then up to 31\nlower-case letters, digits, _ or -.
+```
+
+cited by: `localsdsys`, `tool_remote`
 
 ### msg:1419
 > kind=message tier=reference since=- src=sdsys/messages/1419:1#9a69ea26
@@ -11630,7 +11720,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 24 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 25 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

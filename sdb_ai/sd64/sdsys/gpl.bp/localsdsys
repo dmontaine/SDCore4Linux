@@ -1,0 +1,155 @@
+* LOCALSDSYS
+* LOCAL.SDSYS verb
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 18 Nov 26 dm  New.  S.267 (owner, 17 Nov 2026: "I actually like sdsys over ssh locally as that allows the admin to access sdsys without having to go
+*               through switching logins and back.  If could be be restricted to only usernames listed in a text field rather than a gate"; "It will need
+*               two fields ... on for a list of users who have local access through ssh and the other for local access through api.  Again delivered with
+*               that access off and the admin can decide if he wants to open up that capability"; 18 Nov: "Yes, build it").
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    LOCAL.SDSYS
+*    LOCAL.SDSYS {SSH | API}
+*    LOCAL.SDSYS {SSH | API} ADD user {NO.QUERY}
+*    LOCAL.SDSYS {SSH | API} REMOVE user
+*    LOCAL.SDSYS {SSH | API} CLEAR
+*
+*    The two lists of Linux users who may reach SDSYS FROM THIS COMPUTER, both empty as delivered:
+*       SSH   a listed user's ssh login from this computer (ssh -t user@localhost sd-sdsys) is started as the sdsys user by the root helper and
+*             becomes the administrator after the SD password of sdsys is typed (CPROC);
+*       API   a listed user's program on this computer may sign in as sdsys over the Unix socket of the API with the SD password of sdsys (APISRVR).
+*    ADD says once what listing the name means and asks, unless NO.QUERY is given; REMOVE and CLEAR tighten, so nothing is asked.  With no keyword the
+*    state of both lists is printed (SSH or API alone prints that one) and nothing changes.
+*
+*    ADMINISTRATOR ONLY.  The words are lower case whatever was typed; a user name is checked here, character by character, before it is put on the
+*    helper's command line, and the helper (sudo -n sd-elevate sdsys-local) checks it again - an existing Linux user, uid 1000 or more, not root, not
+*    sdsys, in sdusers - and its refusal is shown as it is.  One audit line per change: local.sdsys <ssh|api> <add|remove|clear> {user=<name>}
+*    status=ok|refused.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $local.sdsys
+$catalog $localsdsys
+
+$include keys.h
+$include int$keys.h
+$include err.h
+
+$define HELPER     'sudo -n /usr/local/sbin/sd-elevate'
+
+   prompt ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+* The words are read from the sentence as plain words, lower case: a Linux user name is lower case, and the helper refuses anything else anyway.
+   words = downcase(trim(@sentence))
+   convert ' ' to @fm in words
+   nwords = dcount(words, @fm)
+
+   if nwords < 2 then
+      list.kind = 'ssh' ; gosub list.status
+      list.kind = 'api' ; gosub list.status
+      stop
+   end
+
+   list.kind = words<2>
+   if list.kind # 'ssh' and list.kind # 'api' then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(14178)  ;* the syntax
+   end
+   if nwords = 2 then
+      gosub list.status
+      stop
+   end
+
+   action = words<3>
+   uname = words<4>
+   no.query = @false
+   begin case
+      case action = 'add'
+         if nwords = 5 and words<5> = 'no.query' then
+            no.query = @true
+         end else
+            if nwords # 4 then
+               @system.return.code = -ER$ARGS
+               stop sysmsg(14178)
+            end
+         end
+      case action = 'remove'
+         if nwords # 4 then
+            @system.return.code = -ER$ARGS
+            stop sysmsg(14178)
+         end
+      case action = 'clear'
+         if nwords # 3 then
+            @system.return.code = -ER$ARGS
+            stop sysmsg(14178)
+         end
+      case 1
+         @system.return.code = -ER$ARGS
+         stop sysmsg(14178)
+   end case
+
+* Only the characters a Linux user name is made of, so nothing else can reach the shell: a lower-case letter or _, then up to 31 of
+* lower-case letters, digits, _ and -.
+   if action # 'clear' then
+      chk = uname
+      convert 'abcdefghijklmnopqrstuvwxyz0123456789_-' to '' in chk
+      if chk # '' or len(uname) < 1 or len(uname) > 32 or index('0123456789-', uname[1,1], 1) then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(14184, uname)  ;* not a Linux user name
+      end
+   end
+
+* ADD says what it opens and asks first (an empty answer, or an input that has ended, is no).
+   if action = 'add' then
+      if list.kind = 'ssh' then crt sysmsg(14179, uname) else crt sysmsg(14180, uname)
+      if not(no.query) then
+         display sysmsg(14181, uname, list.kind) : ' ' :
+         input answer
+         if downcase(trim(answer)) # 'y' then
+            crt sysmsg(14182, uname)  ;* nothing was changed
+            @system.return.code = 0
+            stop
+         end
+      end
+   end
+
+* The helper's words go straight to the terminal.
+   cmd = HELPER : ' sdsys-local ' : list.kind : ' ' : action
+   if action # 'clear' then cmd := ' ' : uname
+   os.execute cmd
+   rc = os.error()
+   if rc # 0 then
+      crt sysmsg(14183, list.kind : ' ' : action, rc)
+      outcome = 'refused'
+   end else
+      outcome = 'ok'
+   end
+   void kernel(K$AUDIT, 'local.sdsys ' : list.kind : ' ' : action : (if action = 'clear' then '' else ' user=' : uname) : ' status=' : outcome)
+
+   @system.return.code = (if rc = 0 then 0 else -ER$FAILED)
+   stop
+
+* One list as the root helper reports it ("sdsys local ssh: none listed", "... listed <names>").  Nothing is changed.
+list.status:
+   os.execute HELPER : ' sdsys-local ' : list.kind : ' status'
+   rc = os.error()
+   if rc # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(14183, list.kind : ' status', rc)
+   end
+   return
+
+end
+
+* END-CODE

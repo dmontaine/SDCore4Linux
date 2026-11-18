@@ -11,6 +11,12 @@ the order that keeps a bad one out of the sentence and is run by the verb on the
 reads the netservers file only through !netdefs READ.  Those are ORDER and ABSENCE, and an edit that moves one still compiles.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
+`--selftest --from=N` runs the mutants from index N on; the line it prints says where the S.267 ones start.
+
+18 Nov 26 dm  S.267: rows RM17-RM19 for the sdsys view's two fields, Local ssh users and Local API users: the lists are read only by running `local.sdsys` with no keyword
+              and parsing the root helper's fixed words (which `sdsys_local_status` in `gplbld/sd-elevate` must still print); a change is one of three sentences built from
+              the list word, the action word and a name the page checked; U's box shows 14179 / 14180 and wants the name typed again, X and C have a plain box; none of it is
+              offered to the AI.  RM3, RM5 and RM12 take the fifth command, the fourth report and the three keys.  --from=N added.
 """
 
 import os
@@ -27,6 +33,9 @@ FILES = {
     "voc": os.path.join(SDSYS, "voc_template", "tool.remote"),
     "help": os.path.join(SDSYS, "helptext", "tool.remote.page"),
     "doc": DOCS,
+    "elevate": os.path.join(SD64, "gplbld", "sd-elevate"),         # S.267: the words of sdsys_local_status, which the page parses
+    "m14179": os.path.join(SDSYS, "messages", "14179"),             # S.267: what listing a name for ssh means
+    "m14180": os.path.join(SDSYS, "messages", "14180"),             # S.267: the same for the API
 }
 NEWVOC = os.path.join(SDSYS, "newvoc", "tool.remote")
 SAFE = "abcdefghijklmnopqrstuvwxyz0123456789.-_"
@@ -84,9 +93,9 @@ def checks(raw):
        "open %s audit %s first %s" % (i_open, i_audit, i_first))
     cr = block(pg, "confirm.and.run")
     ch = block(pg, "confirm.and.hand.over")
-    ck("RM3", "the routine runs remote.api, remote.ssh, delete.server and remote.sdsys (one allow list) and nothing else: $tk_run directly after the confirm box guarded by res = 'run', and in run.report for the three reports; "
+    ck("RM3", "the routine runs remote.api, remote.ssh, delete.server, remote.sdsys and local.sdsys (one allow list) and nothing else: $tk_run directly after the confirm box guarded by res = 'run', and in run.report for the four reports; "
        "the one other way a verb is run is the terminal hand-over (`execute sent` once, after the box and after $tk_close); no $tk_runx, os.execute, perform or chain",
-       re.findall(r"\ballow = '([^']*)'", pg) == ["remote.api remote.ssh delete.server remote.sdsys"] and pg.count("call $tk_run(allow,") == 2 and "$tk_runx" not in pg
+       re.findall(r"\ballow = '([^']*)'", pg) == ["remote.api remote.ssh delete.server remote.sdsys local.sdsys"] and pg.count("call $tk_run(allow,") == 2 and "$tk_runx" not in pg
        and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n"
                      r"\s*msg = sysmsg\(14172\)[^\n]*\n\s*call \$tk_frame\(ctx, keys, panes<view>, msg\)[^\n]*\n"      # 17 Nov 26 (S.62 P-4630): the status line, Making the change
                      r"\s*call \$tk_run\(allow, sent, out, stat, err\)", cr) is not None
@@ -97,8 +106,8 @@ def checks(raw):
        and pg.count("openpath @sdsys : @ds : 'accounts'") == 1 and "if id # 'sdsys' then" in block(pg, "read.accounts"), "")
     rr = block(pg, "run.report")
     ra = block(pg, "read.all")
-    ck("RM5", "the three reports are run as exactly 'remote.api', 'remote.ssh' and 'remote.sdsys' with NO keyword (so they report and change nothing), in read.all and nowhere else; a change is built only in do.api, do.ssh and do.sdsys",
-       "cmd = 'remote.api'" in ra and "cmd = 'remote.ssh'" in ra and "cmd = 'remote.sdsys'" in ra and pg.count("cmd = ") == 3 and "call $tk_run(allow, cmd, rep, rstat, rerr)" in rr and pg.count("sent = 'remote.api ' : aw") == 1 and pg.count("sent = 'remote.ssh ' : sw") == 1, ra[:200])
+    ck("RM5", "the four reports are run as exactly 'remote.api', 'remote.ssh', 'remote.sdsys' and 'local.sdsys' with NO keyword (so they report and change nothing), in read.all and nowhere else; a change is built only in do.api, do.ssh, do.sdsys and do.local",
+       "cmd = 'remote.api'" in ra and "cmd = 'remote.ssh'" in ra and "cmd = 'remote.sdsys'" in ra and "cmd = 'local.sdsys'" in ra and pg.count("cmd = ") == 4 and "call $tk_run(allow, cmd, rep, rstat, rerr)" in rr and pg.count("sent = 'remote.api ' : aw") == 1 and pg.count("sent = 'remote.ssh ' : sw") == 1, ra[:200])
     da = block(pg, "do.api")
     ds = block(pg, "do.ssh")
     ck("RM6", "A and S choose from a LIST (S.244 (1): a fixed set is not typed): A on, local or off, S on or off, the word taken from the page's own list by the number chosen, a number outside it ending with "
@@ -131,8 +140,10 @@ def checks(raw):
        "case view = 1" in br and "case view = 2" in br and "case view = 3" in br and "case view = 4" in br and "pn[1, 16] : '...'" in br and "if gid = 'ssh' or gid = 'api' or gid = 'files' or gid = 'files-write' or gid = 'files-admin' or gid = 'net' then" in block(pg, "read.accounts")
        and "if gerr = '' and ainfo<1> = 'USER' then" in block(pg, "read.accounts") and "if cell.api = 'no' and cell.files = 'yes' then" in rl and "bitand(flg, USR$SDNET)" in sl and "bitand(flg, USR$SDVBSRVR)" in sl and "bitand(flg, USR$PHANTOM)" in sl and "inapi = (l[1, 5] = '[api]')" in ra, "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, sdsyson, sdsysoff, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O and F on the login view only (S.106: R and L went with the authenticator code)",
-       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "sdsyson", "sdsysoff", "refresh", "quit", "menu"])
+    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, sdsyson, sdsysoff, localadd, localremove, localclear, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O and F, and (S.267) U, X and C, on the login view only (S.106: R and L went with the authenticator code)",
+       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "sdsyson", "sdsysoff", "localadd", "localremove", "localclear", "refresh", "quit", "menu"])
+       and "case (nm = 'u' or nm = 'x' or nm = 'c') and view = 6" in pg
+       and all(re.search(r"call \$tk_keys\('add', keys, '%s', '[^']+', '%s', 'Login', 1\)" % (k, a), pg) for k, a in (("u", "localadd"), ("x", "localremove"), ("c", "localclear")))
        and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
        and "case nm = 'n' and view = 3" in pg and "case (nm = 'o' or nm = 'f') and view = 6" in pg and "case nm >= '1' and nm <= '6' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     dsd = block(pg, "do.sdsys")
@@ -162,6 +173,42 @@ def checks(raw):
        and "call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get" in pg and "gosub lay.declare" in pg.rpartition("call $tk_open(")[2] and pg.count("call $tk_open(") == 2
        and re.search(r"\b(134|138|136|17)\b", re.sub(r"(?m)^   d<\d> = .*$", "", pg)) is None
        and ("index('%s', word[pi, 1], 1) = 0" % SAFE) in pwd, "")
+
+    # S.267: the two fields of the sdsys view
+    pl = block(pg, "parse.local")
+    dlo = block(pg, "do.local")
+    nok = block(pg, "name.ok")
+    i_u, i_x, i_c = dlo.find("case nm = 'u'"), dlo.find("case nm = 'x'"), dlo.find("case 1")
+    b_add = dlo[i_u:i_x] if 0 < i_u < i_x else ""
+    b_rem = dlo[i_x:i_c] if 0 < i_x < i_c else ""
+    b_clr = dlo[i_c:] if i_c > 0 else ""
+    ev = raw["elevate"]
+    st_fn = ev[ev.find("sdsys_local_status() {"):][:900] if "sdsys_local_status() {" in ev else ""
+    ck("RM17", "S.267 rule 1: the lists are read ONLY by running local.sdsys with no keyword through the page's report routine (in read.all, then parse.local), and parsed by the root helper's fixed words "
+       "'sdsys local ssh|api: ' then 'none listed', 'listed <names>' or the helper's other words - the words sdsys_local_status in sd-elevate still prints; the page opens no file but the register "
+       "and names no path under /etc; a listed name enters the list X offers only after name.ok; the fields are 'Local ssh users: ' and 'Local API users: '",
+       0 < ra.find("cmd = 'local.sdsys'") < ra.find("loc.out = rep") < ra.find("gosub parse.local") and ra.count("cmd = 'local.sdsys'") == 1
+       and "'/etc" not in pg and len(re.findall(r"^\s*(?:open|openpath|openseq|osopen)\s", pg, re.M)) == 1
+       and "pfx = 'sdsys local ' : (if lk = 1 then 'ssh' else 'api') : ': '" in pl and "if ol[1, len(pfx)] = pfx then" in pl and "case rest = 'none listed'" in pl and "case rest[1, 7] = 'listed '" in pl
+       and 0 < pl.find("gosub name.ok") < pl.find("if nameok then ln.ok") < pl.find("loc.names<lk> = ln.ok") and pg.count("loc.names<") == 3
+       and "printf 'sdsys local %s: none listed\\n'" in st_fn and "printf 'sdsys local %s: listed %s\\n'" in st_fn and "sdsys local %s: unsafe, treated as none listed" in st_fn
+       and "'Local ssh users: '" in br and "'Local API users: '" in br, "")
+    sents = sorted(re.findall(r"sent = ([^\n]*)", dlo))
+    ck("RM18", "S.267 rule 2: a change is ONE of three sentences built only from the list word (lsel: ssh or api), the action word and a checked name: "
+       "local.sdsys <list> add NAME no.query, remove NAME, clear; U takes the name typed, name.ok BEFORE the sentence (a lower-case letter or _, then up to 31 of a-z 0-9 _ -: message 14184); "
+       "X takes a name chosen from the list as read (no typed word), name.ok again; each runs through confirm.and.run once, never handed the terminal; none of it is offered to the AI",
+       sents == sorted(["'local.sdsys ' : lw : ' add ' : word : ' no.query'", "'local.sdsys ' : lw : ' remove ' : word", "'local.sdsys ' : lw : ' clear'"])
+       and "lw = (if lsel = 2 then 'api' else 'ssh')" in dlo and pg.count("lw = ") == 1
+       and 0 < b_add.find("screen ask") < b_add.find("gosub name.ok") < b_add.find("if not(nameok) then") < b_add.find("sent = ") and "sysmsg(14184" in b_add
+       and "nl = loc.names<lsel>" in b_rem and "its = convert(' ', @vm, nl)" in b_rem and 0 < b_rem.find("screen pick its") < b_rem.find("word = its<1, pk>") < b_rem.find("gosub name.ok") < b_rem.find("sent = ")
+       and "if pk < 1 or pk > dcount(its, @vm) then" in b_rem and dlo.count("screen ask") == 1 and "word" not in b_clr
+       and "nameok = (word # '' and len(word) <= 32)" in nok and "index('abcdefghijklmnopqrstuvwxyz_', word[1, 1], 1) = 0" in nok and "index('abcdefghijklmnopqrstuvwxyz0123456789_-', word[ni, 1], 1) = 0" in nok
+       and dlo.count("gosub confirm.and.run") == 1 and "hand.over" not in dlo and "execute" not in dlo and not re.search(r"\$tk_keys\('ai', keys, 'local", pg), "\n".join(sents))
+    ck("RM19", "S.267 rule 3: U (which opens a way to the administrator) wants the NAME typed again in its box (typed = word, after the sentence) and shows what listing it means (14179 for ssh, 14180 for the API, "
+       "both saying the user becomes the administrator); X and C tighten: a plain Run / Cancel box (typed stays null)",
+       dlo.count("typed = ") == 2 and 0 < dlo.find("typed = ''") < dlo.find("begin case") and 0 < b_add.find("sent = ") < b_add.find("typed = word")
+       and "sysmsg((if lsel = 2 then 14180 else 14179), word)" in b_add and "typed" not in b_rem and "typed" not in b_clr
+       and "administrator" in raw["m14179"] and "administrator" in raw["m14180"] and "%1" in raw["m14179"] and "%1" in raw["m14180"], b_add[:300])
     return rows
 
 
@@ -230,6 +277,26 @@ MUTANTS = [
     ("the terminal comes back and the panes are not declared again", "RM15", sub("page", "   gosub lay.declare                                           ;* the new context holds no panes; the window may be another size\n", "")),
     ("the resize no longer asks the layout again", "RM15", sub("page", "            call $tk_layout('refresh', ctx, '', lay.chg)\n", "")),
 ]
+M_S267 = len(MUTANTS)          # 18 Nov 26: the S.267 mutants start here (--selftest --from=M_S267)
+MUTANTS += [
+    ("the page may not run local.sdsys (its fields cannot be read)", "RM3", sub("page", "allow = 'remote.api remote.ssh delete.server remote.sdsys local.sdsys'", "allow = 'remote.api remote.ssh delete.server remote.sdsys'")),
+    ("the report is run with a keyword that changes a list", "RM17", sub("page", "   cmd = 'local.sdsys'", "   cmd = 'local.sdsys ssh clear'")),
+    ("the page reads the list file itself", "RM17", sub("page", "   loc.out = rep\n", "   loc.out = rep\n   openseq '/etc/sdcore/sdsys-local-ssh' to lsf else null\n")),
+    ("the parse looks for words the helper does not print", "RM17", sub("page", "pfx = 'sdsys local ' : (if lk = 1", "pfx = 'local sdsys ' : (if lk = 1")),
+    ("a listed name reaches the X list without name.ok", "RM17", sub("page", "                     if nameok then ln.ok :=", "                     if 1 then ln.ok :=")),
+    ("the helper's status words change and the page is not told", "RM17", sub("elevate", "printf 'sdsys local %s: none listed\\n'", "printf 'sdsys local %s: empty\\n'")),
+    ("U builds its sentence before the name is checked", "RM18", sub("page", "         word = trim(word)\n         gosub name.ok\n", "         word = trim(word)\n")),
+    ("a name may hold a capital", "RM18", sub("page", "index('abcdefghijklmnopqrstuvwxyz0123456789_-', word[ni, 1], 1) = 0", "index('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-', word[ni, 1], 1) = 0")),
+    ("a name may start with a digit", "RM18", sub("page", "index('abcdefghijklmnopqrstuvwxyz_', word[1, 1], 1) = 0", "index('abcdefghijklmnopqrstuvwxyz0123456789_', word[1, 1], 1) = 0")),
+    ("add is run without no.query (the verb would ask inside the capture)", "RM18", sub("page", " : ' add ' : word : ' no.query'", " : ' add ' : word")),
+    ("X takes a typed name instead of one from the list", "RM18", sub("page", "         word = its<1, pk>\n", "         screen ask 'Name' width 32 value '' title lt returning word then got = 1 else got = 0\n")),
+    ("the list word comes from somewhere else than the cursor", "RM18", sub("page", "   lw = (if lsel = 2 then 'api' else 'ssh')", "   lw = loc.why")),
+    ("the AI is offered U", "RM18", sub("page", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'localadd', '', '', '', '')\n")),
+    ("U wants no name typed", "RM19", sub("page", "         typed = word\n", "         typed = ''\n")),
+    ("U's box does not say what listing means", "RM19", sub("page", "sysmsg((if lsel = 2 then 14180 else 14179), word)", "sysmsg(11821)")),
+    ("C wants a word typed", "RM19", sub("page", "         sent = 'local.sdsys ' : lw : ' clear'\n", "         sent = 'local.sdsys ' : lw : ' clear'\n         typed = 'clear'\n")),
+    ("U acts on every view", "RM12", sub("page", "      case (nm = 'u' or nm = 'x' or nm = 'c') and view = 6\n", "      case (nm = 'u' or nm = 'x' or nm = 'c')\n")),
+]
 
 
 def report(rows):
@@ -240,13 +307,18 @@ def report(rows):
     return bad
 
 
-def selftest(raw):
+def selftest(raw, start=0):
     base = [r[0] for r in checks(raw) if not r[2]]
     if base:
         print("selftest: the unchanged tree fails %s, so a mutant's own failure cannot be told from the tree's; run the plain check first" % base)
         return 1
     holes = 0
-    for name, want, mut in MUTANTS:
+    print("selftest: %d mutants; the S.267 ones start at --from=%d; running from %d" % (len(MUTANTS), M_S267, start))
+    run = MUTANTS[start:]
+    if not run:
+        print("selftest: --from=%d leaves no mutant to run" % start)
+        return 1
+    for name, want, mut in run:
         try:
             m = mut(raw)
         except KeyError as exc:
@@ -257,7 +329,7 @@ def selftest(raw):
         hit = want in failed
         print("  [%s] selftest: %s is caught by %s (failed: %s)" % ("PASS" if hit else "FAIL", name, want, " ".join(failed) or "none"))
         holes += 0 if hit else 1
-    print("selftest: %d mutants, %d not caught" % (len(MUTANTS), holes))
+    print("selftest: %d mutants run, %d not caught" % (len(run), holes))
     return 1 if holes else 0
 
 
@@ -272,7 +344,8 @@ def main(argv):
     print("\ntest-toolremote-units: %d passed, %d failed" % (len(rows) - bad, bad))
     rc = 1 if bad else 0
     if "--selftest" in argv:
-        rc = (selftest(raw) or rc)
+        start = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--from=")), 0)
+        rc = (selftest(raw, start) or rc)
     return rc
 
 

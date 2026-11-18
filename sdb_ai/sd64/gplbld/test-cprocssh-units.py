@@ -40,9 +40,10 @@ def rows_for(path, bp_dir):
             n = strip_comments(open(p, encoding="utf-8", errors="replace").read()).count("kernel(K$ADMINISTRATOR, 1)")
             if n:
                 sites[name] = n
-    row("K$ADMINISTRATOR is set at four places in CPROC (the install arm, the scheduled job, the local arm, the ssh arm), at ONE in APISRVR (S.256, 16 Nov 26: an "
+    row("K$ADMINISTRATOR is set at five places in CPROC (the install arm, the scheduled job, the local arm, the ssh arm, and S.267's sdsys.local - a listed "
+        "user's ssh login from this computer, after the SD password of sdsys), at ONE in APISRVR (S.256, 16 Nov 26: an "
         "SDSYS API session the door admitted) and at ONE in BBPROC (S.62 P-1279, 17 Nov 26: the bootstrap, root only), and nowhere else",
-        sites == {"cproc": 4, "apisrvr": 1, "bbproc": 1}, "%s" % sites)
+        sites == {"cproc": 5, "apisrvr": 1, "bbproc": 1}, "%s" % sites)
     # 17 Nov 26 (S.62 P-1279): BCOMP accepts $INTERNAL only from the administrator, so the bootstrap ($bbproc, started by "sd -i", where no
     # CPROC or LOGIN has run) holds the flag for the programs it compiles.  The grant must come AFTER the refusal of anyone who is not root.
     bb = strip_comments(open(os.path.join(bp_dir, "bbproc"), encoding="utf-8", errors="replace").read())
@@ -66,7 +67,9 @@ def rows_for(path, bp_dir):
     e = after.find("end else")
     refusal = after[e:]
     row("a login that was not sdsys's gets 10195 and abort.cproc, with the audit line of the local arm",
-        e > 0 and "sysmsg(10195)" in refusal and "goto abort.cproc" in refusal and "elevation refused reason=sdsys session without a sdsys login" in refusal, "")
+        e > 0 and "sysmsg(10195)" in refusal and "elevation refused reason=sdsys session without a sdsys login" in refusal
+        # 18 Nov 26 (S.267): the refusal's own goto, AFTER its audit line (sdsys.local's "refused" answer has a goto abort.cproc of its own above it)
+        and refusal.find("goto abort.cproc", refusal.find("elevation refused reason=sdsys session without a sdsys login")) > 0, "")
     row("the grant is audited as a login over ssh, from the first field of SSH_CONNECTION, 'unknown' when there is none",
         "from.addr = field(env('SSH_CONNECTION'), ' ', 1)" in arm and "if from.addr = '' then from.addr = 'unknown'" in arm
         and "'elevation granted reason=sdsys login over ssh from=' : from.addr" in arm and arm.find("from.addr =") < arm.find("'elevation granted reason=sdsys login over ssh"), "")
@@ -107,13 +110,13 @@ def rows_for(path, bp_dir):
 
 MUTANTS = [
     ("the ssh arm grants without asking the kernel", "if kernel(K$LOGIN.UID, 'sdsys') = 1 then\n               void kernel(K$ADMINISTRATOR, 1)", "if 1 then\n               void kernel(K$ADMINISTRATOR, 1)"),
-    ("the ssh arm does not refuse a login that was not sdsys's", "               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')\n               goto abort.cproc\n            end\n         end\n      end",
-     "               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')\n            end\n         end\n      end"),
+    ("the ssh arm does not refuse a login that was not sdsys's", "               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login' : lsd.why)\n               goto abort.cproc\n            end\n         end\n      end",
+     "               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login' : lsd.why)\n            end\n         end\n      end"),
     ("the ssh arm refuses with the old message", "refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each\n               loop", "refuse.msg = sysmsg(10191)   ;* several lines: one DISPLAY each\n               loop"),
     ("the grant is not said to be over ssh", "'elevation granted reason=sdsys login over ssh from=' : from.addr", "'elevation granted reason=sdsys login from=' : from.addr"),
     ("no address when there is none", "               if from.addr = '' then from.addr = 'unknown'\n", ""),
     ("the address is the second field", "field(env('SSH_CONNECTION'), ' ', 1)", "field(env('SSH_CONNECTION'), ' ', 2)"),
-    ("a second grant is added", "               admin.notice<-1> = sysmsg(11795, from.addr)\n            end else\n               refuse.msg", "               admin.notice<-1> = sysmsg(11795, from.addr)\n               void kernel(K$ADMINISTRATOR, 1)\n            end else\n               refuse.msg"),
+    ("a second grant is added", "               admin.notice<-1> = sysmsg(11795, from.addr)\n            end else\n", "               admin.notice<-1> = sysmsg(11795, from.addr)\n               void kernel(K$ADMINISTRATOR, 1)\n            end else\n"),
     ("the ssh arm says 'a local session' again", "               admin.notice<-1> = sysmsg(11795, from.addr)\n", "               admin.notice<-1> = sysmsg(10916)\n"),
     ("the local arm's line changes", LOCAL_LINE, LOCAL_LINE.replace("env('SSH_TTY') = ''", "env('SSH_TTY') = \"\"")),
     # S.106 (2 Nov 26): a marker asked again would be caught

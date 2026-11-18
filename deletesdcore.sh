@@ -8,6 +8,9 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   18 Nov 2026 dm - S.267: /usr/local/bin/sd-sdsys is removed with sd-elevate; the two
+#   local.sdsys lists (/etc/sdcore/sdsys-local-ssh and -api) go with the configuration.
+#
 #   17 Nov 2026 dm - S.62 (LC3): the group sdsshnokey (members are offered no ssh key sign-in)
 #   is removed with the route groups on a full DELETE, and kept with them otherwise.
 #
@@ -477,6 +480,9 @@ sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
 echo "Removed /usr/local/sbin/sd-elevate."
+# 18 Nov 26 dm - S.267: the wrapper of sd-elevate sdsys-session goes with the helper it runs.
+sudo rm -f /usr/local/bin/sd-sdsys
+echo "Removed /usr/local/bin/sd-sdsys."
 # 01 Oct 26  S.50 - the account archive tool goes with the helper that runs it.
 #            Backups already written are the administrator's files and stay.
 sudo rm -f /usr/local/sbin/sd-accarchive
@@ -551,6 +557,18 @@ if [ "$conf_deleted" = yes ] && sudo test -e /etc/sdcore/sdsys-api; then
     echo "Removed /etc/sdcore/sdsys-api (remote.sdsys api: SDSYS over the API from other computers)."
 fi
 # SDSYSAPI-END
+# 18 Nov 26 dm - S.267: the administrator's two lists of users who may reach sdsys from this computer (local.sdsys) go with the configuration and are
+#            kept with it, as the remote-API setting above is.
+# SDSYSLOCAL-BEGIN
+if [ "$conf_deleted" = yes ]; then
+    for sl in /etc/sdcore/sdsys-local-ssh /etc/sdcore/sdsys-local-api; do
+        if sudo test -e "$sl" || sudo test -L "$sl"; then
+            sudo rm -f "$sl"
+            echo "Removed $sl (local.sdsys: the users who may reach sdsys from this computer)."
+        fi
+    done
+fi
+# SDSYSLOCAL-END
 sudo rmdir /etc/sdcore 2>/dev/null || true
 echo "Removed /etc/sdcore/totp and totp.public (the sdsys authenticator secret, recovery codes and status), the scheduled jobs' timers and units, and /etc/sdcore/jobs.d (their definitions)."
 if [ "$ssh_fences_out" = 1 ]; then

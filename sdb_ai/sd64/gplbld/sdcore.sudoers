@@ -48,5 +48,10 @@
 # the caller's OWN /var/lib/sd-net/<user> (mode 0700), where their logins on other SD servers are kept; like cred-own it takes
 # the caller's identity from sudo (SUDO_USER/SUDO_UID) and acts on that one directory only.  Nothing else was added.
 
+# 18 Nov 26 dm - S.267 (SDSYS reached from this computer by listed users).  A fifth argument list for %sdusers: "sdsys-session", with NO further
+# argument.  It grants nothing by itself: the helper starts sd as the sdsys user only for a caller whose login uid is sudo's caller AND is on the
+# administrator's root-owned list /etc/sdcore/sdsys-local-ssh (absent, so empty, as delivered), inside a logind ssh session from a literal loopback
+# address; and CPROC then asks the kernel the same and asks for the SD password of sdsys.  For anyone else it refuses and starts nothing.
+
 sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate
-%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own verify, /usr/local/sbin/sd-elevate cred-own set, /usr/local/sbin/sd-elevate netcred-dir
+%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own verify, /usr/local/sbin/sd-elevate cred-own set, /usr/local/sbin/sd-elevate netcred-dir, /usr/local/sbin/sd-elevate sdsys-session

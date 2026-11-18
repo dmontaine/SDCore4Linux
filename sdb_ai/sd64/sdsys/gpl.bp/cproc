@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm S.267: an sdsys session whose login was not sdsys's is asked, before the 10195 refusal, whether it is a listed user's ssh login from this
+*              computer (kernel(K$SDSYS.LOCAL)); if so the SD password of sdsys is asked once and the session is granted (audit "elevation granted
+*              reason=sdsys local ssh user=<name>", notice 14177) or refused (14175 wrong password, 14176 no credential).  10195's audit line gains
+*              " why=<reason>" only when the ssh list is in use.  Both arms, in one subroutine (sdsys.local).
 * 18 Nov 26 dm S.62 (P-6632): RUN.IN refuses, before the command runs and changing nothing, a command whose files lie outside the account or carry a
 *              trigger (14174, 14173; audit run.in refused ... file= reason=), as the Windows port does (its 12567, 12566).  Measured in this code: the
 *              command runs as OS user sdsys; CATALOG and DELETE.CATALOG open the private catalogue a $PRIVATE.CATALOGUE record names, and DECATALOG
@@ -554,6 +558,12 @@ $ifndef IS_INSTALL
             void kernel(K$AUDIT, 'elevation granted reason=sdsys login')  ;* 07 Oct 26 PAL-24: lower case
             admin.notice<-1> = sysmsg(10916)
          end else
+* 18 Nov 26 dm - S.267: BEFORE THE REFUSAL, a listed user's ssh login from this computer (sd-elevate sdsys-session started this sd as sdsys, and
+*   the kernel answers the same questions again on its own) is asked for the SD password of sdsys; see sdsys.local.  Granted, it joins the
+*   other grants; refused there, it ends here.  Otherwise the refusal stands, and its audit line is today's unless the ssh list is in use.
+            gosub sdsys.local
+            if lsd.state = 'granted' then goto elevation.done
+            if lsd.state = 'refused' then goto abort.cproc
 * 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
 *   Refused like root; there is no plain sdsys session to fall back to.
             refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
@@ -561,7 +571,7 @@ $ifndef IS_INSTALL
                display remove(refuse.msg, refuse.more)
             while refuse.more
             repeat
-            void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')  ;* 07 Oct 26 PAL-24
+            void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login' : lsd.why)  ;* 07 Oct 26 PAL-24
             goto abort.cproc
          end
       end else
@@ -589,12 +599,16 @@ $ifndef IS_INSTALL
 * 1 Nov 26 dm - not 10916, whose words say "a local session" (seen on the S.95 VM witness).
                admin.notice<-1> = sysmsg(11795, from.addr)
             end else
+* 18 Nov 26 dm - S.267: the same test as the local arm's, for a helper that keeps the SSH_ variables (sd-elevate sdsys-session does not).
+               gosub sdsys.local
+               if lsd.state = 'granted' then goto elevation.done
+               if lsd.state = 'refused' then goto abort.cproc
                refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
                loop
                   display remove(refuse.msg, refuse.more)
                while refuse.more
                repeat
-               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')
+               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login' : lsd.why)
                goto abort.cproc
             end
          end
@@ -1130,6 +1144,78 @@ para.reset.environment:
 *   are already suppressed, and the caller is doing the explaining.  A REFUSAL
 *   is not a notice and is not affected - refuse.msg still prints, because a
 *   session that was turned away must say so however it was started.
+
+* 18 Nov 26 dm - S.267: SDSYS REACHED FROM THIS COMPUTER BY A LISTED USER (owner, 17 Nov 2026: "I actually like sdsys over ssh locally as that allows
+*   the admin to access sdsys without having to go through switching logins and back.  If could be be restricted to only usernames listed in a text
+*   field rather than a gate"; 18 Nov: "Yes, build it").  Asked only where a session of the sdsys OS user would be refused because its login was not
+*   sdsys's.  The kernel answers, from the operating system alone, the Linux user behind this session when its login uid is on the root-owned list
+*   /etc/sdcore/sdsys-local-ssh (local.sdsys ssh add; absent, so empty, as delivered) AND it is that user's logind ssh session from a literal loopback
+*   address - the questions sd-elevate sdsys-session asked before it started this sd as sdsys.  Then the SD password of sdsys, ONCE (an input that
+*   ends is an empty password, so a refusal, never a loop), checked by !CRED_VERIFY; no credential, or a wrong one, refuses with its own message and
+*   audit line and the session ends as 10195's does.  The grant comes before its audit line.  lsd.state: granted, refused or '' (not this case:
+*   the caller's 10195 stands, and lsd.why adds " why=<reason word>" to its audit line only when the list is in use, so that an install that never
+*   lists anybody writes exactly the line it always did).
+sdsys.local:
+   lsd.state = ''
+   lsd.why = ''
+   lsd.user = kernel(K$SDSYS.LOCAL, 0)
+   if lsd.user = '' then
+      lsd.word = kernel(K$SDSYS.LOCAL, 1)
+      if lsd.word # 'list-empty' then lsd.why = ' why=' : lsd.word
+      return
+   end
+
+*  A PHANTOM HAS NOBODY TO ASK.  One started from a session admitted this way is in the same login session, so the kernel names the user again;
+*  it is not asked a password it cannot be given (that would be audited as a wrong password, after a wait): the old refusal stands, with the reason.
+   if is.phantom then
+      lsd.why = ' why=no-terminal'
+      return
+   end
+
+   lsd.has.cred = @false
+   openpath @sdsys:@ds:'$cred' to lsd.cred.f then
+      read lsd.cred.rec from lsd.cred.f, 'sdsys' then
+         if lsd.cred.rec<CRED$VERSION> = SCRAM$CRED.VERSION and lsd.cred.rec<CRED$STOREDKEY> # '' then lsd.has.cred = @true
+      end
+      close lsd.cred.f
+   end
+   lsd.cred.rec = ''
+   if not(lsd.has.cred) then
+      lsd.msg = sysmsg(14176)
+      loop
+         display remove(lsd.msg, lsd.more)
+      while lsd.more
+      repeat
+      void kernel(K$AUDIT, 'elevation refused reason=sdsys local ssh no credential user=' : lsd.user)
+      lsd.state = 'refused'
+      return
+   end
+
+   display 'SD password of sdsys: ' :
+   input lsd.pw hidden
+   display
+   lsd.ok = @false
+   call !CRED_VERIFY('sdsys', lsd.pw, lsd.ok)
+   lsd.pw = ''
+   if not(lsd.ok) then
+      lsd.msg = sysmsg(14175)
+      loop
+         display remove(lsd.msg, lsd.more)
+      while lsd.more
+      repeat
+      void kernel(K$AUDIT, 'elevation refused reason=sdsys local ssh wrong password user=' : lsd.user)
+*     The wait comes AFTER the record, as the API's refused login has it (APISRVR, S.60): PWDELAY seconds, 3 unless sd.conf says otherwise, 0 none.
+      lsd.delay = config('PWDELAY')
+      if lsd.delay > 0 then sleep lsd.delay
+      lsd.state = 'refused'
+      return
+   end
+
+   void kernel(K$ADMINISTRATOR, 1)
+   void kernel(K$AUDIT, 'elevation granted reason=sdsys local ssh user=' : lsd.user)
+   admin.notice<-1> = sysmsg(14177, lsd.user)
+   lsd.state = 'granted'
+   return
 
 display.admin.notice:
    if bitand(kernel(K$COMMAND.OPTIONS, 0), CMD.QUIET) then return

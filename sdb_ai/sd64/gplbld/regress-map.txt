@@ -65,6 +65,9 @@ gplbld/sandbox-req29.py      : @self fileadmin netindex
 gplbld/sandbox-fileadmin.py  : @self netindex
 # 27 Oct 26 (S.87 batch 7): four suites that tested only a removed option word are deleted; the deletion needs no suite
 gplbld/verify-jobmark.c      : none
+# 18 Nov 26 (S.267): the driver of sd_localsdsys.c and the wrapper /usr/local/bin/sd-sdsys - free-checked by test-localsdsys-units.py; no sandbox is root
+gplbld/verify-localsdsys.c   : none
+gplbld/sd-sdsys              : none
 gplbld/sandbox-stdfil.py : none
 gplbld/sandbox-selectv-mode.py : none
 gplbld/sandbox-wdthenelse.py : none
@@ -298,6 +301,14 @@ sdsys/gpl.bp/addrmatch       : addrmatch
 gplbld/sandbox-addrmatch.py  : addrmatch
 sdsys/messages/1411[6-9]     : none
 sdsys/messages/14120         : none
+# S.267 (18 Nov 26): SDSYS reached from this computer by the users the administrator lists (local.sdsys).  The kernel's answer and the helper are
+# free-checked by test-localsdsys-units.py; the grant needs root, an sdsys user and a logind ssh session, so it is the VM witness's (witness-localsdsys.sh).
+gplsrc/sd_localsdsys.c       : none
+gplsrc/sd_localsdsys.h       : none
+sdsys/gpl.bp/localsdsys      : none
+sdsys/voc_template/local.sdsys : pack-examples
+sdsys/messages/1417[5-9]     : none
+sdsys/messages/1418[0-4]     : none
 sdsys/newvoc/receive         : sftp
 sdsys/newvoc/send            : sftp
 sdsys/voc_template/receive   : sftp pack-examples

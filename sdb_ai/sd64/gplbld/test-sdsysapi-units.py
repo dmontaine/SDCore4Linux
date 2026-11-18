@@ -5,6 +5,7 @@
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysapi-units.py [--selftest]
 #
 # START-HISTORY:
+# 18 Nov 26 dm  S.267: the mutant of the local arm's login test follows its new indentation (it sits inside the not-listed branch).
 # 16 Nov 26 dm  New (S.256).
 # END-HISTORY
 #
@@ -226,7 +227,8 @@ def sub(key, old, new):
 MUTANTS = [
     ("the remote arm does not read the setting", "A1", sub("apisrvr", "                  gosub read.sdsys.api\n", "")),
     ("an unlisted address is admitted", "A1", sub("apisrvr", "                  if not(sdsys.api.listed) then\n", "                  if @false then\n")),
-    ("the local arm forgets the login test", "A2", sub("apisrvr", "                  if api.peer.login # 'sdsys' then\n", "                  if @false then\n")),
+    # 18 Nov 26 (S.267): the login test is one level deeper, inside the branch for a peer that is not on the local API list
+    ("the local arm forgets the login test", "A2", sub("apisrvr", "                     if api.peer.login # 'sdsys' then\n", "                     if @false then\n")),
     ("the flag for every API login", "A3", sub("apisrvr", "               if sdsys.api.from # '' then\n                  void kernel(K$ADMINISTRATOR, 1)",
                                                  "               if @true then\n                  void kernel(K$ADMINISTRATOR, 1)")),
     ("any first line turns it on", "A4", sub("apisrvr", "if downcase(trim(sdsys.api.line)) = 'on' then", "if @true then")),

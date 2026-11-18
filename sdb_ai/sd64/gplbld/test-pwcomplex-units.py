@@ -447,8 +447,12 @@ def main():
     # 18 Oct 26 (encryption layer 3): ENCRYPT.KEY asks for the passphrase a data key is made from.  It is not an SD password: nothing is
     # stored or compared, SDKEY() turns it into a key and it is gone.  The strength of that passphrase is the person's (the page says so);
     # the rule above is for the passwords SD sets, and a 4-class rule would refuse the long word passphrases that are the better choice.
+    # 18 Nov 26 (S.267): CPROC asks a listed user's local ssh session for the SD password of sdsys ONCE, to CHECK it (!CRED_VERIFY) before the
+    # session is the administrator.  It sets no password, so the rule has nothing to judge; the row below still asserts that CPROC names none of
+    # the setters, so a setter added to it later is caught.
     REMOTE_PASSWORD_PROMPTS = {"setnetlogin": "the password of the user on another SD server, spent once on the SCRAM exchange",
-                               "encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored"}
+                               "encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored",
+                               "cproc": "the SD password of sdsys, checked once by !CRED_VERIFY for a listed user's local ssh session"}
 
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the

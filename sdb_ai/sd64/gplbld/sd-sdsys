@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# sd-sdsys - reach SDSYS from this computer as a listed user (S.267).  Installed by installsdcore.sh as /usr/local/bin/sd-sdsys, root:root 0755;
+# removed by deletesdcore.sh.  Typed as
+#
+#     ssh -t <your Linux user>@localhost sd-sdsys
+#
+# (sd and ssh-forcecommand's refusal arm hand that request here).  It decides nothing: the root helper checks, from the operating system, that this
+# is a listed user's ssh login from this computer (local.sdsys ssh add <user>; nobody is listed as delivered) and starts sd as the sdsys user, and
+# SD then asks for the SD password of sdsys.  Anyone else is refused by the helper and nothing is started.
+#
+# START-HISTORY:
+# 18 Nov 26 dm  S.267 - written.
+# END-HISTORY
+
+exec /usr/bin/sudo -n /usr/local/sbin/sd-elevate sdsys-session

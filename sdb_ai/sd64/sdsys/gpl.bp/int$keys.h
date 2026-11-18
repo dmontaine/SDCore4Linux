@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 18 Nov 26 dm  S.267: K$SDSYS.LOCAL (175).
 	  * 2 Nov 26 dm  DEFAULT.DEPTH 43 (was 42), with gplsrc/tio.h DEFAULT_DEPTH (owner: "Change to 43").
 	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -175,6 +176,9 @@
 *   (find, serve, refuse).  The arguments and answers are at k_xfer() in gplsrc/sd_sftp.c.  Must match gplsrc/keys.h.
       $define K$XFER           173      ;* File transfer over the ssh login: the slot and the server (S.242)
 * 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER (its row 310); not implemented on Linux and not reused here.
+* 18 Nov 26 dm - S.267.  kernel(K$SDSYS.LOCAL, 0): the Linux user behind a listed user's ssh login from this computer, or ''; 1: the reason word
+*   of the last ''; 'api' : @fm : user: 1 when the user is on the local API list.  175, not 174 (Windows' K$OS.SDSYS.USER).  Must match gplsrc/keys.h.
+      $define K$SDSYS.LOCAL    175      ;* A listed user's local ssh login reaching SDSYS, or '' (S.267)
 * 10 Sep 26 dm - Parity audit: 57-59 are the Windows port's K$AUDIT, K$WINPATH
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.

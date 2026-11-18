@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.267: K_SDSYS_LOCAL (175) - a listed user's ssh login from this computer reaching SDSYS, and the local API list (sd_localsdsys.c).
  * 17 Nov 26 dm  S.62 P-4608: a phantom child whose exec of bin/sd fails (or whose path is too long) writes why to the error log.
  * 14 Nov 26 dm  S.241: a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
  * 14 Nov 26 dm  LOCK.TRACER's group change and a phantom's daemon() are tested; a failure goes to the error log.
@@ -97,6 +98,7 @@
 #include "dh_int.h"
 #include "locks.h"
 #include "sd_jobmark.h"
+#include "sd_localsdsys.h"
 #include "sd_sftp.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
@@ -520,6 +522,42 @@ void op_kernel() {
         if ((sd_job_active[0] == '\0') && (sd_job_name(SD_JOB_CGROUP_FILE, SD_JOB_DIR, single_command, 0, jn, sizeof(jn)) == 0))
           strcpy(sd_job_active, jn);
         k_put_c_string(sd_job_active, &result);
+      }
+      break;
+
+    /* 18 Nov 26 dm - S.267 (owner, 17-18 Nov 2026: SDSYS reached locally by the users the administrator lists, ssh and the API, both empty as
+       delivered).  kernel(K$SDSYS.LOCAL, 0): the Linux user behind this session when it is a listed user's ssh login from this computer, or '';
+       1: the reason word of the last '' (for the audit line); 'api' : @fm : user: 1 when that user is on the local API list, else 0.  Every fact is
+       read from the fixed paths of sd_localsdsys.h with root (0) as the owner the files must have; nothing the caller passes but the word and, for
+       'api', the user to look up.  CPROC asks 0 in the branch that would refuse an sdsys session with no sdsys login, and asks the SD password
+       of sdsys before it grants; APISRVR asks 'api' for the socket peer's user while it is still root.  Answers only, never a grant.        */
+    case K_SDSYS_LOCAL:
+      {
+        char arg[80];
+        char nm[SD_LOCAL_NAME_MAX + 1];
+        struct sd_local_facts lf;
+        int alen = k_get_c_string(descr, arg, sizeof(arg) - 1);
+
+        if ((alen == 1) && (arg[0] == '0')) {
+          lf.list = SD_LOCAL_SSH_LIST;
+          lf.loginuid = SD_LOCAL_LOGINUID;
+          lf.sessionid = SD_LOCAL_SESSIONID;
+          lf.cgroup = SD_LOCAL_CGROUP;
+          lf.sessions = SD_LOCAL_SESSIONS;
+          lf.group = SD_LOCAL_GROUP;
+          lf.owner = 0;
+          if (sd_local_ssh_user(&lf, nm, sizeof(nm), &sd_local_why) != 0)
+            nm[0] = '\0';
+          k_put_c_string(nm, &result);
+        } else if ((alen == 1) && (arg[0] == '1')) {
+          snprintf(arg, sizeof(arg), "%s", sd_local_why);   /* k_put_c_string takes a char *, the reason word is a const string */
+          k_put_c_string(arg, &result);
+        } else if ((alen > 4) && (strncmp(arg, "api", 3) == 0) && (arg[3] == FIELD_MARK)) {
+          result.data.value = sd_local_listed(SD_LOCAL_API_LIST, arg + 4, SD_LOCAL_GROUP, 0, &sd_local_why);
+        } else {
+          sd_local_why = "bad-argument";
+          k_put_c_string("", &result);
+        }
       }
       break;
 

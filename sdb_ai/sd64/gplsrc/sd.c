@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.267: main() calls sdsys_local_detect() after xfer_detect(); an ssh login asking for "sd-sdsys" is handed to /usr/local/bin/sd-sdsys.
  * 17 Nov 26 dm  S.62 P-1227, P-1229: -CLEANUP and -U are for root or the sdsys OS user (check_admin_or_sdsys()); -INTERNAL refuses an
  *               account other than SDSYS (SD Core for Windows since 13 and 15 Aug 26; high security wins a conflict that predates 13 Oct).
  * 17 Nov 26 dm  S.62 P-1227, P-1228: sd refuses to start inside a shell SD started (SD_SESSION, op_sh.c); -D, -M, -SUSPEND and -RESUME take check_admin(); -TERM's value is bounded.
@@ -108,6 +109,7 @@
 #include "keys.h"
 #include "sd_tls.h"
 #include "sd_sftp.h"
+#include "sd_localsdsys.h"
 
 #define BUILD_TARGET "64 Bit"
 
@@ -149,6 +151,10 @@ int main(int argc, char *argv[]) {
   /* 15 Nov 26 dm - S.242 stage 3.  FIRST, before anything can print: an sftp request that sshd sent here (no terminal, SSH_ORIGINAL_COMMAND
      the Subsystem path) is the file transfer server, not a login.  Its channel is moved off descriptors 0 and 1 (sd_sftp.c). */
   xfer_detect(argc);
+
+  /* 18 Nov 26 dm - S.267.  `ssh -t <user>@localhost sd-sdsys`: an ssh login whose forced command is sd and whose requested command is exactly
+     sd-sdsys runs the wrapper /usr/local/bin/sd-sdsys (sudo -n sd-elevate sdsys-session), which decides; it grants nothing (sd_localsdsys.c). */
+  sdsys_local_detect(argc);
 
  /* 20240126 mab add syslog */
  /* log startup and command line args */

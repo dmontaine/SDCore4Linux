@@ -13713,12 +13713,82 @@
 "tier": "reference",
 "words": 19
 },
+"msg:14175": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
+"msg:14176": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 30
+},
+"msg:14177": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 30
+},
+"msg:14178": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 85
+},
+"msg:14179": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 38
+},
 "msg:1418": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
 "words": 6
+},
+"msg:14180": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 49
+},
+"msg:14181": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:14182": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:14183": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 17
+},
+"msg:14184": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 27
 },
 "msg:1419": {
 "kind": "message",
@@ -25380,7 +25450,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1718
+"words": 1734
 },
 "sys:ikeys:lgn$": {
 "kind": "sys.keys",
@@ -27825,6 +27895,13 @@
 "tier": "reference",
 "words": 37
 },
+"tcl:local.sdsys": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 42
+},
 "tcl:lock": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -29489,7 +29566,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 102
+"words": 103
 },
 "voc:type:F": {
 "kind": "voc.type",

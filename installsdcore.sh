@@ -22,6 +22,9 @@
 #   openSUSE are served by the upstream sdb64 installer until this one is
 #   stable.
 #
+#   18 Nov 2026 dm - S.267: /usr/local/bin/sd-sdsys is installed (root, 0755) and the sudoers
+#   drop-in names sd-elevate sdsys-session for %sdusers; no local.sdsys list is made.
+#
 #   17 Nov 2026 dm - S.62 (LC3): the group sdsshnokey is made, empty (ssh key sign-in off for
 #   the Linux users create.account makes from now on); no existing account is put in it.
 #
@@ -1448,6 +1451,10 @@ fi
 #            from the clone, which is deleted at the end of this script.
 echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
 sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
+# 18 Nov 26  S.267: the wrapper "ssh -t <user>@localhost sd-sdsys" runs (sudo -n sd-elevate sdsys-session); root-owned for the same reason.  It decides
+#            nothing, and no list it reads is made here: /etc/sdcore/sdsys-local-ssh and -api stay absent (empty) until the administrator lists a user
+#            with local.sdsys, and an upgrade that keeps /etc/sdcore keeps them.
+sudo install -o root -g root -m 0755 gplbld/sd-sdsys /usr/local/bin/sd-sdsys
 # 02 Nov 26  S.106: SD's PAM module (S.95) is no longer installed; the LEGACY-CLEAN block after the ssh boundary removes what an older install left.
 
 # 12 Sep 26  PORT_ADOPTION 19.  The register reconciler, beside the other two

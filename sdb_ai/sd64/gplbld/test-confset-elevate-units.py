@@ -478,8 +478,9 @@ class Suite:
         sud = open(self.sudoers_path, encoding="utf-8").read()
         sdusers = [l for l in sud.split("\n") if l.startswith("%sdusers")]
         sdsys = [l for l in sud.split("\n") if l.startswith("sdsys")]
-        self.check("V5", "NO NEW GRANT: sudoers still gives sdsys the helper and %sdusers four exact argument lists, none of them conf-set (so only sdsys, or root, can reach the verb)",
-                   len(sdusers) == 1 and "conf-set" not in sdusers[0] and sdusers[0].count("/usr/local/sbin/sd-elevate ") == 4 and len(sdsys) == 1 and "conf-set" not in sdsys[0], repr((sdusers, sdsys)))
+        # 18 Nov 26 (S.267): the fifth list is "sd-elevate sdsys-session" (test-localsdsys-units.py S1 holds its exact form)
+        self.check("V5", "NO NEW GRANT: sudoers still gives sdsys the helper and %sdusers five exact argument lists, none of them conf-set (so only sdsys, or root, can reach the verb)",
+                   len(sdusers) == 1 and "conf-set" not in sdusers[0] and sdusers[0].count("/usr/local/sbin/sd-elevate ") == 5 and len(sdsys) == 1 and "conf-set" not in sdsys[0], repr((sdusers, sdsys)))
         self.check("V6", "the usage text and the history block name conf-set, and the success line is the only line that says ' is now <value> in ' for it", "conf-set <PARAMETER> <whole number>" in text and "26 Oct 26 dm S.75 A6" in text
                    and arm.count("is now") == 2 and text.count("is now %s in %s%s; takes effect") == 1, "")
         self.check("V7", "the verb logs to syslog like bakdir-set (logger -t sd-elevate 'conf-set: ...'), after the write and before the success line", arm.find("logger -t sd-elevate \"conf-set: ") > arm.find("conf_set \"$SD_CONF\"") and arm.find("logger -t sd-elevate") < arm.find("printf '%s: %s is now"), "")

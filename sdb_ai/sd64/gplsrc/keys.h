@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.267: K_SDSYS_LOCAL (175), a listed user's ssh login from this computer reaching SDSYS (sd_localsdsys.c); 174 stays Windows' K_OS_SDSYS_USER.
  * 17 Nov 26 dm  S.62 P-1013, P-1014 (the owner's decision): K_REAL_USER (90) removed - no program asked it and the kernel no longer answered it; 90 is retired, never reused.
  * 15 Nov 26 dm  S.242 stage 3: K_XFER (173), the file transfer slot and server.
  * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
@@ -256,6 +257,12 @@
 /* 15 Nov 26 dm - 174 is RESERVED for SD Core for Windows' K$OS.SDSYS.USER ("this process's Windows user is the local account SDSYS", its
    row 310: the way back with LOGTO SDSYS, since Windows clears the administrator flag on leaving SDSYS).  Linux does not implement it - its
    K_ADMINISTRATOR already says it (cproc, S.246) - and does not give the number to anything else (agreed by mail 15 Nov).  */
+/* 18 Nov 26 dm - S.267 (Linux Core).  kernel(K$SDSYS.LOCAL, 0) answers the Linux user behind this session when it is a listed user's ssh login
+   from this computer (the audit login uid on /etc/sdcore/sdsys-local-ssh, logind's session scope and record: sshd, remote, a literal loopback
+   address), or ''; kernel(K$SDSYS.LOCAL, 1) the reason word of the last ''; kernel(K$SDSYS.LOCAL, 'api' : @fm : user) 1 when the user is on
+   /etc/sdcore/sdsys-local-api (sd_localsdsys.c).  175, NOT 174: 174 is SD Core for Windows' K_OS_SDSYS_USER (above).  GPL.BP/INT$KEYS.H
+   carries the same number.                                                                                                              */
+#define K_SDSYS_LOCAL        175
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
    AND K_WINPID (its keys.h), so these three - which the port does not have -
    move to 90-92, a block clear of the port's 0-64.  A key number is compiled
