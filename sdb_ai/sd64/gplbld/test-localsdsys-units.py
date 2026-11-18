@@ -566,6 +566,13 @@ def text_rows(src):
         bool(arms) and 0 < loc < cp.find("if kernel(K$LOGIN.UID, 'sdsys') = 1 then", loc) < arms[0], "")
     row("T6", "cproc: the subroutine reads no environment variable and no SSH_ variable", "env(" not in sub and "SSH_" not in sub, "")
     row("T7", "cproc: the subroutine is the only place K$SDSYS.LOCAL is asked in cproc", cp.count("K$SDSYS.LOCAL") == 2 and sub.count("K$SDSYS.LOCAL") == 2, "")
+    # 18 Nov 26: a phantom, and a session with no terminal (ssh without -t, input from a pipe), is NOT asked the password: the old refusal
+    # stands with why=no-terminal.  The test must come before the credential is read and before the prompt.
+    noterm = sub.find("if is.phantom or kernel(K$TTY, 0) = '' then")
+    row("T8", "cproc: a phantom or a session with no terminal is not asked: the test sets why=no-terminal and returns BEFORE the credential is read "
+        "and the password is asked",
+        0 < noterm < sub.find("openpath @sdsys:@ds:'$cred'") < sub.find("input lsd.pw hidden")
+        and "lsd.why = ' why=no-terminal'" in sub[noterm:noterm + 120] and "return" in sub[noterm:noterm + 160], "at %d" % noterm)
     # apisrvr
     la = ap[ap.find("if downcase(scram.user) = 'sdsys' and sdsys.api.from = '' then"):ap.find("if not(kernel(K$ASSUME.USER, scram.user)) then")]
     row("T10", "apisrvr: the local door asks the API list only on the Unix socket, only for a peer that is not sdsys, and admits only when the peer's "

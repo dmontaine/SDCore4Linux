@@ -1165,9 +1165,11 @@ sdsys.local:
       return
    end
 
-*  A PHANTOM HAS NOBODY TO ASK.  One started from a session admitted this way is in the same login session, so the kernel names the user again;
-*  it is not asked a password it cannot be given (that would be audited as a wrong password, after a wait): the old refusal stands, with the reason.
-   if is.phantom then
+*  A PHANTOM HAS NOBODY TO ASK, AND NEITHER HAS A SESSION WITH NO TERMINAL (ssh without -t, input from a pipe).  A phantom started from a session
+*  admitted this way is in the same login session, so the kernel names the user again; neither is asked a password (a phantom's would be audited
+*  as a wrong password, after a wait, and a pipe's would let a script hold it): the old refusal stands, with the reason.  The terminal test is
+*  EDIT's (K$TTY is '' when the session's input is not a terminal).  This door is for a person at a terminal; SD Core for Windows refuses the same.
+   if is.phantom or kernel(K$TTY, 0) = '' then
       lsd.why = ' why=no-terminal'
       return
    end
