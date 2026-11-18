@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  CREATE.ACCOUNT NO LONGER LEAVES THE ADMINISTRATOR IN THE NEW ACCOUNT.
+
+             What        - after create.account makes a user account, the administrator's session is back in the
+                           account it started in.  When the example programs could not be put into the new
+                           account from that session, it says so and what to type:
+                           "sign off, sign in to SDSYS again and type load.examples <name>".
+             Why         - the session that makes a user account does not yet have that account's Linux group
+                           (a process keeps the groups it started with), so it cannot write there.  Putting the
+                           examples in stopped with an error inside the new account and the session stayed
+                           there.  load.examples and remove.examples now always return to the account they began
+                           in, whatever fails.
+             Does NOT    - Put the examples into a new user account from the session that made it; a new
+                           sign-in as sdsys can, and load.examples <name> does it.  A group account is not
+                           affected: its examples are loaded at once, as before.
+
 18 Nov 26  WHAT THE ADMINISTRATOR MAKES IN THE SDSYS ACCOUNT CAN NO LONGER BE CHANGED BY OTHER SD USERS.
 
              What        - a session in the SDSYS account now makes new files and directories so that only sdsys

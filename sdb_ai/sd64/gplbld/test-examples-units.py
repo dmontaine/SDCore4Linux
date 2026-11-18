@@ -95,11 +95,17 @@ def checks(raw):
     ck("X4", "LOAD.EXAMPLES: the administrator first, a SUSPENDED account skipped, examples.bp a DIRECTORY file, the compile judged on its success line, back to "
              "the account it began in, one audit line",
        raw["load"] is not None and 0 <= ld.find("if not(kernel(K$ADMINISTRATOR, -1)) then") < ld.find("dir(src)")
-       and "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue" in ld and "execute 'create.file examples.bp directory'" in ld
-       and "if index(out, 'Compiled 1 program(s) with no errors', 1) then" in ld and "execute 'logto ' : origin capturing lt" in ld and ld.count("kernel(K$AUDIT") == 1)
+       and "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue" in ld and "execute 'create.file examples.bp directory' trapping aborts" in ld
+       and "if index(out, 'Compiled 1 program(s) with no errors', 1) then" in ld and "execute 'logto ' : origin trapping aborts capturing lt" in ld and ld.count("kernel(K$AUDIT") == 1
+       # 18 Nov 26: every EXECUTE traps aborts - a create.file the session may not make aborts (8207), and an untrapped abort left the
+       # administrator in the account (the owner found it through create.account)
+       and len(re.findall(r"\bexecute\b", ld)) == len(re.findall(r"\bexecute\b[^\n]*\btrapping aborts\b", ld)))
     ca = code(raw["createa"])
     i_aud = ca.find("void kernel(K$AUDIT, 'create.account account='")
-    ck("X5", "create.account runs load.examples for the account it made, after its audit line", 0 < i_aud < ca.find("execute 'load.examples ' : downcase(acc.name)"))
+    i_ld = ca.find("execute 'load.examples ' : downcase(acc.name) trapping aborts")
+    ck("X5", "create.account runs load.examples for the account it made, after its audit line, trapping aborts, goes back to the account it began in, "
+             "and says 14185 when the examples were not loaded", 0 < i_aud < i_ld
+       and 0 < i_ld < ca.find("if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts") and "sysmsg(14185" in ca)
     inst = raw["inst"] or ""
     b = inst.find("# EXAMPLES-BEGIN")
     blk = inst[b:inst.find("# EXAMPLES-END")] if b >= 0 else ""
@@ -120,8 +126,9 @@ def checks(raw):
               "deleted only when nothing is left (left = 0) and judged on a reopen, back to the account it began in, one audit line, a SUSPENDED account skipped",
        raw["rm"] is not None and 0 <= rm.find("if not(kernel(K$ADMINISTRATOR, -1)) then") < rm.find("dir(src)")
        and "read old from xf, names<p> then" in rm and "delete xf, names<p> on error dok = @false" in rm and "delete of, names<p> on error dok = @false" in rm
-       and 0 < rm.find("if left = 0 then") < rm.find("execute 'delete.file examples.bp' capturing out") < rm.find("execute 'delete.file examples.bp.out' capturing out")
-       and "select xf to 12" in rm and rm.count("delete.file") == 2 and "execute 'logto ' : origin capturing lt" in rm and rm.count("kernel(K$AUDIT") == 1
+       and 0 < rm.find("if left = 0 then") < rm.find("execute 'delete.file examples.bp' trapping aborts capturing out") < rm.find("execute 'delete.file examples.bp.out' trapping aborts capturing out")
+       and "select xf to 12" in rm and rm.count("delete.file") == 2 and "execute 'logto ' : origin trapping aborts capturing lt" in rm and rm.count("kernel(K$AUDIT") == 1
+       and len(re.findall(r"\bexecute\b", rm)) == len(re.findall(r"\bexecute\b[^\n]*\btrapping aborts\b", rm))
        and "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue" in rm and "delete xf" in rm and "clear.file" not in rm and "select" in rm)
     cited_r = set(re.findall(r"sysmsg\((\d+)", rm))
     gone_r = sorted(n for n in cited_r if not os.path.exists(os.path.join(SDSYS, "messages", n)))
@@ -159,7 +166,9 @@ MUTANTS = [
     ("load.examples does not ask for the administrator", "X4", sub("load", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001)", "   if 0 then\n      stop sysmsg(2001)")),
     ("a suspended account is entered", "X4", sub("load", "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue", "null")),
     ("the compile is not judged", "X4", sub("load", "if index(out, 'Compiled 1 program(s) with no errors', 1) then", "if 1 then")),
-    ("create.account does not load the examples", "X5", sub("createa", "   execute 'load.examples ' : downcase(acc.name) capturing ex.out", "   ex.out = ''")),
+    ("create.account does not load the examples", "X5", sub("createa", "   execute 'load.examples ' : downcase(acc.name) trapping aborts capturing ex.out", "   ex.out = ''")),
+    ("create.account does not go back where it began", "X5", sub("createa", "   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts capturing ex.lt\n", "")),
+    ("load.examples' create.file aborts out of the verb", "X4", sub("load", "execute 'create.file examples.bp directory' trapping aborts capturing mk", "execute 'create.file examples.bp directory' capturing mk")),
     ("the installer block does not warn", "X6", sub("inst", "    echo \"WARNING: the example programs were not put into the accounts.\"\n", "")),
     ("the installer block runs load.examples as root's session, not internally", "X6", sub("inst", "sudo bin/sd -internal load.examples < /dev/null", "sudo bin/sd load.examples < /dev/null")),
     ("load.examples is given to every account", "X7", lambda raw: dict(raw, nv="V\nCA\n$loadexamples\n")),
@@ -176,7 +185,7 @@ MUTANTS = [
     ("remove.examples keeps the compiled object", "X10", sub("rm", "delete of, names<p> on error dok = @false", "dok = @true")),
     ("remove.examples is not judged on a reopen", "X10", sub("rm", "      open 'examples.bp' to xf then\n         close xf\n         display sysmsg(14129, acct : ' examples.bp', 'the file could not be deleted')",
                                                              "      open 'examples.bp' to xf then\n         close xf\n         display sysmsg(14129, acct : ' examples.bp', 'the file could not be deleted')\n         execute 'delete.file examples.bp' capturing out")),
-    ("remove.examples does not go back to the account it began in", "X10", sub("rm", "execute 'logto ' : origin capturing lt", "null")),
+    ("remove.examples does not go back to the account it began in", "X10", sub("rm", "execute 'logto ' : origin trapping aborts capturing lt", "null")),
     ("remove.examples is given to every account", "X11", lambda raw: dict(raw, nvr="V\nCA\n$removeexamples\n")),
 ]
 

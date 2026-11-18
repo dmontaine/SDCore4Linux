@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  Every EXECUTE traps aborts (the owner found it, 18 Nov 2026): create.file in an account the session cannot write ABORTS (8207), and
+*               the abort ended the verb silently inside that account, so create.account left the administrator in the new account.  Now
+*               the refusal is said (14123) and the way back to the starting account always runs.
 * 17 Nov 26 dm  The verb takes a LIST of accounts (the owner, 17 Nov 2026: "both load.examples and remove.examples should take a list of accounts"); an unknown name is
 *               said (14122) and skipped instead of ending the command.  Its companion is REMOVE.EXAMPLES (removeexamples).
 * 17 Nov 26 dm  New (the owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and a set of
@@ -95,7 +98,7 @@ $include err.h
       acct = accts<a>
       gosub do.account
    next a
-   if downcase(@who) # downcase(origin) then execute 'logto ' : origin capturing lt
+   if downcase(@who) # downcase(origin) then execute 'logto ' : origin trapping aborts capturing lt
 
    void kernel(K$AUDIT, 'load.examples accounts=' : n.acc : ' new=' : n.new : ' changed=' : n.changed : ' same=' : n.same : ' kept=' : n.kept : ' compiled=' : n.compiled : ' of=' : n.tried : ' skipped=' : n.bad)
    display sysmsg(14124, n.acc, n.new, n.changed, n.same)           ;* SYSMSG takes four places
@@ -106,14 +109,14 @@ $include err.h
 * ------------------------------------------------------------------------------------------------- one account
 
 do.account:
-   if downcase(@who) # acct then execute 'logto ' : acct capturing lt
+   if downcase(@who) # acct then execute 'logto ' : acct trapping aborts capturing lt
    if downcase(@who) # acct then
       display sysmsg(14123, acct)                                ;* Could not enter the account %1 ...
       n.bad += 1
       return
    end
    open 'examples.bp' to xf else
-      execute 'create.file examples.bp directory' capturing mk
+      execute 'create.file examples.bp directory' trapping aborts capturing mk   ;* a refused create aborts (8207): trapped, so the way back runs
       open 'examples.bp' to xf else
          display sysmsg(14123, acct)
          n.bad += 1
@@ -157,7 +160,7 @@ do.account:
 *  Each program to compile, one at a time, judged on the compiler's own success line
    for p = 1 to dcount(todo, @fm)
       n.tried += 1
-      execute 'basic examples.bp ' : todo<p> capturing out
+      execute 'basic examples.bp ' : todo<p> trapping aborts capturing out
       if index(out, 'Compiled 1 program(s) with no errors', 1) then
          n.compiled += 1
       end else

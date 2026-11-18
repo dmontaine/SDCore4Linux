@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  Every EXECUTE traps aborts, as load.examples': an abort in an account the session cannot write ended the verb inside that account.
 * 17 Nov 26 dm  New (the owner, 17 Nov 2026: "there should be a companion remove.examples verb for the administrator, both load.examples and remove.examples
 *               should take a list of accounts").  Made from loadexamples, which it undoes.
 * END-HISTORY
@@ -94,7 +95,7 @@ $include err.h
       acct = accts<a>
       gosub do.account
    next a
-   if downcase(@who) # downcase(origin) then execute 'logto ' : origin capturing lt
+   if downcase(@who) # downcase(origin) then execute 'logto ' : origin trapping aborts capturing lt
 
    void kernel(K$AUDIT, 'remove.examples accounts=' : n.acc : ' removed=' : n.removed : ' files=' : n.files : ' none=' : n.none : ' kept=' : n.kept : ' skipped=' : n.bad)
    display sysmsg(14127, n.acc, n.removed, n.files)               ;* SYSMSG takes four places
@@ -105,7 +106,7 @@ $include err.h
 * ------------------------------------------------------------------------------------------------- one account
 
 do.account:
-   if downcase(@who) # acct then execute 'logto ' : acct capturing lt
+   if downcase(@who) # acct then execute 'logto ' : acct trapping aborts capturing lt
    if downcase(@who) # acct then
       display sysmsg(14131, acct)                                ;* Could not enter the account %1 ...
       n.bad += 1
@@ -151,7 +152,7 @@ do.account:
    close xf
    if have.obj then close of
    if left = 0 then
-      execute 'delete.file examples.bp' capturing out
+      execute 'delete.file examples.bp' trapping aborts capturing out
       open 'examples.bp' to xf then
          close xf
          display sysmsg(14129, acct : ' examples.bp', 'the file could not be deleted')
@@ -160,7 +161,7 @@ do.account:
          n.files += 1
          open 'examples.bp.out' to of then
             close of
-            execute 'delete.file examples.bp.out' capturing out
+            execute 'delete.file examples.bp.out' trapping aborts capturing out
             open 'examples.bp.out' to of then
                close of
                display sysmsg(14129, acct : ' examples.bp.out', 'the file could not be deleted')
