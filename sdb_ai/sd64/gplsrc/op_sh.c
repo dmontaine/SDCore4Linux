@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.62 P-1784: resolve_name()'s length test compares against (size_t)(2 * PATH_MAX + 2), as SD Core Solo's does (no signed /
+ *               unsigned comparison; the test is the same).
  * 17 Nov 26 dm  S.62 NETDIRS (the owner's decision of 17 Nov, Windows Core's parameter): os_path_ok_for_account() asks path_in_netdirs() last - a
  *               path resolved as the gate resolves it, inside a directory sd.conf's NETDIRS lists, is admitted to a session held to its account.
  *               Entries are realpath'd once per process and ignored (named at start, netdirs_report()) when not absolute, not a directory, "/",
@@ -255,7 +257,7 @@ Private bool resolve_name(const char *cwd, const char *name, char *resolved) {
   }
 
   if (tail[0] != '\0') {
-    if (strlen(resolved) + strlen(tail) + 2 > 2 * PATH_MAX + 2)    /* RESOLVED is a pointer here: not sizeof */
+    if (strlen(resolved) + strlen(tail) + 2 > (size_t)(2 * PATH_MAX + 2))    /* RESOLVED is a pointer here: not sizeof */
       return FALSE;
     if (strcmp(resolved, "/") != 0)
       strcat(resolved, "/");

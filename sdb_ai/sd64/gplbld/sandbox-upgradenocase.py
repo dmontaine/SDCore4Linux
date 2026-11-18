@@ -178,8 +178,10 @@ def main():
         bail("this tree has no gpl.bp/upgrade_nocase")
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     if SOLO:
-        say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11065 replace the full product's in this sandbox")
-        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11066)):
+        # 18 Nov 26 (S.62): 14993 too - Solo's own message for the files under SDSYS its walk leaves (the full product has no such
+        # number, so the walk printed "[14993] Message not found" and two rows failed on the suite's own fixture, not on Solo).
+        say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11065 and 14993 replace the full product's in this sandbox")
+        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11066)) + ("messages/14993",):
             src = os.path.join(SOLO_SDSYS, rel)
             if not os.path.isfile(src):
                 bail("Solo has no %s" % src)

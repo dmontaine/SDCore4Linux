@@ -8,15 +8,15 @@
  "kinds": {
   "basic.clause": {
    "chunks": 33,
-   "sha256": "c7baeab2280db66b6e51233e40e68d7970a97312261afcb899122ba59dc649b6"
+   "sha256": "553c002b3ee28d14eaf98c8bd1a9b71dbabf624648141792b9f0d3a3f528f322"
   },
   "basic.function": {
    "chunks": 230,
-   "sha256": "73085c0352036b550e0e9dca73378d2a1605160d7bc58213b167e4c7d2a35651"
+   "sha256": "36dfd9d310c040de77ec9272e09f2e4ceca8317407a4bc03564ac13ea141056b"
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "f39afa19b4139ec0532525fdef2b8167f92f45ca83a031d9cce0ceae7cbeeeb0"
+   "sha256": "3b33892264f43ac297140ecf30d2627f09dff3ebc1fa84da704d81452398fd60"
   },
   "basic.mode": {
    "chunks": 9,
@@ -28,11 +28,11 @@
   },
   "basic.restricted": {
    "chunks": 34,
-   "sha256": "35ed54df3ff77da97739094c03915a47b28e5d85c0b677f3a8b01b35f69330d8"
+   "sha256": "833c6f9499b17410b9d6bd0961d6eea5d17731478aa85415bed1daeef58704da"
   },
   "basic.statement": {
    "chunks": 203,
-   "sha256": "c9ab4883700c5f9e39a97ab40fbb6d7d153acf05f9efa0f74c56b59930bc719b"
+   "sha256": "c5a7003c270b59a5f643f0b122a2cbff1315f7939f9730ff5f1951b21a13c05c"
   },
   "core.digest": {
    "chunks": 5,
@@ -154,7 +154,7 @@
   },
   "reference/basic-functions.md": {
    "chunks": 267,
-   "sha256": "8dcb6e3d831dc88949c8c4680f337f908d81494059e729894aed90c73427a522",
+   "sha256": "cb1e801e2570db4529e326fff9867d95a7ab2d1e62485f23381aa9300e24b9d3",
    "words": 4463
   },
   "reference/basic-modes.md": {
@@ -164,7 +164,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 270,
-   "sha256": "0d52005ea5b31beb5ab2fedeb75900ff32d80cd0af1071c87681af33d3069fe1",
+   "sha256": "ba0cab92fc2e90fce0e9eb46aa7b719af21b44af0714a8c9901a00aa0c81a0e6",
    "words": 6045
   },
   "reference/dictionaries.md": {
