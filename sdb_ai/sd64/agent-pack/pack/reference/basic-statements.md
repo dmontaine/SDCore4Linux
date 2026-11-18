@@ -304,7 +304,7 @@ clause of `execute` and `os.execute` — take the output
 `create` *file.var* `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/15-sdidx.md` line 109
+- docs: `Administrator/markdown/15-sdidx.md` line 110
 
 ### basic:stmt:create.ak
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:497#e47dcc59 src2=docs:tools/syntax-shapes.txt:46#7ec8b29e
@@ -2101,7 +2101,7 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writepkt` *data*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/15-sd-basic-sockets.md` line 310
+- docs: `User/markdown/15-sd-basic-sockets.md` line 318
 
 ### basic:stmt:writeseq
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:472#bfa4d305 src2=docs:tools/syntax-shapes.txt:254#98338a11

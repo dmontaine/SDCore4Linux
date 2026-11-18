@@ -3904,7 +3904,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 350
+"words": 370
 },
 "core:tcl-verbs": {
 "kind": "core.digest",
@@ -28593,7 +28593,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 133
+"words": 149
 },
 "tcl:said": {
 "kind": "tcl.keyword",

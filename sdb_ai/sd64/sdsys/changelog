@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  MODIFY.PASSWORD FORGETS BOTH TYPED PASSWORDS AS SOON AS THEY DO NOT MATCH.
+
+             What        - when the two passwords typed to modify.password differ, SD now clears both from the
+                           session at once, before it says "Passwords do not match." and asks again.  Until now it
+                           kept them until the third try ended the command.
+             Why         - a password that is not going to be used should not stay in the session's memory for
+                           longer than it must.  SD Core for Windows already cleared them at every mismatch; the
+                           four-version audit carried its tighter behaviour to Linux.
+             Does NOT    - Change the prompts, the messages, the three attempts, the password rule or what is
+                           printed on the screen.  Nothing a person sees is different.
+
 18 Nov 26  THE SHARED ACCOUNT'S STRUCTURE REFUSAL NAMES THE ADMINISTRATOR, NOT A TERMINAL.
 
              What        - the message a session is given when it tries to change the structure of a file in the
