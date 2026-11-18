@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.62 round 6: the help line says "the SD password of sdsys" (the words of 14175-14180 and page 22b), not "the sdsys
+*               password", which on Linux reads as the OS account's.
 * 18 Nov 26 dm  S.267: the sdsys view shows two fields, Local ssh users and Local API users (the two lists of LOCAL.SDSYS, read by running the verb with no keyword and
 *               parsing the root helper's fixed status words); Up and Down choose a list, U adds a name (after a box showing 14179 / 14180 that wants the name typed
 *               again), X removes one chosen from the list and C clears it (each a plain box).  The key line of the top box names only the keys of the view shown.
@@ -576,7 +578,7 @@ draw.detail:
          lines<-1> = "sdsys may sign in over ssh only when the administrator opens that door, and then with its password alone. sdsys-arm says whether sshd lets sdsys in; it is shut as delivered."
          lines<-1> = 'O opens the door (remote.sdsys on) after a box that wants the word open typed: nothing but the sdsys password then stands between the network and the administrator, so open it only on a machine whose password is long and used nowhere else.'
          lines<-1> = "F shuts the door again (REMOTE.SDSYS OFF). The machine's sudo user can do the same from any shell: sudo /usr/local/sbin/sd-elevate sdsys-ssh on or off."
-         lines<-1> = 'Local ssh users and Local API users are the lists of local.sdsys: the Linux users who may reach sdsys from this computer, by ssh -t name@localhost sd-sdsys or by a program over the Unix socket of the API, each with the sdsys password. Both are empty as delivered.'
+         lines<-1> = 'Local ssh users and Local API users are the lists of local.sdsys: the Linux users who may reach sdsys from this computer, by ssh -t name@localhost sd-sdsys or by a program over the Unix socket of the API, each with the SD password of sdsys. Both are empty as delivered.'
          lines<-1> = 'Up and Down choose a list. U adds a name after a box that wants the name typed again (that user can then become the administrator), X removes one, C clears the list.'
       case 1
          lines<-1> = 'The certificate the API presents, and the hash of its public key: that hash is what another SD server pins in its definition of this machine (SET.SERVER ... pin).'
