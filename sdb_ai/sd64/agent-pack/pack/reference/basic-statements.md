@@ -493,7 +493,7 @@ clause of `execute` — run at the current command level ***(clause word)***
 `loop` … `do` … `repeat`
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/23-scheduled-jobs.md` line 97
+- docs: `User/markdown/37a-sd-basic-python-integration.md` line 187
 
 ### basic:stmt:dparse
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#c137eb53 src2=docs:tools/syntax-shapes.txt:69#4e9120fd
@@ -645,7 +645,7 @@ clause of `if`, and of every statement that has a `then`
 `formlist` *arr* {, *delimiter*} {`to` *list.no*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 44
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 43
 
 ### basic:stmt:formlistv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:432#654e6446 src2=docs:tools/syntax-shapes.txt:340#baa4989a
@@ -685,7 +685,7 @@ clause of `read`, `readnext`, `matbuild`, `matparse`, `remove`, `readcsv`
 `getlist` *name* {`to` *list.no*} `then` … `else` — ***the `then`/`else` is not optional***
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 141
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 140
 
 ### basic:stmt:getlistv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:433#b667d46d src2=docs:tools/syntax-shapes.txt:341#8e48ab10
@@ -1008,7 +1008,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `movelist` *n* `to` *m* {`keep`}
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 172
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 171
 
 ### basic:stmt:movelistv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:474#485929b1 src2=docs:tools/syntax-shapes.txt:350#5d971130
@@ -1016,7 +1016,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `movelistv` *n* `to` *var* {`keep`}
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 173
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 172
 
 ### basic:stmt:nap
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:444#1874fff2 src2=docs:tools/syntax-shapes.txt:138#e43824fc
@@ -1189,7 +1189,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `pdump`
 
 - a statement of SD BASIC
-- docs: `User/markdown/17a-sd-basic-debugging-full-screen-and-ai.md` line 142
+- docs: `User/markdown/17a-sd-basic-debugging-full-screen-and-ai.md` line 141
 
 ### basic:stmt:phantom
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:448#ea8544c2
@@ -1553,7 +1553,7 @@ clause of `execute` — take the list the command left
 `savelist` *name* {`from` *list.no*} `then` … `else` — ***the `then`/`else` is not optional***
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 141
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 140
 
 ### basic:stmt:screen
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:459#876d1c19 src2=docs:tools/syntax-shapes.txt:291#031be503
@@ -1592,7 +1592,7 @@ clause of `execute` — take the list the command left
 `selectindex` *index* {, *value*} `from` *file.var* {`to` *list.no*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 43
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 42
 
 ### basic:stmt:selectindexv
 > kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:478#f8eb30b2 src2=docs:tools/syntax-shapes.txt:363#5e3d1797
@@ -1664,7 +1664,7 @@ clause of `execute` — take the list the command left
 `sendmail` *to*, *from*, *subject*, *body* {, *attachments*} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 225
+- docs: `User/markdown/16a-sd-basic-status-and-the-machine.md` line 223
 
 ### basic:stmt:set
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:488#0e29ff12 src2=docs:tools/syntax-shapes.txt:206#e1fd1c40
@@ -1743,7 +1743,7 @@ clause of `execute` — take the list the command left
 `setleft` *index* `from` *file.var* — ***no `then`/`else`***
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 191
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 190
 
 ### basic:stmt:setnls
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:464#6f205590 src2=docs:tools/syntax-shapes.txt:215#a70c2eaf
@@ -1775,7 +1775,7 @@ clause of `execute` — take the list the command left
 `setright` *index* `from` *file.var* — ***no `then`/`else`***
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 191
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 190
 
 ### basic:stmt:setting
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:593#ad3414c7 src2=docs:tools/syntax-shapes.txt:220#a1b3ef30
@@ -2093,7 +2093,7 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writelist` *array* `to` *name* — `on` may stand for `to`
 
 - a statement of SD BASIC
-- docs: `User/markdown/08-sd-basic-select-lists.md` line 171
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 170
 
 ### basic:stmt:writepkt
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:510#1f93b8d3 src2=docs:tools/syntax-shapes.txt:253#93d0c322

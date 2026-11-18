@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm S.62 (P-6632): RUN.IN refuses, before the command runs and changing nothing, a command whose files lie outside the account or carry a
+*              trigger (14174, 14173; audit run.in refused ... file= reason=), as the Windows port does (its 12567, 12566).  Measured in this code: the
+*              command runs as OS user sdsys; CATALOG and DELETE.CATALOG open the private catalogue a $PRIVATE.CATALOGUE record names, and DECATALOG
+*              deletes the object a V CS record names, by OPENPATH from $internal programs, which the OS gate does not ask; the stock voc pointer's
+*              dictionary is SDSYS's voc.dic; an account with sd.accounts reaches, as sdsys, every account's files.  A trigger on a file the command
+*              opens would run the account's code with the edit gate ri.narrow turned on for SD's own command.  The account's VOC is asked first,
+*              before anything reads it while the administrator flag is still on (ri.voc.trigger).
 * 17 Nov 26 dm S.62 (P-4645): LOGTO refuses a SUSPENDED account to the administrator too (10107, audit reason=suspended), as LOGIN and
 *              the Windows port do; the only exemption is the install's (internal mode with the administrator flag: load.help's
 *              LOGTO shared).  RUN.IN into a suspended account is unchanged; the administrator's group exemption is unchanged.
@@ -3227,6 +3234,15 @@ load.account.switches:
 *     LOGTO into an account whose group it is in).
 *   NO COMMAND AT COMPILE TIME (BCOMP): $EXECUTE in the source, and an include file or dictionary outside the account, are compile errors while ri.active is set.
 *
+* 18 Nov 26 dm - S.62 (P-6632; the Windows port's ri.windows.checks, 12566 / 12567).  NO FILE OUTSIDE THE ACCOUNT, NO TRIGGER.  The flag is off while the command
+*   runs, but the session's OS user is sdsys, which can write SDSYS's files and every account's; and the six commands are $internal programs, whose OPENPATH
+*   the OS gate does not ask.  So, asked in the account before the command runs (ri.account.checks), refused with the file named and nothing changed:
+*     a path the command writes or deletes must be inside the account (14174): the named file's data and dictionary, the .out file of basic and catalog,
+*     the private catalogue of catalog and delete.catalog, the object a decatalog'd local entry names.  The kernel's own geometry, K$PATH.IN on the
+*     account's directory, which follows links and refuses a link that leads nowhere.
+*     no file the command opens may have a trigger (14173): the VOC (asked before anything reads it: ri.voc.trigger), the named file and its dictionary,
+*     the .out file and the private catalogue.  A trigger is the account's code and would run with the edit gate ri.narrow gives SD's own command.
+*
 * 17 Nov 26 dm - S.62 (P-4645).  A SUSPENDED ACCOUNT IS NOT REFUSED HERE, ON PURPOSE (owner, 17 Nov 26: "it is the administrator's maintenance tool and
 *   a suspended account is when you would use it").  LOGTO refuses a suspended account to the administrator since that day; run.in reads the register
 *   record itself and never asks ACC$SUSPENDED.  Do not add the test.
@@ -3340,6 +3356,15 @@ int.runin:
    end
    acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
 
+* 18 Nov 26 dm - S.62 (P-6632): a trigger on the account's VOC is refused before anything reads that VOC (ri.own.words reads it, and the flag is still on)
+   gosub ri.voc.trigger
+   if ri.why # '' then
+      display sysmsg(14173, 'voc', ri.acct)   ;* run.in: %1 in account %2 has a trigger; nothing was run
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' file=voc reason=' : ri.why)
+      unwinding = 2
+      return
+   end
+
 * 11 Nov 26 dm - S.213: the command word and the option words are SD's own in that account's VOC, or nothing is run.  Asked before anything is kept or changed.
    gosub ri.own.words
    if ri.bad # '' then
@@ -3394,13 +3419,20 @@ int.runin:
       if upcase(ri.vrec[1, 1]) # 'F' then ri.file.ok = @false
    end
 
-   if ri.file.ok then
+* 18 Nov 26 dm - S.62 (P-6632): no file the command writes outside the account, no trigger on a file it opens (the message is displayed there)
+   ri.why = ''
+   if ri.file.ok then gosub ri.account.checks
+
+   if ri.file.ok and ri.why = '' then
       new.sentence = ri.sentence
       ri.in.paragraph = in.paragraph
       unwinding = 0
       gosub ri.narrow            ;* 11 Nov 26, S.213: not the administrator from here to revert.account
       gosub proc.sentence
       in.paragraph = ri.in.paragraph
+   end else if ri.why # '' then
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' file=' : ri.pn[1, 40] : ' reason=' : ri.why)
+      unwinding = 2
    end else
       display sysmsg(11176, ri.file[1, 40], ri.acct)   ;* %1 is not a file in account %2
       unwinding = 2
@@ -3447,6 +3479,125 @@ ri.own.words:
    end case
    if ri.nv.open then close ri.nv.f
    if ri.av.open then close ri.av.f
+   return
+
+* 18 Nov 26 dm - S.62 (P-6632).  The account's VOC, by the register's path, before anything reads it: ri.why is '' or the reason.  Opening a file loads its
+*   trigger and does not run it.  A VOC that cannot be opened is ri.own.words' refusal, not this one.
+ri.voc.trigger:
+   ri.why = ''
+   openpath acc.rec:@ds:'voc' to ri.tf then
+      if fileinfo(ri.tf, FL$TRIGGER) # '' then ri.why = 'a trigger on a file the command opens'
+      close ri.tf
+   end
+   return
+
+* 18 Nov 26 dm - S.62 (P-6632; the Windows port's ri.windows.checks).  In the account, before ri.narrow and the command.  In: ri.cmd, ri.n.names, ri.file and
+*   ri.vrec (its VOC entry), ri.rest, account.path, voc.  Out: ri.why ('' when all pass) and ri.pn, the file it names; the message is displayed here.
+*   1. Every path the command writes or deletes is inside the account (ri.path.inside): the named file's data and dictionary; the .out file of basic and
+*      catalog (an entry that is not an F pointer is refused as outside); the private catalogue catalog writes and delete.catalog deletes from, found as those
+*      programs find it; the object file a local entry names, which decatalog deletes.  The files a compile READS are BCOMP's ($include, $dict) and _voc_ref's.
+*   2. Then, only when every path passed, no file the command opens has a trigger: the VOC, the named file and its dictionary, the .out file, the private
+*      catalogue.  Opening them changes nothing.
+ri.account.checks:
+   ri.why = '' ; ri.pn = ''
+   ri.orec = '' ; ri.oname = '' ; ri.pcat = ''
+   if ri.n.names = 2 then
+      ri.pn = ri.file
+      ri.p = ri.vrec<2> ; gosub ri.path.inside
+      ri.pn = 'dict ' : ri.file
+      ri.p = ri.vrec<3> ; gosub ri.path.inside
+      if ri.cmd = 'basic' or ri.cmd = 'catalog' then
+         ri.oname = ri.file : '.out'
+         read ri.orec from voc, ri.oname else
+            read ri.orec from voc, upcase(ri.oname) else ri.orec = ''
+         end
+         if ri.orec # '' then
+            ri.pn = ri.oname
+            if upcase(ri.orec[1, 1]) # 'F' then
+               ri.p = '/'   ;* a Q pointer or anything else: refused as outside
+               gosub ri.path.inside
+            end
+            ri.p = ri.orec<2> ; gosub ri.path.inside
+            ri.p = ri.orec<3> ; gosub ri.path.inside
+         end
+      end
+   end
+   if ri.cmd = 'catalog' or ri.cmd = 'delete.catalog' then
+      ri.pcat = 'cat'
+      read ri.lrec from voc, '$PRIVATE.CATALOGUE' else
+         read ri.lrec from voc, '$PRIVATE.CATALOG' else ri.lrec = ''
+      end
+      if upcase(ri.lrec[1, 1]) = 'X' then ri.pcat = ri.lrec<2>
+      ri.pn = '$private.catalogue'
+      ri.p = ri.pcat ; gosub ri.path.inside
+   end
+   if ri.cmd = 'decatalog' then
+      ri.prog = field(ri.rest, ' ', 3)
+      read ri.lrec from voc, ri.prog else
+         read ri.lrec from voc, upcase(ri.prog) else ri.lrec = ''
+      end
+      if upcase(ri.lrec[1, 1]) = 'V' and ri.lrec<2> = 'CS' then
+         ri.pn = ri.prog
+         ri.p = ri.lrec<3> ; gosub ri.path.inside
+      end
+   end
+
+   if ri.why = '' then
+      if fileinfo(voc, FL$TRIGGER) # '' then
+         ri.pn = 'voc' ; gosub ri.trigger.found
+      end
+   end
+   if ri.why = '' and ri.n.names = 2 then
+      open ri.file to ri.tf then
+         if fileinfo(ri.tf, FL$TRIGGER) # '' then
+            ri.pn = ri.file ; gosub ri.trigger.found
+         end
+         close ri.tf
+      end
+   end
+   if ri.why = '' and ri.n.names = 2 then
+      open 'DICT', ri.file to ri.tf then
+         if fileinfo(ri.tf, FL$TRIGGER) # '' then
+            ri.pn = 'dict ' : ri.file ; gosub ri.trigger.found
+         end
+         close ri.tf
+      end
+   end
+   if ri.why = '' and ri.orec # '' then
+      open ri.oname to ri.tf then
+         if fileinfo(ri.tf, FL$TRIGGER) # '' then
+            ri.pn = ri.oname ; gosub ri.trigger.found
+         end
+         close ri.tf
+      end
+   end
+   if ri.why = '' and ri.pcat # '' then
+      openpath ri.pcat to ri.tf then
+         if fileinfo(ri.tf, FL$TRIGGER) # '' then
+            ri.pn = '$private.catalogue' ; gosub ri.trigger.found
+         end
+         close ri.tf
+      end
+   end
+   return
+
+* in ri.p (a path from a VOC entry) and ri.pn (whose); sets ri.why when the path is not inside the account.  An empty path (no dictionary) is not asked.  The kernel's
+*   geometry, K$PATH.IN, resolves the name as an open does (a relative one against the account's directory, links followed, a link that leads nowhere and a '..'
+*   in the part that does not exist yet refused); an @ token is expanded first, as _voc_ref expands it.
+ri.path.inside:
+   if ri.why = '' and ri.p # '' then
+      ri.q = ri.p
+      if ri.q[1, 1] = '@' then ri.q = parse.pathname.tokens(ri.q)
+      if not(kernel(K$PATH.IN, account.path : @fm : ri.q)) then
+         display sysmsg(14174, ri.pn[1, 40], ri.acct)   ;* run.in: %1 in account %2 names a path outside the account; nothing was run
+         ri.why = 'a path outside the account'
+      end
+   end
+   return
+
+ri.trigger.found:
+   display sysmsg(14173, ri.pn[1, 40], ri.acct)   ;* run.in: %1 in account %2 has a trigger; nothing was run
+   ri.why = 'a trigger on a file the command opens'
    return
 
 * 11 Nov 26 dm - S.213.  Not the administrator: called once, just before the command.  The three edit gates are SET, not added to (the administrator's own session may hold

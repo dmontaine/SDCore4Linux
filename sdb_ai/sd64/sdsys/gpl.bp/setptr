@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm  S.62: the comment beside sysmsg(11180) quotes the message as it now reads (reworded 17 Nov for NETDIRS).
 * 28 Oct 26 dm  S.87: print mode 5 (the terminal's auxiliary printer port) is gone, with message 7162.
 * 27 Oct 26 dm  S.87 batch 15: the GDI sd.conf parameter is gone, so flags always carry PU$FLG.RAW (it was set whenever GDI was 0, the only value on Linux).
 * 27 Oct 26 dm  S.87 batch 11: QUOTE() in place of DQUOTE() (the second name is gone).
@@ -361,7 +362,7 @@ reparse:
 *   here, in words, so that the person is told when the unit is set rather than when the first line prints
 *   (the kernel asks again at print time: to_file.c start_file(), which also covers the SETPU statement).
                   if not(kernel(K$PATH.OK, file.name)) then
-                     stop sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached
+                     stop sysmsg(11180, @who) ;* %1 has no OS access, so outside its own account it can reach by pathname only a directory the administrator opened to all
                   end
                end else
                   if keyword = KW$NEXT then

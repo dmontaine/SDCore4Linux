@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.62: the comment beside sysmsg(11180) quotes the message as it now reads (reworded 17 Nov for NETDIRS).
 * 14 Nov 26 dm  Compiler warnings: removed the unused assignments to os.ok and tl.ok and the unused RETURNING variable rf.b; kept aw and tbw (collection
 *              references: the write through them changes the form), in.x and x (READ / READU that test or lock), junk (INPUT that pauses), lf.dv (OPEN that
 *              tests the dictionary), lr.cap (CAPTURING keeps the output off the screen) and th (test-themeroles-units.py R8 holds apply.theme's text).
@@ -1679,7 +1680,7 @@ open.path:
       return
    end
    if not(kernel(K$PATH.OK, op.path)) then
-      msg = sysmsg(11180, @who)                ;* %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+      msg = sysmsg(11180, @who)                ;* %1 has no OS access, so outside its own account it can reach by pathname only a directory the administrator opened to all
       return
    end
    for op.s = 1 to MAXLOCK

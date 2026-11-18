@@ -21,6 +21,8 @@ off, SH and OS.EXECUTE off whatever the record says and one edit gate on, and re
 include file or dictionary outside the account, while ri.active is set (C).  bcomp is read as well.  --selftest --from=s213 runs that sitting's mutants on.
 Second part, the same day (R50, R51): LOGTO is refused during a run before it changes anything, and _voc_ref refuses a Q-pointer into any account but the run's
 (by its register name) before check.q.hop.  _voc_ref is read as well.  --selftest --from=s213b runs that part's 10 mutants only.
+18 Nov 26 dm, S.62 (P-6632, R53-R58): a trigger on the account's VOC is refused before anything reads it; in the account, before ri.narrow, a path the command writes
+outside the account (K$PATH.IN) and a trigger on a file it opens are refused (14174, 14173).  --selftest --from=p6632 runs that sitting's mutants only.
 
 ***AND THE CHECKS ARE THEMSELVES CHECKED.*** --selftest makes the changes that would plausibly break the verb and requires each to be CAUGHT.
 """
@@ -52,6 +54,7 @@ NOCATALOG_MESSAGE = 11245
 OPARRAY = os.path.join(SD64, "gplsrc", "op_array.c")      # 2 Nov 26: op_common keeps $ / _ named commons to internal programs (R26b)
 BCOMP = os.path.join(SD64, "sdsys", "gpl.bp", "bcomp")    # 11 Nov 26, S.213: $execute and files outside the account are refused in a compile RUN.IN started (R46-R48)
 S213_MESSAGES = [14070, 14071, 14072, 14073]
+P6632_MESSAGES = [14173, 14174]                                # 18 Nov 26, S.62 (P-6632): a trigger, a path outside the account (R53-R58)
 VOCREF = os.path.join(SD64, "sdsys", "gpl.bp", "_voc_ref")    # 11 Nov 26, S.213 second part: no Q-pointer out of the run's account (R51)
 
 
@@ -389,6 +392,72 @@ def checks(src, voc_text, newvoc_names, extra=None):
        and "%1" in texts[14072] and "run.in" in texts[14072] and "syscom" in texts[14072]
        and texts[14073].startswith("logto ") and "run.in" in texts[14073] and "%1" in texts[14073]
        and not any(os.path.exists(os.path.join(SOLO_MESSAGES, str(n))) for n in S213_MESSAGES), "%r" % texts)
+
+    # ---- 18 Nov 26, S.62 (P-6632): no file the command writes outside the account, no trigger on a file it opens ---------------------------------------------
+    vt = section(lines, "ri.voc.trigger:", "ri.account.checks:")
+    ac = section(lines, "ri.account.checks:", "ri.path.inside:")
+    pi = section(lines, "ri.path.inside:", "ri.trigger.found:")
+    tg = section(lines, "ri.trigger.found:", "ri.narrow:")
+    vtx = [s for n, s in vt]
+    act = "\n".join(s for n, s in ac)
+    vg = first(run, "gosub ri.voc.trigger")
+    vg_ref = first(run, "display sysmsg(14173, 'voc', ri.acct)", vg or 0)
+    vg_aud = first(run, "'run.in refused account=' : ri.acct : ' file=voc reason=' : ri.why", vg or 0)
+    vg_ret = first(run, "return", vg_aud or 0)
+    ck("R53 (P-6632) a trigger on the account's VOC is asked after the register is read and BEFORE ri.own.words reads that VOC: refused with 14173 naming voc, audited "
+       "file=voc, and the verb returns before anything is kept; ri.voc.trigger opens the VOC by the register's path and asks FL$TRIGGER, nothing else",
+       None not in (vg, vg_ref, vg_aud, vg_ret, ow, A["register"], A["save_path"]) and A["register"] < vg < vg_ref < vg_aud < vg_ret < ow < A["save_path"]
+       and count(run, "gosub ri.voc.trigger") == 1
+       and vtx == ["ri.voc.trigger:", "ri.why = ''", "openpath acc.rec:@ds:'voc' to ri.tf then",
+                   "if fileinfo(ri.tf, FL$TRIGGER) # '' then ri.why = 'a trigger on a file the command opens'", "close ri.tf", "end", "return"],
+       "voc %s refuse %s audit %s return %s own %s; %s" % (vg, vg_ref, vg_aud, vg_ret, ow, vtx))
+    gc = first(run, "if ri.file.ok then gosub ri.account.checks")
+    runs = first(run, "if ri.file.ok and ri.why = '' then", gc or 0)
+    raud = first(run, "'run.in refused account=' : ri.acct : ' file=' : ri.pn[1, 40] : ' reason=' : ri.why", runs or 0)
+    ck("R54 (P-6632) the checks run in the account (after load.account.switches and the file check), the command runs only when they passed (if ri.file.ok and ri.why = ''), "
+       "BEFORE ri.narrow; a refusal is audited with file= and reason= and the way back is the ordinary one",
+       None not in (gc, runs, raud, nr, A["switches"], A["filechk"], A["revert"]) and A["switches"] < A["filechk"] < gc < runs < nr < raud < A["revert"]
+       and count(run, "gosub ri.account.checks") == 1 and not any(re.match(r"(write|writeu|delete|deleteu|execute)\b", s) or "proc.sentence" in s or "K$ADMINISTRATOR" in s for n, s in ac),
+       "checks %s runs %s narrow %s audit %s" % (gc, runs, nr, raud))
+    want_p = ["ri.p = ri.vrec<2> ; gosub ri.path.inside", "ri.p = ri.vrec<3> ; gosub ri.path.inside", "ri.p = '/'   ;* a Q pointer or anything else: refused as outside",
+              "ri.p = ri.orec<2> ; gosub ri.path.inside", "ri.p = ri.orec<3> ; gosub ri.path.inside", "ri.p = ri.pcat ; gosub ri.path.inside",
+              "ri.p = ri.lrec<3> ; gosub ri.path.inside"]
+    got_p = [s for n, s in ac if s.startswith("ri.p = ")]
+    ck("R55 (P-6632) the paths asked: the named file's data and dictionary, the .out entry (one that is not an F pointer is '/', outside), the private catalogue (found from "
+       "$PRIVATE.CATALOGUE, then $PRIVATE.CATALOG, else cat) for catalog and delete.catalog, and the object a V CS entry names for decatalog",
+       got_p == want_p and "if ri.cmd = 'basic' or ri.cmd = 'catalog' then" in act and "if ri.cmd = 'catalog' or ri.cmd = 'delete.catalog' then" in act
+       and "if ri.cmd = 'decatalog' then" in act and "read ri.lrec from voc, '$PRIVATE.CATALOGUE' else" in act and "read ri.lrec from voc, '$PRIVATE.CATALOG' else ri.lrec = ''" in act
+       and "if upcase(ri.lrec[1, 1]) = 'X' then ri.pcat = ri.lrec<2>" in act and "if upcase(ri.lrec[1, 1]) = 'V' and ri.lrec<2> = 'CS' then" in act
+       and "if upcase(ri.orec[1, 1]) # 'F' then" in act, "%s" % got_p)
+    last_path = last(ac, "gosub ri.path.inside")
+    first_trg = first(ac, "FL$TRIGGER")
+    trg = [s for n, s in ac if "gosub ri.trigger.found" in s]
+    ck("R56 (P-6632) the triggers are asked only after every path (and each only while nothing has been refused): the VOC, the named file, its dictionary, the .out file and the "
+       "private catalogue",
+       None not in (last_path, first_trg) and last_path < first_trg
+       and trg == ["ri.pn = 'voc' ; gosub ri.trigger.found", "ri.pn = ri.file ; gosub ri.trigger.found", "ri.pn = 'dict ' : ri.file ; gosub ri.trigger.found",
+                   "ri.pn = ri.oname ; gosub ri.trigger.found", "ri.pn = '$private.catalogue' ; gosub ri.trigger.found"]
+       and act.count("FL$TRIGGER") == 5 and act.count("if ri.why = '' ") == 5, "last path %s first trigger %s; %s" % (last_path, first_trg, trg))
+    ck("R57 (P-6632) ri.path.inside asks the KERNEL's geometry (K$PATH.IN on the account's directory) of the path with its @ tokens expanded, refuses with 14174 naming the file "
+       "and the account, and ri.trigger.found refuses with 14173",
+       [s for n, s in pi] == ["ri.path.inside:", "if ri.why = '' and ri.p # '' then", "ri.q = ri.p", "if ri.q[1, 1] = '@' then ri.q = parse.pathname.tokens(ri.q)",
+                              "if not(kernel(K$PATH.IN, account.path : @fm : ri.q)) then",
+                              "display sysmsg(14174, ri.pn[1, 40], ri.acct)   ;* run.in: %1 in account %2 names a path outside the account; nothing was run",
+                              "ri.why = 'a path outside the account'", "end", "end", "return"]
+       and [s for n, s in tg] == ["ri.trigger.found:", "display sysmsg(14173, ri.pn[1, 40], ri.acct)   ;* run.in: %1 in account %2 has a trigger; nothing was run",
+                                  "ri.why = 'a trigger on a file the command opens'", "return"], "%s / %s" % ([s for n, s in pi], [s for n, s in tg]))
+    mt = {}
+    for num in P6632_MESSAGES:
+        mp = os.path.join(MESSAGES, str(num))
+        mt[num] = (extra or {}).get("msg%d" % num)
+        if mt[num] is None:
+            mt[num] = open(mp, encoding="utf-8").read() if os.path.isfile(mp) else ""
+    ck("R58 (P-6632) the two messages exist: 14173 names a trigger, 14174 a path outside the account, each takes the file and the account and says nothing was run; neither is in Solo "
+       "with another text",
+       all(mt[n].startswith("run.in: %1 in account %2 ") and mt[n].endswith("nothing was run") for n in P6632_MESSAGES) and "has a trigger" in mt[14173]
+       and "names a path outside the account" in mt[14174]
+       and not any(os.path.exists(os.path.join(SOLO_MESSAGES, str(n))) and open(os.path.join(SOLO_MESSAGES, str(n)), encoding="utf-8").read() != mt[n] for n in P6632_MESSAGES),
+       "%r" % mt)
     return out
 
 
@@ -423,7 +492,7 @@ def load():
     for key, path in (("basic", BASIC), ("parser.h", PARSERH), ("kw.newvoc", KW_NEWVOC), ("kw.template", KW_TEMPLATE), ("op_array.c", OPARRAY), ("bcomp", BCOMP), ("_voc_ref", VOCREF)):
         with open(path, encoding="utf-8", errors="replace") as f:
             extra[key] = f.read()
-    for num in S213_MESSAGES:
+    for num in S213_MESSAGES + P6632_MESSAGES:
         mp = os.path.join(MESSAGES, str(num))
         if os.path.isfile(mp):
             with open(mp, encoding="utf-8") as f:
@@ -542,6 +611,38 @@ MUTANTS += [
 ]
 
 
+M_P6632 = len(MUTANTS)                # 18 Nov 26, S.62 (P-6632): run.in's paths and triggers (R53-R58); --selftest --from=p6632
+MUTANTS += [
+    ("the VOC trigger is not asked", "cproc", "   gosub ri.voc.trigger\n   if ri.why # '' then\n", "   ri.why = ''\n   if ri.why # '' then\n"),
+    ("the VOC trigger refusal goes on into the run", "cproc",
+     "      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' file=voc reason=' : ri.why)\n      unwinding = 2\n      return\n",
+     "      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' file=voc reason=' : ri.why)\n      unwinding = 2\n"),
+    ("the VOC trigger is asked after the words", "cproc", "   gosub ri.voc.trigger\n   if ri.why # '' then\n      display sysmsg(14173, 'voc'",
+     "   gosub ri.own.words\n   gosub ri.voc.trigger\n   if ri.why # '' then\n      display sysmsg(14173, 'voc'"),
+    ("ri.voc.trigger asks nothing", "cproc", "      if fileinfo(ri.tf, FL$TRIGGER) # '' then ri.why = 'a trigger on a file the command opens'\n", ""),
+    ("the account checks are not called", "cproc", "   if ri.file.ok then gosub ri.account.checks\n", ""),
+    ("the command runs despite a refusal", "cproc", "   if ri.file.ok and ri.why = '' then\n", "   if ri.file.ok then\n"),
+    ("the refusal is not audited", "cproc", "      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' file=' : ri.pn[1, 40] : ' reason=' : ri.why)\n", ""),
+    ("the dictionary path is not asked", "cproc", "      ri.p = ri.vrec<3> ; gosub ri.path.inside\n", ""),
+    ("the .out file is not asked", "cproc", "            ri.p = ri.orec<2> ; gosub ri.path.inside\n", ""),
+    ("a .out Q pointer passes", "cproc", "               ri.p = '/'   ;* a Q pointer", "               ri.p = ''   ;* a Q pointer"),
+    ("the private catalogue is not asked", "cproc", "      ri.p = ri.pcat ; gosub ri.path.inside\n", ""),
+    ("$PRIVATE.CATALOG is not read", "cproc", "         read ri.lrec from voc, '$PRIVATE.CATALOG' else ri.lrec = ''\n", "         ri.lrec = ''\n"),
+    ("decatalog's object is not asked", "cproc", "         ri.p = ri.lrec<3> ; gosub ri.path.inside\n", ""),
+    ("ri.path.inside refuses nothing", "cproc", "      if not(kernel(K$PATH.IN, account.path : @fm : ri.q)) then\n", "      if 0 then\n"),
+    ("a text prefix instead of the kernel's geometry", "cproc", "kernel(K$PATH.IN, account.path : @fm : ri.q)", "ri.q[1, 1] # '/' or ri.q[1, len(account.path)] = account.path"),
+    ("an @ token is not expanded", "cproc", "      if ri.q[1, 1] = '@' then ri.q = parse.pathname.tokens(ri.q)\n", ""),
+    ("the VOC's trigger in the account is not asked", "cproc", "         ri.pn = 'voc' ; gosub ri.trigger.found\n", "         null\n"),
+    ("the named file's trigger is not asked", "cproc", "            ri.pn = ri.file ; gosub ri.trigger.found\n", "            null\n"),
+    ("the dictionary's trigger is not asked", "cproc", "            ri.pn = 'dict ' : ri.file ; gosub ri.trigger.found\n", "            null\n"),
+    ("the .out file's trigger is not asked", "cproc", "            ri.pn = ri.oname ; gosub ri.trigger.found\n", "            null\n"),
+    ("the private catalogue's trigger is not asked", "cproc", "            ri.pn = '$private.catalogue' ; gosub ri.trigger.found\n", "            null\n"),
+    ("a trigger is found and not refused", "cproc", "   ri.why = 'a trigger on a file the command opens'\n   return\n", "   return\n"),
+    ("message 14173 does not say trigger", "msg14173", "has a trigger", "has a feature"),
+    ("message 14174 does not name the account", "msg14174", " in account %2", ""),
+]
+
+
 def selftest():
     src, voc, names, extra = load()
     base = run_checks(src, voc, names, extra)
@@ -552,7 +653,7 @@ def selftest():
     start = 0
     for a in sys.argv[1:]:
         if a.startswith("--from="):
-            start = {"--from=s213": M_S213, "--from=s213b": M_S213B}.get(a) or int(a.split("=", 1)[1])
+            start = {"--from=s213": M_S213, "--from=s213b": M_S213B, "--from=p6632": M_P6632}.get(a) or int(a.split("=", 1)[1])
     if start:
         print("selftest: mutants from index %d on (%d of %d)" % (start, len(MUTANTS) - start, len(MUTANTS)))
     for name, kind, old, new in MUTANTS[start:]:

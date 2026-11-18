@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 18 Nov 26 dm  S.62: the comment beside sysmsg(11180) quotes the message as it now reads (reworded 17 Nov for NETDIRS).
 * 17 Nov 26 dm  S.62 (P-1258, P-1286, P-1287, P-1288): a directory-file record whose file is there under a name SD's id encoding cannot
 *               produce (a bare '%') is reported "'id' invalid name" (14140) and not "not found", as the Windows port has done since 2 Sep 26.
 * 14 Nov 26 dm  Compiler warnings: removed the unused assignments to bp.data.conv, json.count and sorted.sample.done; kept s.pos (LOCATE needs its SETTING variable).
@@ -3586,7 +3587,7 @@ open.csv.to:
 *   passed).  APPENDING is the same open, so it is covered by the same test.
    if not(kernel(K$PATH.OK, csv.pathname)) then
       @system.return.code = -ER$PERM
-      display sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+      display sysmsg(11180, @who) ;* %1 has no OS access, so outside its own account it can reach by pathname only a directory the administrator opened to all
       goto exit.qproc
    end
    if not(kernel(K$EDIT.OS.OK, csv.pathname)) then

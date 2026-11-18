@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 18 Nov 26 dm  S.62: the comment beside sysmsg(11180) quotes the message as it now reads (reworded 17 Nov for NETDIRS).
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for the directory, as the account.  This program is
 *               $internal, so DIR() is not asked on its behalf; without OS.EXECUTE an account lists only its own
 *               directory.  A measured SELECT.DIR /etc gave 257 names to an account with both gates off.
@@ -88,7 +89,7 @@ $include syscom.h
 
    if not(kernel(K$PATH.OK, path)) then
       @system.return.code = -ER$PERM
-      stop sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached
+      stop sysmsg(11180, @who) ;* %1 has no OS access, so outside its own account it can reach by pathname only a directory the administrator opened to all
    end
 
    * DIR() returns one field for each entry: the name, then a value mark and

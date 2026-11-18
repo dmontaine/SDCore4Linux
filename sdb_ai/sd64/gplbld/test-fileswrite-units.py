@@ -423,7 +423,11 @@ def run_checks(raw):
                    "if files.admin.want then", "err = 11526:@vm:acc.name", "files.grp.name = 'sdfilesadmin'", "gosub check.files.group",
                    "if not(create_user(acc.uname)) then", "files.grp.name = 'sdfiles'", "gosub join.files.group", "if files.write.want then", "files.grp.name = 'sdfileswrite'", "gosub join.files.group",
                    "if files.admin.want then", "files.grp.name = 'sdfilesadmin'", "gosub join.files.group")
-       and ca2.count("gosub check.files.group") == 5 and ca2.count("gosub join.files.group") == 5      # 23 Oct 26: the fourth of each is sdaiusers (S.69 step 2; test-ai-units.py holds its rows); 17 Nov 26: the fifth is sdsshnokey (S.62 LC3; test-createacct / the LC3 VM rows)
+       # 18 Nov 26 (S.62 cycle 3, X1): each join is the line right after its own group's name - the leave block of 17 Nov names sdfilesadmin again further on, and the ordered()
+       # above then found that one and a later join, so the administration group joined as sdfiles survived
+       and all(re.search(r"if %s then\s*\n\s*files\.grp\.name = '%s'\s*\n\s*gosub join\.files\.group" % (re.escape(w), g), ca2) is not None
+               for w, g in (("files.want", "sdfiles"), ("files.write.want", "sdfileswrite"), ("files.admin.want", "sdfilesadmin")))
+       and ca2.count("gosub check.files.group") == 5 and ca2.count("gosub join.files.group") == 5     # 23 Oct 26: the fourth of each is sdaiusers (S.69 step 2; test-ai-units.py holds its rows); 17 Nov 26: the fifth is sdsshnokey (S.62 LC3; test-createacct / the LC3 VM rows)
        and re.search(r"if files\.admin\.want then\s*\n\s*if not\(files\.want\) or not\(files\.write\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11526:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
        and re.search(r"^check\.files\.group:\s*\n\s*files\.bad = @false\s*\n\s*files\.found = is_group\(files\.grp\.name\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
                      r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat[^\n]*\n\s*files\.bad = @true\s*\n\s*end else\s*\n\s*if not\(files\.found\) then\s*\n"
@@ -679,20 +683,22 @@ def mutants(raw):
     m("FILES-ADMIN-ON sets nothing", "createa", "'FILES-ADMIN-ON'\n            settings<CA$FILESADMIN> = 1", "'FILES-ADMIN-ON'\n            settings<CA$FILES> = 1")
     m("the administration group needs no files-write-on", "create_account", "       if not(files.want) or not(files.write.want) then", "       if not(files.want) then")
     m("the administration group is joined as sdfiles", "create_account", "         files.grp.name = 'sdfilesadmin'\n         gosub join.files.group", "         files.grp.name = 'sdfiles'\n         gosub join.files.group")
-    m("a group account is given the administration group (the 10087 refusal forgets it)", "create_account", "     if files.want or files.write.want or files.admin.want then\n       @system.return.code = -ER$ARGS\n       err = 10087",
-      "     if files.want or files.write.want then\n       @system.return.code = -ER$ARGS\n       err = 10087")
+    # 18 Nov 26 (S.62 cycle 3, X1): the text follows create_account, where S.69 step 2 (23 Oct 26) added "or ai.want" and its comment; the mutant had stopped matching
+    m("a group account is given the administration group (the 10087 refusal forgets it)", "create_account", "     if files.want or files.write.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: and no AI gate to give, for the same reason\n       @system.return.code = -ER$ARGS\n       err = 10087",
+      "     if files.want or files.write.want or ai.want then      ;* 23 Oct 26, S.69 step 2: and no AI gate to give, for the same reason\n       @system.return.code = -ER$ARGS\n       err = 10087")
     m("the manifest has no administration key", "acc_os_info", "         info<-1> = 'route.files.admin: ':(if is_grp_member(user, 'sdfilesadmin') then 1 else 0)", "")
     m("the restore gives the administration group without the write route", "restorea", "if m.route.files = '1' and m.route.files.write = '1' and m.route.files.admin = '1' then settings<CA$FILESADMIN> = 1",
       "if m.route.files = '1' and m.route.files.admin = '1' then settings<CA$FILESADMIN> = 1")
-    # installers
-    m("the installer does not make the group", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfiles sdfilesadmin; do")
-    m("the installer does not make the administration group", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do")
-    m("deletesdcore does not remove the group", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfiles sdfilesadmin; do")
-    m("deletesdcore does not remove the administration group", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do")
-    m("sd-elevate does not whitelist the group", "sd-elevate", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;", "    sdusers|sdssh|sdapi|sdfiles|sdfilesadmin) : ;;")
-    m("sd-elevate does not whitelist the administration group", "sd-elevate", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;")
-    m("sd-elevate may delete the group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die", "      sdusers|sdssh|sdapi|sdfiles|sdfilesadmin)\n        die")
-    m("sd-elevate may delete the administration group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die")
+    # installers.  18 Nov 26 (S.62 cycle 3, X1): the texts follow the three scripts, where S.69 step 2 (23 Oct 26) added sdaiusers at the end of each list; the
+    #   mutants had stopped matching (the selftest was refused at the first of them)
+    m("the installer does not make the group", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfiles sdfilesadmin sdaiusers; do")
+    m("the installer does not make the administration group", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdaiusers; do")
+    m("deletesdcore does not remove the group", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfiles sdfilesadmin sdaiusers; do")
+    m("deletesdcore does not remove the administration group", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdaiusers; do")
+    m("sd-elevate does not whitelist the group", "sd-elevate", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;", "    sdusers|sdssh|sdapi|sdfiles|sdfilesadmin|sdaiusers) : ;;")
+    m("sd-elevate does not whitelist the administration group", "sd-elevate", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;", "    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdaiusers) : ;;")
+    m("sd-elevate may delete the group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die", "      sdusers|sdssh|sdapi|sdfiles|sdfilesadmin|sdaiusers)\n        die")
+    m("sd-elevate may delete the administration group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdaiusers)\n        die")
     # messages
     m("message 11521 does not name the verb", "msg:11521", "files-write-on", "the-write-word")
     m("message 11521 is longer than the 100 characters the client shows (the first text was 175)", "msg:11521", "ask the administrator for", "ask the administrator of this server, who can allow it, for")

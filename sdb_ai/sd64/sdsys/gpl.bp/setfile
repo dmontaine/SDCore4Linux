@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm  S.62 P-6633: a NEW pointer's VOC id is lower case - the default QFILE (it was written QFILE when the VOC had neither spelling) and a
+*               typed name (the Windows port's RELEASE_1.1 5).  An existing pointer is found and kept as before.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 16 Oct 26 dm  QM4 Fixes 32: the target may be a Q-pointer (a chain).
 * 13 Sep 26 dm  Account names are lower case (plan M, owner); the Q-pointer it
@@ -155,7 +157,10 @@ $include int$keys.h
          read voc.rec from @voc, pointer else
             read voc.rec from @voc, downcase(pointer) then
                pointer = downcase(pointer)
-            end else exit
+            end else
+               pointer = downcase(pointer)   ;* 18 Nov 26 dm, S.62 (P-6633): a new id is lower case
+               exit
+            end
          end
          if voc.rec[1,1] = 'Q' then exit
          display sysmsg(6875) ;* QFILE is already in the VOC but not as a Q-pointer
@@ -163,7 +168,12 @@ $include int$keys.h
          continue
       end
 
-      read voc.rec from @voc, pointer else exit
+* 18 Nov 26 dm - S.62 (P-6633): a pointer name that is not in the VOC is a NEW record, and its id is lower case (an existing one is found as before
+*   and keeps its id).
+      read voc.rec from @voc, pointer else
+         pointer = downcase(pointer)
+         exit
+      end
 
       display sysmsg(6876) ;* Pointer name is already in VOC
 

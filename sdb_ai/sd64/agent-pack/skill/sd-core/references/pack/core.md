@@ -91,6 +91,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`compile.dict`** {**`dict`** | **`data`**} *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
+- **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
@@ -108,7 +109,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`list.index`** *file* {*field* …}
 - **`logto`** *account* {**`reset`** {**`all`**}}
 - **`off`**
-- **`profiler on`** {**`user`** *n*} {*event* …} | **`off`** {**`user`** *n*} | {**`display`**} {**`user`** *n*}
 - **`run`** {*file*} *record* {*arguments*}
 - **`save.list`** *list* {**`from`** *list.no*}
 - **`scan`** {**`dict`**} *file* {*selection*} {*id* …} {**`all`**} {**`no.case`**} {**`all.match`** | **`no.match`**} {**`strings`** *file* *record*} **`for`** *"text"* …

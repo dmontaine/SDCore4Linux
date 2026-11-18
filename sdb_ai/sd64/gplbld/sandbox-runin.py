@@ -18,6 +18,12 @@
 # 11 Nov 26 dm  S.213 second part: H6 a LOGTO inside a run is refused (14073) and one typed after a run works; H7 a Q-pointer into another account is refused
 #               during a run and one into the account's own file is not, with a plain session as the control; H1f the record basic deleted; H4c now meets
 #               _voc_ref's refusal (Include file zzq not found) before BCOMP's own outside test.
+# 18 Nov 26 dm  S.62 (P-6632): section T.  A trigger on the program file (T1) and on the account's VOC (T7, refused before anything is entered), a private
+#               catalogue in another account's directory for catalog and delete.catalog (T2), a local entry whose object decatalog would delete in another account
+#               (T3), a file pointer into another account (T4), the stock voc pointer whose dictionary is SDSYS's voc.dic (T5); each with a control that shows
+#               the plant bites in a plain session, the disk as the evidence, and T6 an absolute pointer inside the account that still compiles.
+#               Mutants no-path-check (T2-T5), no-trigger-check (T1), no-voc-trigger (T7b).  The suite is not rerunnable on a used sandbox (section H makes
+#               its fixture directories without exist_ok): each mutant needs a fresh --build.
 # END-HISTORY
 #
 # THE INSTRUMENT.  It uses sandbox-gates.py's helpers: the sandbox user plays SDSYS (SDTEST_ADMIN=1 makes a session an administrator; a session without it is an ordinary one).
@@ -68,6 +74,10 @@ MUTANTS = {
     # 11 Nov 26, S.213 second part (written, not run; a _voc_ref mutant would need the p-code library rebuilt, which this suite does not do)
     "logto-allowed": ("cproc", "   if ri.active then\n      display sysmsg(14073, ri.account)", "   if 0 then\n      display sysmsg(14073, ri.account)"),
     "qptr-any-account": ("_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then", "                  if 0 then"),
+    # 18 Nov 26, S.62 (P-6632), section T
+    "no-path-check": ("cproc", "      if not(kernel(K$PATH.IN, account.path : @fm : ri.q)) then\n", "      if 0 then\n"),
+    "no-trigger-check": ("cproc", "   ri.why = 'a trigger on a file the command opens'\n   return\n", "   return\n"),
+    "no-voc-trigger": ("cproc", "   gosub ri.voc.trigger\n   if ri.why # '' then\n", "   ri.why = ''\n   if ri.why # '' then\n"),
 }
 
 
@@ -635,6 +645,130 @@ def main():
     row("L2: an ordinary session in zzoff is refused exactly as before (10002's words, one more refusal line) and is not let in (no logto account=sdsys line): the control",
         any("SDSYS account is entered only" in ln for ln in out) and len(audit_has(r"logto account=sdsys$")) == n_back
         and len(audit_has(r"logto refused account=sdsys reason=sdsys is entered by its own session only")) == n_ref + 1, "\n".join(out[-8:]))
+
+    # --- T. 18 Nov 26, S.62 (P-6632): a file the command writes outside the account, a trigger on a file it opens ----------------
+    say("\n--- T. a path outside the account, or a trigger: refused before the command runs, with the file named, nothing changed ---------")
+    put(os.path.join(SYS, "bp", "zzgtrg"), ["subroutine zzgtrg(mode, id, data, on.err)", "$catalog global no.query",
+                                             "   openpath '%s' to sf then write 'x' to sf, 'trg'" % os.path.join(ZOFF, "sent"), "   return", "end"])
+    out = sg.adm(["BASIC bp zzgtrg"])
+    if not in_gcat("zzgtrg"):
+        bail("the trigger function zzgtrg was not put in the global catalogue:\n" + "\n".join(out[-8:]))
+    tbp = os.path.join(ZOFF, "tbp")
+    out = sg.adm(["LOGTO zzoff", "CREATE.FILE tbp DIRECTORY", "CREATE.FILE DATA zzabs.out DIRECTORY"])
+    put(os.path.join(tbp, "zztp"), ["program zztp", "   crt 'ZZTP ran'", "end"])
+    out = sg.adm(["LOGTO zzoff", "SET.TRIGGER tbp zzgtrg ALL"])
+    if not os.path.isfile(os.path.join(tbp, "%header%")):
+        bail("SET.TRIGGER did not give zzoff's tbp a trigger:\n" + "\n".join(out[-8:]))
+
+    # T1: a trigger on the program file
+    clear_sent()
+    out = sg.adm(["LOGTO zzoff", "BASIC tbp zztp"])
+    row("T1a (control): the plant bites - the trigger of tbp runs when a plain BASIC (the administrator, after LOGTO) reads the source (its record in sent)",
+        compiled(out) and sent("zzoff", "trg"), "output %r" % (out,))
+    clear_sent()
+    tobj = os.path.join(ZOFF, "tbp.out", "zztp")
+    if os.path.exists(tobj):
+        os.remove(tobj)
+    out, w, p = run(["RUN.IN zzoff basic tbp zztp"])
+    row("T1b: RUN.IN refuses a program file that has a trigger (14173 names the file and the account); the trigger did not run and nothing was compiled",
+        sg.has(out, r"^run\.in: tbp in account zzoff has a trigger; nothing was run") and not sent("zzoff", "trg") and not compiled(out) and not os.path.exists(tobj),
+        "output %r" % (out,))
+    row("T1c: ... audited (run.in refused account=zzoff file=tbp reason=a trigger on a file the command opens)",
+        bool(audit_has(r"run\.in refused account=zzoff file=tbp reason=a trigger on a file the command opens$")))
+    back(w, p, "T1")
+
+    # T2: the private catalogue is another account's directory
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    if not os.path.isfile(os.path.join(objdir, "zzprog")):
+        bail("zzprog was not compiled in zzoff before T2:\n" + "\n".join(out[-8:]))
+    zcat = os.path.join(ZON, "cat")
+    os.makedirs(zcat, exist_ok=True)
+    voc_put(ZOFF, "$PRIVATE.CATALOGUE", "'X':@fm:'%s'" % zcat)
+    out = sg.adm(["LOGTO zzoff", "CATALOG bp zzprog NO.QUERY"])
+    row("T2a (control): the plant bites - a plain CATALOG in zzoff now writes the object into zzon's directory", os.path.isfile(os.path.join(zcat, "zzprog")), "output %r" % (out,))
+    os.remove(os.path.join(zcat, "zzprog"))
+    out, w, p = run(["RUN.IN zzoff catalog bp zzprog"])
+    row("T2b: RUN.IN catalog refuses a private catalogue outside the account (14174 names it and the account); nothing is written in zzon",
+        sg.has(out, r"^run\.in: \$private\.catalogue in account zzoff names a path outside the account; nothing was run") and not os.path.exists(os.path.join(zcat, "zzprog"))
+        and not sg.has(out, r"added to private catalog"), "output %r" % (out,))
+    back(w, p, "T2b")
+    put(os.path.join(zcat, "zzprog"), ["planted"])
+    out, w, p = run(["RUN.IN zzoff delete.catalog zzprog"])
+    row("T2c: RUN.IN delete.catalog is refused the same way, and the file in zzon's directory is still there",
+        sg.has(out, r"^run\.in: \$private\.catalogue in account zzoff names a path outside the account") and os.path.isfile(os.path.join(zcat, "zzprog")), "output %r" % (out,))
+    row("T2d: ... audited (run.in refused account=zzoff file=$private.catalogue reason=a path outside the account)",
+        len(audit_has(r"run\.in refused account=zzoff file=\$private\.catalogue reason=a path outside the account$")) == 2)
+    back(w, p, "T2c")
+    os.remove(os.path.join(zcat, "zzprog"))
+    voc_take(ZOFF, "$PRIVATE.CATALOGUE")
+
+    # T3: a local catalogue entry whose object path is a file of another account (decatalog deletes it)
+    victim = os.path.join(ZON, "sent", "victim")
+    put(victim, ["keep me"])
+    voc_put(ZOFF, "zzvict", "'V':@fm:'CS':@fm:'%s'" % victim)
+    out, w, p = run(["RUN.IN zzoff decatalog zzvict"])
+    row("T3a: RUN.IN decatalog refuses a local entry whose object lies outside the account (14174 names the entry); the file in zzon is still there",
+        sg.has(out, r"^run\.in: zzvict in account zzoff names a path outside the account; nothing was run") and os.path.isfile(victim), "output %r" % (out,))
+    row("T3b: ... and the entry is still in zzoff's VOC (decatalog did not run)", voc_take(ZOFF, "zzvict"))
+    back(w, p, "T3a")
+    voc_put(ZOFF, "zzvict", "'V':@fm:'CS':@fm:'%s'" % victim)
+    out = sg.adm(["LOGTO zzoff", "DECATALOG zzvict"])
+    row("T3c (control): the plant bites - a plain DECATALOG in zzoff deletes the file in zzon", not os.path.exists(victim), "output %r" % (out,))
+
+    # T4: the named file is a pointer to another account's file; T5: the stock voc pointer, whose dictionary is SDSYS's voc.dic
+    voc_put(ZOFF, "zzx", "'F':@fm:'%s'" % os.path.join(ZON, "bp"))
+    out, w, p = run(["RUN.IN zzoff basic zzx zzprog"])
+    row("T4: RUN.IN basic refuses a file whose VOC entry names another account's directory (14174 names it); nothing compiled, no zzx.out made",
+        sg.has(out, r"^run\.in: zzx in account zzoff names a path outside the account; nothing was run") and not compiled(out)
+        and not os.path.exists(os.path.join(ZOFF, "zzx.out")), "output %r" % (out,))
+    back(w, p, "T4")
+    voc_take(ZOFF, "zzx")
+    vdic = os.path.join(SYS, "voc.dic")
+
+    def stamps(d):
+        return sorted((f, os.stat(os.path.join(d, f)).st_mtime_ns, os.stat(os.path.join(d, f)).st_size) for f in os.listdir(d)) if os.path.isdir(d) else None
+
+    before = stamps(vdic)
+    out, w, p = run(["RUN.IN zzoff compile.dict voc zzitem"])
+    row("T5: RUN.IN compile.dict of the account's voc is refused: its dictionary is SDSYS's voc.dic (14174 names dict voc), and voc.dic is unchanged on the disk",
+        before is not None and sg.has(out, r"^run\.in: dict voc in account zzoff names a path outside the account; nothing was run") and not sg.has(out, r"^Compiling")
+        and stamps(vdic) == before, "output %r" % (out,))
+    back(w, p, "T5")
+
+    # T6: the control - a pointer written as an ABSOLUTE path inside the account is the account's own file
+    voc_put(ZOFF, "zzabs", "'F':@fm:'%s'" % os.path.join(ZOFF, "bp"))
+    out, w, p = run(["RUN.IN zzoff basic zzabs zzprog"])
+    row("T6 (control): a file whose VOC entry is an absolute path INSIDE the account compiles (the kernel's geometry, not the text, decides): the object is in zzabs.out",
+        compiled(out) and os.path.isfile(os.path.join(ZOFF, "zzabs.out", "zzprog")) and not sg.has(out, r"outside the account"), "output %r" % (out,))
+    back(w, p, "T6")
+
+    # T7: a trigger on the account's VOC is refused before anything reads that VOC (no begin line: nothing was entered).  The trigger is set from SDSYS through a
+    #   pointer, so no session of zzoff holds the VOC open; it is taken off again at the end.
+    voc_put(SYS, "zzoffvoc", "'F':@fm:'%s'" % os.path.join(ZOFF, "voc"))
+    out = sg.adm(["SET.TRIGGER zzoffvoc zzgtrg ALL", "SET.TRIGGER zzoffvoc"])
+    if not sg.has(out, r"zzgtrg"):
+        bail("SET.TRIGGER did not give zzoff's VOC a trigger:\n" + "\n".join(out[-8:]))
+    clear_sent()
+    # the control reads a record of zzoff's VOC from an administrator program (a plain zzoff session's own sign-on stopped in $login with "Requires file
+    #   variable" on the first run of this row, 18 Nov 26: the trigger did run, but the sentinel was never written)
+    pl = sdsys_prog(["   open 'zzoffvoc' to v else crt 'RD no voc' ; stop", "   read r from v, 'basic' else r = ''", "   crt 'RD done'"], r"^RD done$")
+    row("T7a (control): the plant bites - reading a record of zzoff's VOC runs the trigger (its record in zzoff's sent)", sent("zzoff", "trg"), "output %r" % (pl,))
+    clear_sent()
+    n_begin = len(audit_has(r"\brun\.in begin account="))
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    row("T7b: RUN.IN refuses an account whose VOC has a trigger (14173 names voc) BEFORE it enters the account: no begin line, the trigger did not run, nothing compiled",
+        sg.has(out, r"^run\.in: voc in account zzoff has a trigger; nothing was run") and len(audit_has(r"\brun\.in begin account=")) == n_begin
+        and not sent("zzoff", "trg") and not compiled(out), "output %r" % (out,))
+    row("T7c: ... audited (run.in refused account=zzoff file=voc reason=a trigger on a file the command opens)",
+        bool(audit_has(r"run\.in refused account=zzoff file=voc reason=a trigger on a file the command opens$")))
+    back(w, p, "T7")
+    out = sg.adm(["SET.TRIGGER zzoffvoc \"\"", "SET.TRIGGER zzoffvoc"])
+    if sg.has(out, r"zzgtrg"):
+        bail("the trigger could not be taken off zzoff's VOC:\n" + "\n".join(out[-8:]))
+    voc_take(SYS, "zzoffvoc")
+    clear_sent()
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    row("T7d (control): with the trigger off the same command compiles again", compiled(out), "output %r" % (out,))
 
     # --- E. the audit trail --------------------------------------------------------------------------------------------
     say("\n--- E. audit lines ---------------------------------------------------------------------------------------------------")

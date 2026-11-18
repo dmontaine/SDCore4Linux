@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  RUN.IN REFUSES A COMMAND WHOSE FILES LIE OUTSIDE THE ACCOUNT OR HAVE A TRIGGER.
+
+             What        - run.in, the administrator's account-scoped run, now looks at the files a command will use
+                           before it runs it, and refuses, changing nothing, when one of them lies outside the account:
+                           the named file or its dictionary, the .out file of basic and catalog, the private catalog
+                           of catalog and delete.catalog, or the object a local catalog entry names for decatalog
+                           ("run.in: <file> in account <account> names a path outside the account; nothing was run").
+                           It also refuses when one of them has a trigger - the account's VOC, the named file, its
+                           dictionary, the .out file or the private catalog ("run.in: <file> in account <account>
+                           has a trigger; nothing was run").  A trigger on the account's VOC is refused before the
+                           account is entered.  Each refusal is written to the audit trail as
+                           run.in refused account=<account> file=<file> reason=<reason>.
+             Why         - the command runs in the administrator's session, whose operating system user is sdsys,
+                           and SD's own compile and catalog programs open the files a VOC entry names.  A pointer in
+                           the account's VOC could make the command write into SDSYS or into another account, and a
+                           trigger would run the account's own code while the command held an edit gate the account
+                           may not have.  SD Core for Windows has refused both since 10 November.
+             Does NOT    - Change what run.in runs in an account whose files are its own: a pointer written as a full
+                           path inside the account is still accepted.  It does not look at the files a program run by
+                           run.in debug opens for itself; those are held by the account's own gates.
+
+18 Nov 26  SET.FILE NAMES A NEW POINTER IN LOWER CASE.
+
+             What        - a new Q-pointer made by SET.FILE is written under a lower-case VOC id: the default qfile
+                           and a name you type.  An existing pointer is found whatever its case and keeps its id.
+             Why         - every id SD writes in a VOC is lower case; SET.FILE wrote QFILE when the VOC had no
+                           pointer of that name, and a typed name as typed.
+             Does NOT    - Rename a pointer that is already in the VOC.
+
 17 Nov 26  SD -CLEANUP AND SD -U ARE FOR THE ADMINISTRATOR.
 
              What        - "sd -cleanup" (clear the user table of sessions whose process has gone) and "sd -u" (list
