@@ -179,8 +179,8 @@ Private int edit_refusal(FILE_VAR *fvar) {
 
 /* ======================================================================
    shared_structure_refusal()  -  18 Oct 26 dm, S.66.  A STRUCTURE change (CLEARFILE, CONFIGURE.FILE, an index made or deleted, a
-   trigger set, a header setting) to a file inside the shared account's directory is SDSYS's alone, signed on at a terminal
-   (USR_ADMIN).  HDR_INTERNAL is NOT an exemption: no sanctioned internal path changes the structure of a shared file for anyone else.
+   trigger set, a header setting) to a file inside the shared account's directory is the administrator's alone (USR_ADMIN: SDSYS signed on at
+   a terminal or, since S.256, admitted by one of the API's two SDSYS doors).  HDR_INTERNAL is NOT an exemption: no sanctioned internal path changes the structure of a shared file for anyone else.
    EDIT_SHARED_STRUCT or EDIT_NONE.  A file that is not a hashed or a directory file has no pathname here and is none of them.      */
 
 int shared_structure_refusal(FILE_VAR *fvar) {

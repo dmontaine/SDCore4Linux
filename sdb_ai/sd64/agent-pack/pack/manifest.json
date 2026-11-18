@@ -36,7 +36,7 @@
   },
   "core.digest": {
    "chunks": 5,
-   "sha256": "52039af5d8b6f8df7fb8e0d1f28e569076bcb0332e1fdafe64b864a6ea085b1d"
+   "sha256": "9260b4f4c9d1569336906e294d332529f257c873565cd630eb17e49775648d8d"
   },
   "core.start": {
    "chunks": 1,
@@ -80,7 +80,7 @@
   },
   "message": {
    "chunks": 2933,
-   "sha256": "b22ba8d2056d3ef3fafd52a762d1ff60292023bcecd676126d6262cad6bd3532"
+   "sha256": "d160774f789e43f0c75ef6b89da79e8c231f8ed360c74f5818589681a52e9574"
   },
   "sys.keys": {
    "chunks": 41,
@@ -108,7 +108,7 @@
   },
   "tcl.verb": {
    "chunks": 209,
-   "sha256": "e111123a055e1128e365b8e5b47d3c0da88d6f36d2eaf52db1693f15062d7e8c"
+   "sha256": "846791450f5c953f85cead77984c007a64c2853e5cf81579b82a96dc8e8c43f5"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -136,8 +136,8 @@
  "parts": {
   "core.md": {
    "chunks": 6,
-   "sha256": "3c9aa80ab911caab39e26bed6d35569129248f2e6726b61d18bb4c265e63a3df",
-   "words": 1424
+   "sha256": "3d019349592075619cd4e8b939a813b1baf3a11023be01c1eb913e09e78e8166",
+   "words": 1422
   },
   "examples/dictionary-items.md": {
    "chunks": 72,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "1ec659e9cffbf46074af44ef91c1fa8dd32aac4a1daf712399efa114ffcff33c"
+   "sha256": "2fc6dd0f0e31edbd921497cb5fb756ecbda61949bb270a5f5e2ecbe0183c0d8a"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -174,8 +174,8 @@
   },
   "reference/messages.md": {
    "chunks": 2933,
-   "sha256": "c7ac394f45206ed4044bac0baa6a84ceffe3005f05bf9225b170e5389551bd09",
-   "words": 39046
+   "sha256": "b17b34731b40f87976c63cb8deb67aba78394ba61a4745b90684ea634b4655da",
+   "words": 39043
   },
   "reference/system-keys.md": {
    "chunks": 41,
@@ -194,8 +194,8 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 213,
-   "sha256": "48060e310e251594c4ff260f5779004d399c58eb839db08a8d00e9a0beaf2d69",
-   "words": 10167
+   "sha256": "fac3143efd21f1f042309e3fb85fba59e41b7373ca9196c4caede07a45aa04f9",
+   "words": 10165
   },
   "reference/voc.md": {
    "chunks": 12,

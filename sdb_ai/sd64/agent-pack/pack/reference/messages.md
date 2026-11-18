@@ -5484,10 +5484,10 @@ A file in the shared account can only be changed by an account that has shared.w
 cited by: `edit_msg`
 
 ### msg:11514
-> kind=message tier=reference since=- src=sdsys/messages/11514:1#9a412c5b
+> kind=message tier=reference since=- src=sdsys/messages/11514:1#74d5d9f6
 
 ```
-The structure of a file in the shared account (making, clearing, configuring, indexing, triggers, renaming or deleting it) can only be changed by SDSYS, signed on at a terminal
+The structure of a file in the shared account (making, clearing, configuring, indexing, triggers, renaming or deleting it) can only be changed by SDSYS, the administrator
 ```
 
 cited by: `edit_msg`

@@ -38,7 +38,7 @@ MSGDIR = os.path.join(SDSYS, "messages")
 # the exact texts of the spec (.claude/s66-design.md 1.6)
 MSG = {
     11513: "A file in the shared account can only be changed by an account that has shared.write (SDSYS can give it: modify.account <account> shared-write-on)",
-    11514: "The structure of a file in the shared account (making, clearing, configuring, indexing, triggers, renaming or deleting it) can only be changed by SDSYS, signed on at a terminal",
+    11514: "The structure of a file in the shared account (making, clearing, configuring, indexing, triggers, renaming or deleting it) can only be changed by SDSYS, the administrator",
     11515: "Account %1 has shared.read %2, shared.write %3",
     11516: "The account name shared is reserved for the shared account, which the installer makes: it cannot be created, restored or attached by hand",
     11517: "The shared account cannot be deleted",

@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  THE SHARED ACCOUNT'S STRUCTURE REFUSAL NAMES THE ADMINISTRATOR, NOT A TERMINAL.
+
+             What        - the message a session is given when it tries to change the structure of a file in the
+                           shared account now ends "can only be changed by SDSYS, the administrator".  It ended
+                           "by SDSYS, signed on at a terminal".  The COMPILE.DICT line of the command syntax card
+                           no longer shows a DICT keyword: the verb has only DATA.
+             Why         - a session of SDSYS that comes in over the API, through a door the administrator has
+                           opened, is the administrator and is not refused, so the old words said less than SD
+                           does.  COMPILE.DICT takes the word after it as the file name unless it is DATA, so
+                           "compile.dict dict file" answers that the file dict is not found.  Both were found by
+                           SD Core for Windows during the four-version audit.
+             Does NOT    - Change who may alter the structure of a shared file, or what COMPILE.DICT does.
+
 18 Nov 26  RUN.IN REFUSES A COMMAND WHOSE FILES LIE OUTSIDE THE ACCOUNT OR HAVE A TRIGGER.
 
              What        - run.in, the administrator's account-scoped run, now looks at the files a command will use
