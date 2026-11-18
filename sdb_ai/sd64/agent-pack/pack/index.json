@@ -29174,7 +29174,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 167
+"words": 169
 },
 "tcl:tool.files": {
 "kind": "tcl.verb",
@@ -29244,7 +29244,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 103
+"words": 108
 },
 "tcl:top.margin": {
 "kind": "tcl.keyword",
