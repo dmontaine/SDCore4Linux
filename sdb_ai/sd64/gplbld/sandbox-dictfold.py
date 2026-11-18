@@ -97,7 +97,8 @@ def main():
         ss = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ss)
         ok, why = ss.swap(box, programs=("bcomp", "cd", "cname", "generate", "icomp", "listi", "mkindx", "qproc", "show",
-                                         "_nextptr", "createf", "write_install_dicts"), messages=(6129,), dictdir=True)
+                                         "_nextptr", "createf", "write_install_dicts",
+                                         "voc_guard", "voc_refusal"), messages=(6129,), dictdir=True)   # 18 Nov 26: Solo's cd asks !voc_guard, which asks !voc_refusal (both Solo only)
         say("sandbox-dictfold: SOLO MODE - " + why.splitlines()[0])
         if not ok:
             bail(why)
