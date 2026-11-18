@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  WHAT THE ADMINISTRATOR MAKES IN THE SDSYS ACCOUNT CAN NO LONGER BE CHANGED BY OTHER SD USERS.
+
+             What        - a session in the SDSYS account now makes new files and directories so that only sdsys
+                           can change them (a umask of 022: directories 755, files 644).  Sessions in every other
+                           account are as before (002), so the members of an account still share what they make
+                           there.  The umask follows the account: it is set at sign-on, after LOGTO, after RUN.IN
+                           enters its account and on the way back, and CREATE.ACCOUNT no longer leaves the
+                           session with the umask it uses to make the new account.
+             Why         - the SDSYS directory's group is sdusers, which every SD user is in.  With the old umask,
+                           what the administrator made there - the example programs and their compiled objects,
+                           the administrator's command stack - could be changed by any SD user, who could then
+                           have the administrator run a program of theirs.  Found by checking a fresh install.
+             Does NOT    - Change, by itself, files that already exist; the install of this release sets the
+                           modes of the system directory again, as every install does, which puts them right.  It
+                           does not change the modes of any other account's files.
+
 18 Nov 26  SDSYS CAN BE REACHED FROM THIS COMPUTER BY THE LINUX USERS THE ADMINISTRATOR LISTS.
 
              What        - a new administrator's verb, local.sdsys, keeps two lists of Linux users, both EMPTY as

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm S.268: the umask follows the account at sign-on - 022 in SDSYS, whose group is every SD user; 002 elsewhere, as before.
 * 2 Nov 26 dm  S.102: batch.permitted's comment names SET.BATCH and TOOL.JOBS, the new way to change batch.jobs.  No code changed.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
 *           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
@@ -521,6 +522,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    * Set @PATH
 
    account.path = ospath("", OS$CWD)
+
+* 18 Nov 26 dm - S.268: THE UMASK FOLLOWS THE ACCOUNT.  CPROC starts every session with 002, which an account needs (its directory's group is
+*   the account's own, and its members share what they make).  SDSYS's group is sdusers - every SD user - so in SDSYS 002 made what the
+*   administrator created there (examples.bp and its objects, the command stack) writable by every user.  In SDSYS the umask is 022.
+*   CPROC sets it the same way on LOGTO, RUN.IN and the way back from RUN.IN.
+   if kernel(K$PATH.IN, @sdsys : @fm : account.path) then void umask(18) else void umask(2)   ;* 18 = 022, 2 = 002 octal
 
    initial.account.path = account.path
    if initial.account = '' then

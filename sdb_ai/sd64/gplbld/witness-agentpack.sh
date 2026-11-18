@@ -19,7 +19,7 @@
 # the installer block and gplbld/test-install-agentpack.sh, which does run (free, on scratch files).
 #
 # WHAT IT ASKS.  1 the files are there; 2 only guide/ and pack/ are (no skill, templates, recipe, generator); 3 the manifest's
-# rev_stamp is the installed revstamp.h's; 4 owner sdsys, group sdusers, files 644, directories 755; 5 nothing in it is writable
+# rev_stamp is the installed binary's; 4 owner sdsys, group sdusers, files 644, directories 755; 5 nothing in it is writable
 # by group or other, and an actual write by this login is refused (the decisive row, not the mode bits); 6 when the repository
 # tree is given and the install was made from its HEAD, the installed copy equals the repository's; 7 verify-sysperms.py passes.
 
@@ -56,8 +56,10 @@ else
 fi
 # 3
 pst=$(sed -n '/"rev_stamp"/{s/^[^:]*: *"\([^"]*\)".*/\1/p;q}' "$AP/pack/manifest.json" 2>/dev/null)
-ist=$(sed -n '/^\$define SD\.REV\.STAMP/{s/^[^"]*"\([^"]*\)".*/\1/p;q}' "$SYSD/gpl.bp/revstamp.h" 2>/dev/null)
-if [ -n "$pst" ] && [ "$pst" = "$ist" ]; then pass "3 the manifest's rev_stamp '$pst' is the installed revstamp.h's"; else fail "3 manifest rev_stamp '${pst:-?}' vs installed '${ist:-?}'"; fi
+# 18 Nov 26 (S.62 VM witness): the running system no longer holds gpl.bp's source (S.144), so the installed stamp is the one the
+# installed binary prints on its success line "String Database (sd) Version <stamp> 64 Bit"; anything else leaves it '?'.
+ist=$("$SYSD/bin/sd" --version 2>/dev/null | sed -n 's/^String Database (sd) Version \([^ ]*\) .*/\1/p' | head -1)
+if [ -n "$pst" ] && [ "$pst" = "$ist" ]; then pass "3 the manifest's rev_stamp '$pst' is the installed binary's"; else fail "3 manifest rev_stamp '${pst:-?}' vs installed binary '${ist:-?}'"; fi
 # 4
 if [ -d "$AP" ]; then
   bad_owner=$(find "$AP" ! -user sdsys -o ! -group sdusers | head -3 | tr '\n' ' ')

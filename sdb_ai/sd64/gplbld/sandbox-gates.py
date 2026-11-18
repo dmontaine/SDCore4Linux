@@ -1343,8 +1343,8 @@ def sec_g():
         "out=%r reg=%r" % (out[-4:], fields("zzmod")))
     mod("zzmod", "SH-OFF", "OS-OFF")
     out = mod("zzmod")
-    row("G: multi - no action at all prints the usage (it used to say sdu_zzmod 'is not a valid Linux Group') and changes nothing",
-        has(out, r"modify\.account <account> sh-on \| sh-off") and not has(out, "valid Linux Group") and fields("zzmod") == ("no", "no"),
+    row("G: multi - no action at all prints the usage (it used to say sdu_zzmod 'is not a valid Linux group', 10024) and changes nothing",
+        has(out, r"modify\.account <account> sh-on \| sh-off") and not has(out, "valid Linux group") and fields("zzmod") == ("no", "no"),
         "out=%r reg=%r" % (out[:4], fields("zzmod")))
     # a GROUP account is allowed the switches that need no Linux user and refused the others, one action at a time: voc-on is done, sh-on is
     # refused (10105), and the end says so (11794) with the register showing exactly the one that was done.
@@ -1660,29 +1660,36 @@ def sec_netdirs():
     # N8 bad entries, one good beside them; then a restart, and the error log
     probe_in_usr = os.path.join(BOX, "user_accounts", "zzndprobe.txt")
     put(probe_in_usr, "ND-USRDIR\n")
-    bad = ["zzrel/dir", "/", SYS, os.path.join(BOX, "user_accounts", "zzndon"), os.path.join(BOX, "user_accounts"), os.path.join(out_root, "missing")]
-    value = ";".join(bad + [data])
-    if len(value) > 191:
-        bail("the N8 NETDIRS value is %d characters, over the 191 the parameter takes: use a shorter sandbox path" % len(value))
-    nd_conf("NETDIRS=" + value)
-    nd_prog("zznd", [("good", "read", data + "/f.txt"), ("root", "read", "/etc/hostname"), ("sys", "read", os.path.join(SYS, "start.default")),
-                     ("acct", "read", os.path.join(BOX, "user_accounts", "zzndon", "inside.txt")), ("usr", "read", probe_in_usr)])
-    got, out = nd_run("zznd")
-    row("N8: with six bad entries beside it the good entry still admits: %s/f.txt -> 'ND-DATA-1'" % data, got.get("good") == "ND-DATA-1", "got=%r" % (got,))
-    row("N8: the bad entries admit nothing: /etc/hostname (entry /), the sandbox system directory, another fixture account's inside.txt and a "
-        "file in the accounts directory (USRDIR) are each refused with 3035",
-        all(got.get(k) == "REFUSED 3035" for k in ("root", "sys", "acct", "usr")), "got=%r" % ({k: got.get(k) for k in ("root", "sys", "acct", "usr")},))
+    # 18 Nov 26: TWO ROUNDS OF THREE bad entries, each beside the good one.  All six in one value came to 201 characters under
+    #   regress.sh's sandbox path (the entries repeat the path), over the 191 NETDIRS takes, and the suite could not run there at all.
+    #   Each round has the probes its own entries must refuse, and its own restart and error-log count.
+    rounds = [(["zzrel/dir", "/", SYS], [("root", "read", "/etc/hostname"), ("sys", "read", os.path.join(SYS, "start.default"))],
+               "/etc/hostname (entry /) and the sandbox system directory"),
+              ([os.path.join(BOX, "user_accounts", "zzndon"), os.path.join(BOX, "user_accounts"), os.path.join(out_root, "missing")],
+               [("acct", "read", os.path.join(BOX, "user_accounts", "zzndon", "inside.txt")), ("usr", "read", probe_in_usr)],
+               "another fixture account's inside.txt and a file in the accounts directory (USRDIR)")]
     errlog = os.path.join(SYS, "errlog")
-    before = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
-    subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
-    subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=180)
-    after = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
-    started = nd_started()
-    counts = {e: after.count("NETDIRS: %s is ignored - " % e) - before.count("NETDIRS: %s is ignored - " % e) for e in bad + [data]}
-    say("    [evidence] SD started %r; error log lines added by the start that name NETDIRS: %r"
-        % (started, [ln for ln in after[len(before):].splitlines() if "NETDIRS" in ln] if after.startswith(before) else "(the log was trimmed)"))
-    row("N8: after SD starts again the error log names EACH of the six ignored entries exactly once, and does not name the good one",
-        started is not None and all(counts[e] == 1 for e in bad) and counts[data] == 0, "started=%r counts=%r" % (started, counts))
+    for n_round, (bad, probes, what) in enumerate(rounds, 1):
+        value = ";".join(bad + [data])
+        if len(value) > 191:
+            bail("the N8 round %d NETDIRS value is %d characters, over the 191 the parameter takes: use a shorter sandbox path" % (n_round, len(value)))
+        nd_conf("NETDIRS=" + value)
+        nd_prog("zznd", [("good", "read", data + "/f.txt")] + probes)
+        got, out = nd_run("zznd")
+        keys = [p[0] for p in probes]
+        row("N8 round %d: with three bad entries beside it the good entry still admits: %s/f.txt -> 'ND-DATA-1'" % (n_round, data), got.get("good") == "ND-DATA-1", "got=%r" % (got,))
+        row("N8 round %d: the bad entries admit nothing: %s are each refused with 3035" % (n_round, what),
+            all(got.get(k) == "REFUSED 3035" for k in keys), "got=%r" % ({k: got.get(k) for k in keys},))
+        before = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
+        subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+        subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=180)
+        after = open(errlog, errors="replace").read() if os.path.exists(errlog) else ""
+        started = nd_started()
+        counts = {e: after.count("NETDIRS: %s is ignored - " % e) - before.count("NETDIRS: %s is ignored - " % e) for e in bad + [data]}
+        say("    [evidence] SD started %r; error log lines added by the start that name NETDIRS: %r"
+            % (started, [ln for ln in after[len(before):].splitlines() if "NETDIRS" in ln] if after.startswith(before) else "(the log was trimmed)"))
+        row("N8 round %d: after SD starts again the error log names EACH of the three ignored entries exactly once, and does not name the good one" % n_round,
+            started is not None and all(counts[e] == 1 for e in bad) and counts[data] == 0, "started=%r counts=%r" % (started, counts))
 
     # N9 the length bound
     good_pad = data + ";/zzpad"

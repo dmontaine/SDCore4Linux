@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 18 Nov 26 dm S.268: set.account.umask - 022 in SDSYS (group sdusers, every SD user), 002 elsewhere; after LOGTO, RUN.IN and revert.account.
 * 18 Nov 26 dm S.267: an sdsys session whose login was not sdsys's is asked, before the 10195 refusal, whether it is a listed user's ssh login from this
 *              computer (kernel(K$SDSYS.LOCAL)); if so the SD password of sdsys is asked once and the session is granted (audit "elevation granted
 *              reason=sdsys local ssh user=<name>", notice 14177) or refused (14175 wrong password, 14176 no credential).  10195's audit line gains
@@ -3204,6 +3205,7 @@ int.logto:
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 
    gosub load.account.switches   ;* the account-scoped switches, from the new account's own register record (3 Nov 26: one routine, shared with RUN.IN)
+   gosub set.account.umask       ;* 18 Nov 26, S.268
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3286,6 +3288,13 @@ load.account.switches:
 *   write.  Fail closed.  new.account cannot tell the two cases apart (it is reassigned from the path above); the record's path field can.
    void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.READ>)) # 'NO'))
    void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.WRITE>)) = 'YES'))
+   return
+
+* 18 Nov 26 dm - S.268: THE UMASK FOLLOWS THE ACCOUNT the session is now in (account.path): 022 in SDSYS, whose directory's group is sdusers
+*   (every SD user), and 002 everywhere else, as the session starts (an account's group is its own and its members share what they make).
+*   LOGIN sets it at sign-on; this is called after LOGTO, after RUN.IN has entered its account, and by revert.account on the way back.
+set.account.umask:
+   if kernel(K$PATH.IN, @sdsys : @fm : account.path) then void umask(18) else void umask(2)   ;* 18 = 022, 2 = 002 octal
    return
 
 *****************************************************************************
@@ -3494,6 +3503,7 @@ int.runin:
    void kernel(K$SET.ACCOUNT, who)
    voc = new.voc ; new.voc = 0
    gosub load.account.switches
+   gosub set.account.umask       ;* 18 Nov 26, S.268
    i = kernel(K$INVALIDATE.OBJECT, 0)
    gosub find.private.catalogue
 
@@ -3756,6 +3766,7 @@ revert.account:
    void kernel(K$NET,         ri.sw<4>)
    void kernel(K$SHARED.READ, ri.sw<5>)
    void kernel(K$SHARED.WRITE, ri.sw<6>)
+   gosub set.account.umask                   ;* 18 Nov 26, S.268: back in the account RUN.IN left (SDSYS: 022)
    void kernel(K$ADMINISTRATOR, ri.sw<10>)   ;* 11 Nov 26, S.213: LAST - see the note above
    void kernel(K$AUDIT, 'logto revert account=' : who)
    i = kernel(K$INVALIDATE.OBJECT, 0)

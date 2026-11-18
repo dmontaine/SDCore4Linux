@@ -2108,13 +2108,22 @@ else
         #   so after LOGTO $ACC it was "not in your VOC" and Y1 measured a verb
         #   that could not be reached (fifth cycle).  The write-after-LOGTO
         #   claim is carried by MODIFY.PASSWORD, which NEWVOC does ship (W.10).
-        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nMODIFY.ACCOUNT %s SUSPENDED\nLOGTO %s\nWHO\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
-                  "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
+        # 18 Nov 26 - S.62 (P-4645, 17 Nov): LOGTO refuses a SUSPENDED account to the administrator too, so the
+        #   suspend can no longer come before the LOGTO in one session (Y0 read "sdsys" on ad3b6879).  The LOGTO and
+        #   the write after it come first, in an account still in service; the suspend follows in a second session
+        #   started in SDSYS, which then tries the LOGTO again: Y0b is the refusal (10107) and that WHO stays sdsys.
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+                  "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
         ck "Y0 the route: WHO named $ACC" "$ACC " "$WHOS"
-        ck "Y1 SUSPENDED landed in the register on disk (field 5 '$FLAG_BEFORE' -> SUSPENDED)" SUSPENDED "$(reg_field "$ACC" 5)"
         ck_says "Y2 MODIFY.PASSWORD reported it" "Password accepted." "$OUT"
+        OUT2=$(cd "$ADIR" && printf '\nTERM 200,9999\nMODIFY.ACCOUNT %s SUSPENDED\nLOGTO %s\nWHO\nOFF\n' "$ACC" "$ACC" \
+                  | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT2" | sed -e 's/^/      | /'
+        ck "Y1 SUSPENDED landed in the register on disk (field 5 '$FLAG_BEFORE' -> SUSPENDED)" SUSPENDED "$(reg_field "$ACC" 5)"
+        ck_says "Y0b LOGTO of the suspended account is refused to the administrator (10107)" "Account $ACC is suspended" "$OUT2"
+        ck "Y0c and the session stayed in SDSYS (WHO)" "sdsys " "$(printf '%s\n' "$OUT2" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')"
         SALT_AFTER=$(cred_salt "$ACC")
         ck "Y2b the \$cred record was rewritten on disk (the salt changed)" yes "$([ -n "$SALT_AFTER" ] && [ "$SALT_AFTER" != "$SALT_BEFORE" ] && echo yes || echo no)"
     fi
@@ -2520,6 +2529,13 @@ else
         printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
         printf '%s' "$out"
     }
+    # 18 Nov 26 (S.62 LC3): a new account is delivered with key sign-in OFF (its user is in sdsshnokey, and sshd offers that group no key), so the
+    # key login below needs SSH-KEY-ON first; X0 is that grant, judged on 14171's success words, never on the account name the refusal also prints.
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SSH-KEY-ON" "MODIFY.ACCOUNT $ACC SSH-KEY-ON")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X0 MODIFY.ACCOUNT SSH-KEY-ON allowed the key sign-in (14171)" "may sign in over ssh with a key: yes" "$OUT"
+        if getent group sdsshnokey | cut -d: -f4 | tr ',' '\n' | grep -qx "$ACC"; then ck "X0b and $ACC left sdsshnokey" no yes; else ck "X0b and $ACC left sdsshnokey" no no; fi
+    fi
     if [ "$COMMIT" -eq 1 ]; then
         SSHDIR=$(mktemp -d)
         ssh-keygen -q -t ed25519 -N '' -C witness-release-run -f "$SSHDIR/key"

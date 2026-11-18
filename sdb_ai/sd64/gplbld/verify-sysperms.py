@@ -419,6 +419,11 @@ def main():
     s = V.show_sd(run, "CATALOG ... GLOBAL", ["CATALOG BP ZZNOPROG GLOBAL"],
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "K:GLOBAL session", s)
+    # 18 Nov 26 (S.62 VM witness): since S.64 an account without bp.edit is refused by the edit gate BEFORE CATALOG reaches
+    # its privilege test (11408), so K1 to K3 would then measure the edit gate, not the catalogue gate.  K0 says so out loud
+    # and fails; give the measured account bp.edit first (as SDSYS: modify.account <account> bp-on) and take it back after.
+    run.note("K0 the account has bp.edit, so CATALOG reaches its privilege test (no bp.edit refusal)", 0,
+             V.say_count(s.text, re.escape("can only be compiled or cataloged by an account that has bp.edit")))
     run.note("K1 GLOBAL is refused for privilege", 1,
              V.say_count(s.text, re.escape(MSG_PRIV)))
 

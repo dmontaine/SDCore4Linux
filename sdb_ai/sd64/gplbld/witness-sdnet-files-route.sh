@@ -1037,7 +1037,7 @@ expect_has "D1 NULL CASE: zzwnad opened the remote file" "$OUTD" "D0 opened zzrw
 expect_re "D1 WRITE ... CREATING.SEQKEY is refused: ON ERROR, STATUS() 7000 and no id" "$OUTD" '^D1 WRITE CREATING.SEQKEY branch=error STATUS\(\)=7000 id=\[\]'
 expect_has "D1 FCONTROL stops the program with the server's refusal in the client's words (message 11500 with 11524, request 71)" "$OUTD" "$(wl_msg 11500 "$SRV" fcontrol "$(wl_msg 11524 71)")"
 expect_lacks "D1 ... D9 is not reached" "$OUTD" "D9 REACHED"
-expect_has "D1 ANALYSE.FILE is refused with the server's words (request 70)" "$OUTV" "$(wl_msg 11500 "$SRV" analyse.file "$(wl_msg 11524 70)")"
+expect_has "D1 ANALYSE.FILE is refused with the server's words (request 70)" "$OUTV" "$(wl_msg 11500 "$SRV" analyze.file "$(wl_msg 11524 70)")"
 expect_has "D1 CREATE.FILE ... SERVER is refused with the server's words (request 70)" "$OUTV" "$(wl_msg 11500 "$SRV" create.file "$(wl_msg 11524 70)")"
 expect_eq "D1 SERVER evidence: the file is unchanged by the refused tries" "$(srvids zzwgf)" "$D_IDS0"
 expect_lacks "D1 SERVER evidence: zzwnew was not created on the server" "$NF1" "record(s) counted"
@@ -1074,10 +1074,11 @@ expect_has "D3 CREATE.FILE ... SERVER said the file was made and the pointer wri
 expect_re "D3 the new pointer works: COUNT zzwnew through it counted 0 records" "$OUTV" '^0 record\(s\) counted'
 expect_has "D3 DELETE.FILE said the file and the pointer are gone" "$OUTV" "$(wl_msg 11532 zzwnew "$SRV" zzwnew)"
 expect_lacks "D3 SERVER evidence: zzwnew is gone from the server" "$GONE" "record(s) counted"
-for v in "analyse.file file=zzwgf" "create.index file=zzcust" "build.index file=zzcust" "create.file file=zzwnew" "delete.file file=zzwnew"; do
+# 18 Nov 26 (S.62): operation 1 is named analyze.file - the verb's one name since S.87 - by the server's audit line (17 Nov) and by the client's (netfile, 18 Nov).
+for v in "analyze.file file=zzwgf" "create.index file=zzcust" "build.index file=zzcust" "create.file file=zzwnew" "delete.file file=zzwnew"; do
   expect_has "D3 audit: api admin request=70 op=$v user=$REMOTE" "$AUDD" "api admin request=70 op=${v% *} ${v#* } user=$REMOTE"
 done
-expect_has "D3 audit: the client's own line for the verb" "$AUDD" "netfile admin server=$SRV file=zzwgf op=analyse.file"
+expect_has "D3 audit: the client's own line for the verb" "$AUDD" "netfile admin server=$SRV file=zzwgf op=analyze.file"
 expect_lacks "D3 audit: NO api refused line in phase D3" "$AUDD" "api refused"
 # 26 Oct 26 (first VM run): TWO logins, not three - the program zzwnad is one connection and the whole run of verbs (ANALYSE.FILE, CREATE.INDEX, BUILD.INDEX, CREATE.FILE, DELETE.FILE) is one more; the five
 # 'api admin request=70' rows above are what show that each verb was served, these two say that BOTH connections were admitted with admin=on and not admin=off.

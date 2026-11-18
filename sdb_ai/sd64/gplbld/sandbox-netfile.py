@@ -5532,7 +5532,7 @@ def kw_admin(A):
     wreset(A)
     cmds = ["ANALYZE.FILE zznw1","CONFIGURE.FILE zznw1 minimum.modulus 7", "CREATE.INDEX zznw1 city", "BUILD.INDEX zznw1 city", "DELETE.INDEX zznw1 city", "DISABLE.INDEX zznw1 city"]
     r = kw_drive("zznhon", ["EXEC|" + c for c in cmds], (A,), cfg=ADM)
-    shown = [x for x in r.out if re.match(r"^(analyse|configure|create|build|delete|disable)\.(file|index) hwork done$", x)]
+    shown = [x for x in r.out if re.match(r"^(analyze|configure|create|build|delete|disable)\.(file|index) hwork done$", x)]
     row("THE SIX VERBS on a remote file each run on the SERVER for the login and print what the server's verb printed: ANALYSE.FILE, CONFIGURE.FILE, CREATE.INDEX, BUILD.INDEX, DELETE.INDEX, DISABLE.INDEX",
         kw_sane(r) and shown == ["analyze.file hwork done", "configure.file hwork done", "create.index hwork done", "build.index hwork done", "delete.index hwork done", "disable.index hwork done"],
         kw_why(r) + " shown=%r" % shown)
@@ -5584,7 +5584,7 @@ def kw_admin(A):
     refused70 = [x for s in r.d[0]["sessions"] for x in s.refused]          # CREATE.FILE may use a connection of its own, so the refusals are counted over every session
     row("WITHOUT THE ADMINISTRATION GROUP CREATE.FILE ... SERVER is refused by the server (message 11524 in the client's words), nothing is created there, and ANALYSE.FILE is refused the same way; "
         "NO POINTER was written (a plain OPEN of the name takes the ELSE branch)",
-        not r.hung and any(msg(11500, "nfw", "create.file", msg(11524, 70)) in x for x in r.out) and any(msg(11500, "nfw", "analyse.file", msg(11524, 70)) in x for x in r.out)
+        not r.hung and any(msg(11500, "nfw", "create.file", msg(11524, 70)) in x for x in r.out) and any(msg(11500, "nfw", "analyze.file", msg(11524, 70)) in x for x in r.out)
         and sum(1 for x in r2.kw if x.startswith("KW OPEN zznbad") and " else " in x) == 1 and A.store.file("zznbad") is None and refused70 == [70, 70] and r.idle,
         kw_why(r2) + repr((refused70, [x for x in r.out if "answered" in x], len(r.d[0]["sessions"]))))
     r = kw_run("zznhon", ["ANALYZE.FILE zznwr", "CREATE.INDEX zznwr city", "DELETE.FILE zznwr NO.QUERY", "CREATE.FILE zznbadr SERVER nfa"], (A,), cfg=ADM)
