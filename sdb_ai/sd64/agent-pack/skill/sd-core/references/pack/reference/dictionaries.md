@@ -195,7 +195,7 @@ MCL       MCU       MCC       MCT
 |---|---|
 | `MCL` | convert to lower case |
 | `MCU` | convert to upper case |
-| `MCC` | capitalise each word |
+| `MCC` | capitalize each word |
 | `MCT` | title case — the first letter of every word: `hello there world` becomes `Hello There World` |
 
 

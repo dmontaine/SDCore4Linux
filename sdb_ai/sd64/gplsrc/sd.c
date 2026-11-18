@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Nov 26 dm  S.62 P-1227, P-1229: -CLEANUP and -U are for root or the sdsys OS user (check_admin_or_sdsys()); -INTERNAL refuses an
+ *               account other than SDSYS (SD Core for Windows since 13 and 15 Aug 26; high security wins a conflict that predates 13 Oct).
  * 17 Nov 26 dm  S.62 P-1227, P-1228: sd refuses to start inside a shell SD started (SD_SESSION, op_sh.c); -D, -M, -SUSPEND and -RESUME take check_admin(); -TERM's value is bounded.
  * 15 Nov 26 dm  S.242 stage 3: main() calls xfer_detect() first; an sftp request sshd sent here is the file transfer server (sd_sftp.c).
  * 14 Nov 26 dm  sd_init(): a failed getcwd() gives an empty entry directory (it read an unset buffer); the build's warning.
@@ -87,6 +89,7 @@
 /* 20240126 mab add syslog */
 #include <syslog.h>
 #include <grp.h>
+#include <pwd.h>
 
 // #define DEBUG /* enables harcoded diagnostic output */
 
@@ -124,6 +127,7 @@ void kill_user(char *user);
 
 Private void sd_init(int argc, char *argv[]);
 Private void check_admin(void);
+Private void check_admin_or_sdsys(void);
 Private bool comlin(int argc, char *argv[]);
 Private bool load_pcode(char *pname, u_char **ptr);
 
@@ -337,6 +341,9 @@ Private bool comlin(int argc, char *argv[]) {
 
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
     if (!stricmp(argv[arg], "-CLEANUP")) {
+      /* 17 Nov 26 dm - S.62 P-1227: root (sdlnxd runs it as root every five minutes) or the sdsys OS user, the administrator
+         the documentation tells to run it; nobody else.  It removes other people's sessions from the user table. */
+      check_admin_or_sdsys();
       cleanup();
       exit(0);
     } else if (!stricmp(argv[arg], "-INTERNAL")) {
@@ -424,8 +431,7 @@ Private bool comlin(int argc, char *argv[]) {
         case 'D': /* Diagnostic report */
           /* 17 Nov 26 dm - S.62 P-1227: -D, -M, -SUSPEND and -RESUME take check_admin(), as on SD Core for Windows since
              15 Aug 26: the dumps show every session and the configuration, and -SUSPEND stopped every update on the system
-             for any member of sdusers.  -CLEANUP and -U are NOT gated: SDSYS (not root) is told to run "sd -cleanup", and
-             "sd -u" is documented for every user; gating them is left to the owner (S.62). */
+             for any member of sdusers.  -CLEANUP and -U take check_admin_or_sdsys(): root or the sdsys OS user. */
           check_admin();
           dump_sysseg(TRUE);
           exit(0);
@@ -464,6 +470,9 @@ Private bool comlin(int argc, char *argv[]) {
           break;
 
         case 'U': /* Show users */
+          /* 17 Nov 26 dm - S.62 P-1227: every session on the system, with its user name and process; LISTU leaves other
+             people's accounts blank for an ordinary user, so this is the administrator's, as on SD Core for Windows since 15 Aug 26. */
+          check_admin_or_sdsys();
           show_users();
           exit(0);
 
@@ -562,6 +571,18 @@ Private bool comlin(int argc, char *argv[]) {
           goto unrecognised;
       }
     }
+  }
+
+  /* 17 Nov 26 dm - S.62 P-1229.  INTERNAL MODE IS FOR SDSYS AND NOTHING ELSE, as on SD Core for Windows since 13 Aug 26:
+     an internal session in an ordinary account has no business it could legitimately conduct, and naming one is refused
+     rather than quietly redirected.  With no account named the session already lands in SDSYS: only root passes
+     check_admin() above, and CPROC either refuses root (the shipped build) or makes it the administrator (the install
+     build), whom LOGIN takes to SDSYS when no account is named.  So SDSYS is NOT forced here: forcing it would send the
+     installer's "sudo bin/sd -internal ..." through LOGIN's named-account arm, which asks whether root is a member of the
+     account's group.  The bootstrap (-I) names no account. */
+  if (internal_mode && (forced_account != NULL) && stricmp(forced_account, "SDSYS")) {
+    fprintf(stderr, "sd: -internal may only be used with the SDSYS account\n");
+    exit(1);
   }
 
   /* Anything else on the command line is considered to be a command
@@ -666,6 +687,22 @@ void check_admin() {
     fprintf(stderr, "Command requires administrator privileges\n");
     exit(1);
   }
+}
+
+/* 17 Nov 26 dm - S.62 P-1227.  -CLEANUP and -U: root, or the sdsys OS user, SD's administrator, whom the documentation tells
+   to run "sd -cleanup".  Anybody else is refused by check_admin() with its own words.  It asks the effective user's NAME, as
+   CPROC does (kernel(K$USERNAME, 0) = 'sdsys'); these two switches read and tidy the user table and start no session, so the
+   question CPROC adds for a session (was the login sdsys's own?) is not asked.  It calls check_admin() rather than repeating
+   its test, so a build that replaces check_admin() replaces this refusal too. */
+Private void check_admin_or_sdsys(void) {
+  struct passwd* pw;
+
+  if (geteuid() != 0) {
+    pw = getpwuid(geteuid());
+    if ((pw != NULL) && !strcmp(pw->pw_name, "sdsys"))
+      return;
+  }
+  check_admin();
 }
 
 /* ====================================================================== */

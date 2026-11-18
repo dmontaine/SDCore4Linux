@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-3348: open.files opens the file once, as typed; the lower- and upper-case retries are gone (the VOC is case blind).
 * 02 Nov 26 dm  S.105 (owner: Fedora support taken out): find.pkg.mgr asks for apt-get only; the dnf,
 *               pacman and zypper branches went with the distributions they served.
 * 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
@@ -600,26 +601,17 @@ return
 * ---------------------------------------------------------------------------
 * open.files  -  the record's file, and $HOLD for the working copy.
 *
-* 10 Sep 26 dm - LINUX: AS TYPED, THEN LOWER CASE, THEN UPPER CASE - the order
-* SL M sets for the lower-case conversion.  On a case-sensitive filesystem
-* "edit bp test" otherwise finds nothing when only BP exists.  The name that
-* opened replaces in.file.name, so the compile and catalogue offers use it.
+* 17 Nov 26 dm - S.62 P-3348: ONE OPEN, AS TYPED, as SD Core for Windows has it.
+* The lower-case and upper-case retries (10 Sep 26, written before the VOC was
+* made case blind) can no longer find anything the first open does not: the
+* VOC is a NOCASE file (S.62 PAL-1 D2; upgrade_nocase converts a kept
+* account's), so OPEN finds an entry in whatever case the name is typed.
 * ---------------------------------------------------------------------------
 open.files:
    open.ok = @false
-   open.name = in.file.name
-   open dict.text, open.name to input.file then open.ok = @true
-   if not(open.ok) and downcase(in.file.name) # in.file.name then
-      open.name = downcase(in.file.name)
-      open dict.text, open.name to input.file then open.ok = @true
-   end
-   if not(open.ok) and upcase(in.file.name) # in.file.name then
-      open.name = upcase(in.file.name)
-      open dict.text, open.name to input.file then open.ok = @true
-   end
+   open dict.text, in.file.name to input.file then open.ok = @true
 
    if open.ok then
-      in.file.name = open.name
 * 17 Oct 26 dm - S.64: an editor that saves into a VOC, a dictionary or a program file needs the gate.  Asked BEFORE the editor is
 *   started, so the person does not edit and then lose the work at the save.  (CT or ED shows a record without changing it.)
       if not(edit_guard(input.file)) then

@@ -3,6 +3,8 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Nov 26 dm S.62 P-4906: a group lookup of the USER arm that could not be made (STATUS() of !is_grp_member) stops the manifest with 11021
+*              instead of writing 0, or 1 for ssh.key: a restore from such a manifest opened ssh key sign-in.
 * 17 Nov 26 dm S.62 (LC3): the manifest key ssh.key (1 if the Linux user is NOT in sdsshnokey, i.e. it may sign in over ssh with a key), USER arm only, after route.ai, so
 *              RESTORE.ACCOUNT gives a restored account the key sign-in it had.
 * 14 Nov 26 dm S.242 stage 1: the manifest key xfer (1 only if ACC$XFER says yes), USER arm only, after recovery.
@@ -71,13 +73,25 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          info<-1> = 'type: USER'
          info<-1> = 'os.user: ':user
          info<-1> = 'os.group: ':grp
+* 17 Nov 26 dm - S.62 P-4906: EVERY GROUP LOOKUP FAILS CLOSED.  !is_grp_member answers "not a member" with STATUS() 1 when it could not
+*   read /etc/group (or was given no user), and ssh.key is written as NOT being in sdsshnokey - so an unread group made the manifest say
+*   "ssh.key: 1", and RESTORE.ACCOUNT gives key sign-in on exactly 1.  A lookup that could not be made stops the manifest with 11021, as
+*   the GROUP arm below does for a group it cannot read (and as SD Core for Windows stops with its own message); a group that does not
+*   exist is read (STATUS() 0) and nobody is in it.  The STATUS() tested is the lookup's: nothing in the line after the call sets it.
          info<-1> = 'route.ssh: ':(if is_grp_member(user, 'sdssh') then 1 else 0)
+         if status() then err = 11021:@vm:'sdssh':@vm:status() ; return
          info<-1> = 'route.api: ':(if is_grp_member(user, 'sdapi') then 1 else 0)
+         if status() then err = 11021:@vm:'sdapi':@vm:status() ; return
          info<-1> = 'route.files: ':(if is_grp_member(user, 'sdfiles') then 1 else 0)     ;* 17 Oct 26, S.65 slice 2c: membership of sdfiles, the files-only login
+         if status() then err = 11021:@vm:'sdfiles':@vm:status() ; return
          info<-1> = 'route.files.write: ':(if is_grp_member(user, 'sdfileswrite') then 1 else 0)     ;* 18 Oct 26, S.65 write group: membership of sdfileswrite
+         if status() then err = 11021:@vm:'sdfileswrite':@vm:status() ; return
          info<-1> = 'route.files.admin: ':(if is_grp_member(user, 'sdfilesadmin') then 1 else 0)     ;* 21 Oct 26, S.73 item 3: membership of sdfilesadmin
+         if status() then err = 11021:@vm:'sdfilesadmin':@vm:status() ; return
          info<-1> = 'route.ai: ':(if is_grp_member(user, 'sdaiusers') then 1 else 0)     ;* 23 Oct 26, S.69 step 2: membership of sdaiusers, the right to use the AI provider's API
+         if status() then err = 11021:@vm:'sdaiusers':@vm:status() ; return
          info<-1> = 'ssh.key: ':(if is_grp_member(user, 'sdsshnokey') then 0 else 1)     ;* 17 Nov 26, S.62 LC3: key sign-in is NOT being in sdsshnokey
+         if status() then err = 11021:@vm:'sdsshnokey':@vm:status() ; return
          info<-1> = 'os.sh: ':(if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then 1 else 0)
          info<-1> = 'os.execute: ':(if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then 1 else 0)
          info<-1> = 'edit.voc: ':(if upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES' then 1 else 0)     ;* 17 Oct 26, S.64

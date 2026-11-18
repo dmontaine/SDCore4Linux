@@ -316,6 +316,8 @@ def checks(raw):
              "call $tk_run(allow, sent, out, stat, err)", "gosub read.all", "if stat = 0 and ('S' : trim(now.f)) = ('S' : nv) then"]
     at = [cp.find(m) for m in marks]
     between = cp[at[7]:at[8]] if all(x >= 0 for x in at) else "?"
+    # 17 Nov 26 (S.62 P-4630, the owner's Q9): the status line says 14172 (Making the change) between the answer and the run; it changes nothing the run reads
+    between = re.sub(r"\n\s*msg = sysmsg\(14172\)[^\n]*\n\s*call \$tk_frame\(ctx, keys, panes<view>, msg\)[^\n]*", "", between, count=1)
     ck("CF21", "THE ORDER OF A CHANGE: ask for the value -> check its length, its digits, its leading zero and its range -> build the sentence from the table's name and the checked digits -> the box -> (Cancel returns) -> $tk_run -> read the file and SD again -> say what changed judged by the file, "
        "with nothing between the box's answer and the run",
        all(x >= 0 for x in at) and at == sorted(at) and "typed = ''" in cp and "call $tk_wrap" not in between and "gosub" not in between and "call " not in between and "if err # '' then\n      msg = err\n      return" in cp and "k.eff = peff<i>" in cp, repr(at))

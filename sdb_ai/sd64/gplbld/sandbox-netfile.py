@@ -5534,14 +5534,14 @@ def kw_admin(A):
     r = kw_drive("zznhon", ["EXEC|" + c for c in cmds], (A,), cfg=ADM)
     shown = [x for x in r.out if re.match(r"^(analyse|configure|create|build|delete|disable)\.(file|index) hwork done$", x)]
     row("THE SIX VERBS on a remote file each run on the SERVER for the login and print what the server's verb printed: ANALYSE.FILE, CONFIGURE.FILE, CREATE.INDEX, BUILD.INDEX, DELETE.INDEX, DISABLE.INDEX",
-        kw_sane(r) and shown == ["analyse.file hwork done", "configure.file hwork done", "create.index hwork done", "build.index hwork done", "delete.index hwork done", "disable.index hwork done"],
+        kw_sane(r) and shown == ["analyze.file hwork done", "configure.file hwork done", "create.index hwork done", "build.index hwork done", "delete.index hwork done", "disable.index hwork done"],
         kw_why(r) + " shown=%r" % shown)
     want70 = [W_FADM(1, 1), W_FADM(2, 1, "minimum.modulus 7"), W_FADM(3, 1, "city"), W_FADM(4, 1, "city"), W_FADM(5, 1, "city"), W_FADM(6, 1, "city")]
     got70 = [(t, d.lower()) for t, d in p70(r)]
     row("...THE REQUESTS: six of type 70, each with the operation (1 analyse, 2 configure, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index), the file number of the verb's own open and the rest of the "
         "command as the words (key words as typed or in capitals); the file is NAMED BY THE OPEN FILE and the name is not sent", got70 == [(t, d.lower()) for t, d in want70], repr(got70))
     row("...the audit trail: one 'admin server=nfw file=hwork op=<verb>' line for each, in order", admin_audits(r) == ["admin server=nfw file=hwork op=" + v for v in
-        ("analyse.file", "configure.file", "create.index", "build.index", "delete.index", "disable.index")], repr(admin_audits(r)))
+        ("analyze.file", "configure.file", "create.index", "build.index", "delete.index", "disable.index")], repr(admin_audits(r)))
     r = kw_drive("zznhon", ["EXEC|BUILD.INDEX zznw1 city"], (A,), cfg={"admin_group": True, "verbs": {4: (3021, "Cannot gain exclusive access to hwork")}})
     row("A VERB THE SERVER REFUSES (the file is open elsewhere there): its words are shown here and the verb ends - the client does not turn the server's code into an error of its own",
         kw_sane(r) and any(x == "Cannot gain exclusive access to hwork" for x in r.out), kw_why(r))

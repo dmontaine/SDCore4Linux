@@ -20,6 +20,8 @@
 # 28 Oct 26 dm  The editor merge, stage B: the editors section has a row for the IDE on a dictionary item (IDE DICT zzd zzq), which is saved only through
 #               dict.edit; written, NOT run (the owner's rule: one complete run at the end).
 # 10 Nov 26 dm  S.193: every full-screen editor, CED included, is driven at 140 by 43.
+# 17 Nov 26 dm  S.62 P-1229: the objtrust section compiles zzint in an -internal session that starts in SDSYS and LOGTOs the account
+#               (sd refuses -internal with any account but SDSYS).
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  Every fixture account holds the
@@ -612,7 +614,9 @@ def objtrust_section():
         build(n)
         voc = WANT[n][0]
         g.put(os.path.join(acct_path(n), "bp", "zzint"), prog)
-        out = g.sd(acct_path(n), ["BASIC bp zzint"], admin=True, internal=True, account=n)
+        # 17 Nov 26 (S.62 P-1229): "sd -internal -a<account>" is refused now (internal mode is for SDSYS only), so the administrator's
+        # internal session starts in SDSYS and LOGTOs the account, whose bp.out the compile then writes.
+        out = g.sd(g.SYS, ["LOGTO " + n, "BASIC bp zzint"], admin=True, internal=True)
         row("%s: an internal program zzint is compiled by the administrator into the account's own bp.out (not the global catalogue)" % n,
             g.has(out, r"^Compiled 1 program\(s\) with no errors"), repr(out[-4:]))
         out = g.plain(n, ["RUN bp zzint"])

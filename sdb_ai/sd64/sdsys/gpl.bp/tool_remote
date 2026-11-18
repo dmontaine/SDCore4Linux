@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4630 (Q9): confirm.and.run says 14172 (Making the change (a few seconds)...) on the status line before the command runs.
 * 17 Nov 26 dm  S.62 (Q9, the owner's rule of 12 Nov 26, carried from the Windows port's RELEASE_1.1 243): read.all says 14150 (Reading the settings (a few
 *               seconds)...) on the status line before the three reports run, so the screen does not look frozen; the page's own message comes back after.
 * 02 Nov 26 dm  S.106: the authenticator code is removed (owner: password only for this release).  The sdsys login view reports whether sshd lets sdsys in; O opens it (REMOTE.SDSYS ON,
@@ -632,6 +633,8 @@ plain.word:
 confirm.and.run:
    call $tk_confirm(sent, el, typed, res, cmsg)
    if res = 'run' then
+      msg = sysmsg(14172)                                       ;* Making the change (a few seconds)...  17 Nov 26 (S.62 P-4630, the owner's Q9)
+      call $tk_frame(ctx, keys, panes<view>, msg)
       call $tk_run(allow, sent, out, stat, err)
       gosub read.all
       gosub draw.all

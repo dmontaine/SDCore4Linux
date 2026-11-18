@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4907 to P-4911: a group lookup that could not be made is audited as that ('the sdusers group could not be read,
+*               status N'; 'branch=4 group.lookup.failed'), not as "not a member"; both still refuse.  P-1896, P-1898: request 70
+*               operation 1 is analyze.file in the audit line too (the verb that runs).
 * 17 Nov 26 dm  S.62 (P-4638, P-4639): account.entry.check refuses an account whose register record has no group by its own test,
 *               audited 'account refused branch=3 no.group.in.register' (the Windows port's words); SDSYS's own entry is not asked.
 * 17 Nov 26 dm  S.62 (P-1277, P-1278, P-1275, P-1276): request 3 (SDLogto / the login's account) enters an account by its registered NAME only.
@@ -627,13 +630,21 @@ if not(ent.sdsys.own) and ent.rec<ACC$GROUP> = '' then
 end
 
 * rev 0.9.0 * is user member of account?
-if not(is_grp_member(@logname, ent.rec<ACC$GROUP>)) then
+* 17 Nov 26 dm - S.62 P-4910, P-4911: a lookup that could not be made (STATUS() of !is_grp_member) is audited as
+*   group.lookup.failed with its status, as the Windows port's branch=4 does, and not as not.in.group.  Both refuse with 10003.
+ent.member = is_grp_member(@logname, ent.rec<ACC$GROUP>)
+ent.told = status()
+if not(ent.member) then
 * 18 Sep 26 dm - TEARDOWN (S.26).  SDSYS ENTERS ITS OWN ACCOUNT WITHOUT A GROUP.  The SDSYS register record's ACC$GROUP reads "sdsys",
 *   which is no Linux group - the OS user IS the account, so there is nothing to be a member of.  The local API door above (10174)
 *   already confined it to this machine; the exemption is by NAME and for the sdsys account only.
    if not(downcase(@logname) = 'sdsys' and ent.name = 'sdsys') then
 * 06 Oct 26 dm - PAL-17: audited as the Windows port's branch=4 not.in.group, with the account asked for appended.
-      void kernel(K$AUDIT, 'account refused branch=4 not.in.group user=' : @logname : ' group=' : ent.rec<ACC$GROUP> : ' account=' : ent.name)
+      if ent.told # 0 then
+         void kernel(K$AUDIT, 'account refused branch=4 group.lookup.failed status=' : ent.told : ' user=' : @logname : ' group=' : ent.rec<ACC$GROUP> : ' account=' : ent.name)
+      end else
+         void kernel(K$AUDIT, 'account refused branch=4 not.in.group user=' : @logname : ' group=' : ent.rec<ACC$GROUP> : ' account=' : ent.name)
+      end
       server.error = SV$ERROR
       error.msg = sysmsg(10003) ;* User not allowed in requested account
       abort.message = error.msg
@@ -1428,9 +1439,16 @@ vb.local.login:
                * mab 20240219 if kernel(K$SECURE, -1) then
                * dsm 20240612 readu lgn.rec from lgn.f, username else null
                * 20240219 mab user must be member of sdusers           
-               if  not(is_grp_member(username,'sdusers')) then
+* 17 Nov 26 dm - S.62 P-4907, P-4908: a lookup that could not be made is audited as that, as SD Core for Windows does; both refuse.
+               api.in.sdusers = is_grp_member(username, 'sdusers')
+               api.sdusers.stat = status()
+               if not(api.in.sdusers) then
                      server.error = SV$ON.ERROR
-                     void kernel(K$AUDIT, 'api refused user=' : username : ' reason=not a member of sdusers (local login)')  ;* 07 Oct 26 PAL-24
+                     if api.sdusers.stat # 0 then
+                        void kernel(K$AUDIT, 'api refused user=' : username : ' reason=the sdusers group could not be read, status ' : api.sdusers.stat : ' (local login)')
+                     end else
+                        void kernel(K$AUDIT, 'api refused user=' : username : ' reason=not a member of sdusers (local login)')  ;* 07 Oct 26 PAL-24
+                     end
                      abort.message = sysmsg(5009) ;* This user is not registered for SD use
                      goto exit.vb.local.login
                end
@@ -1702,8 +1720,15 @@ vb.scram.final:
 * 14 Sep 26 dm - LINUX: MAY THIS USER USE THE API AT ALL?  After the proof (so
 *   the distinct refusal leaks nothing).  THE NAME IS scram.user, the one just
 *   proven.  sdusers first, with 5009 - an SD user at all.
-               if not(is_grp_member(scram.user, 'sdusers')) then
-                  scram.refuse.reason = 'not a member of sdusers'
+* 17 Nov 26 dm - S.62 P-4909: three-valued like the routes below: a lookup that could not be made gives its own reason.
+               api.in.sdusers = is_grp_member(scram.user, 'sdusers')
+               api.sdusers.stat = status()
+               if not(api.in.sdusers) then
+                  if api.sdusers.stat # 0 then
+                     scram.refuse.reason = 'the sdusers group could not be read, status ' : api.sdusers.stat
+                  end else
+                     scram.refuse.reason = 'not a member of sdusers'
+                  end
                   abort.message = sysmsg(5009) ;* This user is not registered for SD use
                   server.error = SV$ON.ERROR
                   goto exit.vb.scram.fail
@@ -3089,7 +3114,7 @@ return
 * In:  operation (short integer), file number (short integer; 0 for the operation that names no open file), the verb's words (text)
 * Out: what the verb printed (captured); an ON ERROR reply with its own text for a refusal
 *
-* THE VERB IS CHOSEN BY THE OPERATION NUMBER AND NEVER FROM THE TEXT: 1 analyse.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
+* THE VERB IS CHOSEN BY THE OPERATION NUMBER AND NEVER FROM THE TEXT: 1 analyze.file, 2 configure.file, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index,
 * 8 create.file, 9 delete.file (7 is free: there is no enable.index, build.index switches an index on again).  The file an operation works on is NAMED BY THE OPEN FILE
 * (the name it was opened under, kept in file.names), so the caller cannot name a file it did not open; operation 8 names a NEW file, in the first word of the text.
 * The words are checked by fa.check.words before anything runs: letters, digits and . _ - only, single blanks, at most 200 characters, never PATHNAME, LPTR, FORCE or
@@ -3111,7 +3136,7 @@ if config("SDCLIENT") # 0 or kernel(K$SDNET, -1) then
 end
 fa.verb = ''
 if fa.op >= 1 and fa.op <= 9 then
-   fa.verb = field('analyse.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', fa.op)
+   fa.verb = field('analyze.file,configure.file,create.index,build.index,delete.index,disable.index,,create.file,delete.file', ',', fa.op)
 end
 if fa.verb = '' then
    abort.message = sysmsg(11531, fa.op) ;* %1 is not a remote file administration operation
@@ -3142,8 +3167,7 @@ if fa.bad # '' then
 end
 if fa.names.file then fa.shown = fa.name else fa.shown = field(fa.text, ' ', 1)
 void kernel(K$AUDIT, 'api admin request=70 op=' : fa.verb : ' file=' : fa.shown : ' user=' : @logname)  ;* @logname, not logname: a plain variable does not survive an abort
-fa.cmd = fa.verb
-if fa.op = 1 then fa.cmd = 'analyze.file'     ;* 27 Oct 26 (S.87): the VOC no longer has the British spelling; the audit line above keeps the operation's name
+fa.cmd = fa.verb     ;* 17 Nov 26 (S.62 P-1896, P-1898): operation 1 is named analyze.file in the list, so the audit line names the verb that runs
 if fa.names.file then fa.cmd := ' ' : fa.name
 if fa.text # '' then fa.cmd := ' ' : fa.text
 if fa.op = 8 or fa.op = 9 then fa.cmd := ' no.query'

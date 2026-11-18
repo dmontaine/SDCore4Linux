@@ -223,8 +223,8 @@ def main():
         nr = N.req(6, struct.pack("<h", fN) + b"r2", shown="read (request 6) fno %r id r2" % fN)
         r("G8 ...N gets Rome", nr is not None and nr[0] == 0 and text(nr) == "Rome", repr(nr))
         a1 = fileadmin(A, 1, fA)
-        r("G9 A (files-only, BOTH groups) asks request 70 operation 1 (analyse.file): served - OK, and what the verb printed comes back (it names the file)", a1 is not None and a1[0] == 0 and b"zzh" in a1[2], repr(a1))
-        say("      [what analyse.file printed on the server, for the record]\n        " + "\n        ".join((text(a1) or "").replace("\xfe", "\n").split("\n")[:14]))
+        r("G9 A (files-only, BOTH groups) asks request 70 operation 1 (analyze.file): served - OK, and what the verb printed comes back (it names the file)", a1 is not None and a1[0] == 0 and b"zzh" in a1[2], repr(a1))
+        say("      [what analyze.file printed on the server, for the record]\n        " + "\n        ".join((text(a1) or "").replace("\xfe", "\n").split("\n")[:14]))
 
         # ---- V. the verbs ---------------------------------------------------------------------------------------------------------------------------------------------------------------
         say("\n--- V. the verbs of request 70 on a hashed file, each read back from the disk by an ordinary session ----------------------------------------")
@@ -274,7 +274,7 @@ def main():
             r("V7a delete.file (operation 9) on zznew while H holds it open: the verb refuses - reply OK, STATUS() non-zero, the words 'is open' come back - and the file is still there (an ordinary session counts it)",
               hz is not None and v9r is not None and v9r[0] == 0 and v9r[1] != 0 and b"is open" in v9r[2] and count_records("zznew") == 0, repr((hz, v9r[:3] if v9r else v9r)))
             a9 = fileadmin(A, 1, op4[0])
-            r("V7b ...and the number it was opened under still works: analyse.file through it is served and names zznew (it used to be 'Invalid file number')",
+            r("V7b ...and the number it was opened under still works: analyze.file through it is served and names zznew (it used to be 'Invalid file number')",
               a9 is not None and a9[0] == 0 and b"zznew" in a9[2], repr(a9))
             Z.close()
             time.sleep(1.0)                  # the server process of Z ends when its pipes close
@@ -342,7 +342,7 @@ def main():
         fd = E.open4("dict zzh")[0]
         c_an = fileadmin(E, 1, fd) if fd is not None else None
         c_cf = fileadmin(E, 2, fd, "MINIMUM.MODULUS 5") if fd is not None else None
-        r("E1 a session of an account whose dict.edit is NO opens dict zzh and runs analyse.file on it (a read: OK) ...", c_an is not None and c_an[0] == 0, repr((fd, c_an)))
+        r("E1 a session of an account whose dict.edit is NO opens dict zzh and runs analyze.file on it (a read: OK) ...", c_an is not None and c_an[0] == 0, repr((fd, c_an)))
         r("E2 ...but configure.file on it is refused by the edit gate - ERROR with the text of message 11406 (a dictionary) - and the dictionary is as it was",
           c_cf is not None and c_cf[0] == 3 and E.errtext() == msg(11406), repr(c_cf))
         E.close()
@@ -355,13 +355,13 @@ def main():
         want = ["refused request=27 route=sdfiles write=off admin=off", "refused request=28 route=sdfiles write=on admin=off", "refused request=72 route=sdfiles write=on admin=on",
                 "refused request=70 route=sdfiles write=off admin=off", "refused request=71 route=sdfiles write=off admin=off", "refused request=68 route=sdfiles write=off admin=off",
                 "refused request=70 route=sdfiles write=on admin=off", "refused request=71 route=sdfiles write=on admin=off", "refused request=68 route=sdfiles write=on admin=off",
-                "admin request=70 op=analyse.file file=zzh", "admin request=70 op=configure.file file=zzh", "admin request=70 op=create.index file=zzh", "admin request=70 op=build.index file=zzh",
+                "admin request=70 op=analyze.file file=zzh", "admin request=70 op=configure.file file=zzh", "admin request=70 op=create.index file=zzh", "admin request=70 op=build.index file=zzh",
                 "admin request=70 op=build.index file=zzh",                     # V2a (the verb refused) and V3 (it ran): the audit line is written before the command, whatever the verb says
                 "admin request=70 op=disable.index file=zzh", "admin request=70 op=delete.index file=zzh", "admin request=70 op=create.file file=zznew",
-                "admin request=70 op=delete.file file=zznew", "admin request=70 op=analyse.file file=zznew",      # V7a (the verb refused: zznew held open by Z) and V7b
+                "admin request=70 op=delete.file file=zznew", "admin request=70 op=analyze.file file=zznew",      # V7a (the verb refused: zznew held open by Z) and V7b
                 "admin request=70 op=delete.file file=zznew",
                 "admin request=70 op=create.file file=zzdirx", "admin request=70 op=delete.file file=zzdirx", "refused request=72 route=sdfiles write=on admin=on",
-                "admin request=70 op=analyse.file file=dict zzh"]      # E1: the name the file was opened under, a dictionary as 'dict zzh'
+                "admin request=70 op=analyze.file file=dict zzh"]      # E1: the name the file was opened under, a dictionary as 'dict zzh'
         r("U1 the 'api refused ... admin=' and 'api admin ...' lines of the whole run are exactly these %d, in this order, all user=%s (refusals first, then every verb that ran; nothing for the "
           "words the grammar refused or the edit gate; the last two lines are E's marker and the analyse of E1)" % (len(want), me), got == want, repr(got))
         for w in (H, N, W, A):

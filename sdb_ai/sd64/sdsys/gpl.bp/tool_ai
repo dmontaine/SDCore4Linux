@@ -7,6 +7,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 (P-1938): the Custom box's last line names S, where the key and the model are set, as Linux Solo's does.
 * 17 Nov 26 dm  S.62 (P-1293, P-1294): the page's text no longer names an M key (gone with S.170); a model is chosen with S.
 * 8 Nov 26 dm   S.170: S is THE setup dialog, the same every time: the key (a password entry; a key already set shows as stars that keep it), the model chosen from the
 *               provider's own list (asked with the key when the dialog opens, and again as soon as a new key is taken), Other name for a model no list holds.  K and M
@@ -1254,7 +1255,7 @@ do.custom:
    typed = 'custom'
    el = ''
    el<-1> = 'Custom will go to ' : field(v2, '/', 3) : ' over https, with the certificate checked, and the key is sent only to that address.'
-   el<-1> = 'The helper checks the address again.  It is not used until you check Custom, set a model and a key.'
+   el<-1> = 'The helper checks the address again.  It is not used until you check Custom and set its key and model (S).'      ;* 17 Nov 26, S.62 (P-1938): S, the one setup dialog, since S.170
    use.x = 1
    gosub confirm.and.run
    return

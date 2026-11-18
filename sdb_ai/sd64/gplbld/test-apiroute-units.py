@@ -153,7 +153,7 @@ EG_OWN = "ent.sdsys.own = (downcase(@logname) = 'sdsys' and ent.name = 'sdsys')"
 EG_TEST = "if not(ent.sdsys.own) and ent.rec<ACC$GROUP> = '' then"
 EG_AUDIT = "'account refused branch=3 no.group.in.register account=' : ent.name"
 EG_SUSP = "'account refused branch=2 suspended account=' : ent.name"
-EG_MEMBER = "if not(is_grp_member(@logname, ent.rec<ACC$GROUP>)) then"
+EG_MEMBER = "ent.member = is_grp_member(@logname, ent.rec<ACC$GROUP>)"      # 17 Nov 26 (S.62 P-4910): the lookup is kept with its status, then tested
 
 
 def empty_group_checks(lines, ck):

@@ -5,6 +5,7 @@
   python3 .../test-gates-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 13 Oct 26.  28 Oct 26: B28 pins SED's PATH: (one open, no upcase retry), two mutants.
+17 Nov 26 (S.62 P-4906): B15b, the account manifest stops when a group lookup could not be made (ssh.key fails closed), two mutants.
 19 Oct 26 (integration): the mutant "CREATE.ACCOUNT OS-ON sets the wrong field" is anchored on the OS-ON case line.  1daee9d's `gates=` audit line
 added a second `settings<CA$OS.EXECUTE> = 1` ahead of the parse, sub() changes the first occurrence only, and so the mutant changed the audit text and
 nothing noticed: 70 of 71 on Dev 2a81059 itself (71 of 71 on both lanes, which lack that commit).
@@ -336,6 +337,16 @@ def checks(srcs, messages_dir):
     ai = c["acc_os_info"]
     ck("B15 the account manifest writes os.sh and os.execute (what RESTORE.ACCOUNT reads back)",
        "'os.sh: '" in ai and "'os.execute: '" in ai and "ACC$SH" in ai and "ACC$OS.EXEC" in ai)
+    # 17 Nov 26 (S.62 P-4906): a lookup !is_grp_member could not make (STATUS() 1) answered "not a member", so ssh.key was written 1 and a
+    # restore turned key sign-in on.  Every lookup of the USER arm is followed AT ONCE by the stop that names the same group.
+    ua = ai[at(ai, "case grp[1,4] = 'sdu_'"):at(ai, "case grp[1,4] = 'sdg_'")]
+    ua_lines = [ln.strip() for ln in ua.split("\n") if ln.strip()]
+    ua_looks = [(i, m.group(1)) for i, ln in enumerate(ua_lines) for m in [re.search(r"is_grp_member\(user, '(\w+)'\)", ln)] if m]
+    ua_bad = [g for i, g in ua_looks
+              if i + 1 >= len(ua_lines) or ua_lines[i + 1] != "if status() then err = 11021:@vm:'%s':@vm:status() ; return" % g]
+    ck("B15b the manifest fails closed: each of the 7 group lookups of a USER account (the six routes and ssh.key) is followed at once by a stop "
+       "with 11021 naming that group, so a group that could not be read never becomes a 0 or ssh.key: 1",
+       len(ua_looks) == 7 and not ua_bad and "sdsshnokey" in [g for _, g in ua_looks], "lookups %r, unguarded %r" % (ua_looks, ua_bad))
 
     ug = c["upgrade_gates"]
     mk = at(ug, "if ospath(marker, OS$EXISTS) then")
@@ -564,6 +575,8 @@ MUTANTS = [
     ("os.set writes without the lock", sub("modifya", "   readu acc.new from acc.f, acc.name else acc.new = acc.rec\n   if os.want", "   acc.new = acc.rec\n   if os.want")),
     ("micro needs no grant", sub("edit", "   if kernel(K$OS.EXEC, -1) then\n      permitted = @true\n      return\n   end\n", "   permitted = @true\n   return\n")),
     ("the manifest leaves out os.sh", sub("acc_os_info", "info<-1> = 'os.sh: '", "info<-1> = 'zz.sh: '")),
+    ("the manifest writes ssh.key: 1 when sdsshnokey could not be read (17 Nov 26, S.62 P-4906)", sub("acc_os_info", "         if status() then err = 11021:@vm:'sdsshnokey':@vm:status() ; return\n", "")),
+    ("the manifest's stop after the sdssh lookup names another group", sub("acc_os_info", "err = 11021:@vm:'sdssh':@vm:status()", "err = 11021:@vm:'sdapi':@vm:status()")),
     ("upgrade_gates tests its marker after the walk", swap("upgrade_gates", "   if ospath(marker, OS$EXISTS) then", "   select acc.f to 12")),
     ("upgrade_gates writes the marker even when a record failed", sub("upgrade_gates", "   if failed # 0 then", "   if @false then")),
     ("upgrade_gates touches group accounts", sub("upgrade_gates", "if rec<ACC$GROUP>[1, 4] = 'sdu_' then", "if @true then")),

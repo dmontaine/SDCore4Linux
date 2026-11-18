@@ -107,6 +107,10 @@ all: check-includes sd
 # which drops the privilege check on "sd -internal" so SD's own internals can
 # be compiled without sudo.  That binary announces itself on --version and on
 # every use of the flag; do not install one.  See gplsrc/sd.c, PRE_RELEASE 21.
+# 17 Nov 26 dm - S.62 P-1279: BCOMP accepts $INTERNAL only from a session that
+# holds the administrator flag too, so in a developer build compile SD's own
+# internals as the sdsys OS user (whom CPROC makes the administrator); and
+# -internal names no account but SDSYS, in every build.
 EXTRA_C_FLAGS ?=
 
 # 06 Nov 26 dm  S.125: SD was built with no -O at all.  OPT_FLAGS is the optimised build:

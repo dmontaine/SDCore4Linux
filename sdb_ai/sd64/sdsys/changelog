@@ -1,6 +1,73 @@
 Next release - in progress
 --------------------------
 
+17 Nov 26  SD -CLEANUP AND SD -U ARE FOR THE ADMINISTRATOR.
+
+             What        - "sd -cleanup" (clear the user table of sessions whose process has gone) and "sd -u" (list
+                           every session on the system) now run only for root or the sdsys user.  Anybody else is told
+                           "Command requires administrator privileges" and nothing is done.
+             Why         - -u shows every session on the machine with its user and process, where LISTU leaves other
+                           people's accounts blank for an ordinary user; -cleanup removes other people's entries from
+                           the user table.  SD Core for Windows has asked for the administrator on both since August,
+                           and where the two products differed before 13 October the tighter one is kept.
+             Does NOT    - Change the clean-up SD's own daemon does every five minutes (it runs as root), sd -status,
+                           or LISTU and LOGOUT inside SD.
+
+17 Nov 26  SD -INTERNAL IS FOR THE SDSYS ACCOUNT ONLY.
+
+             What        - "sd -internal" with an account other than SDSYS named (-a<account>) is refused:
+                           "sd: -internal may only be used with the SDSYS account".  Without an account it goes to
+                           SDSYS, as it did.
+             Why         - an internal session in an ordinary account has nothing legitimate to do there, and naming
+                           one is refused rather than quietly redirected, as SD Core for Windows has done since August.
+             Does NOT    - Change who may use -internal (root, as before) or what the installer runs.
+
+17 Nov 26  ONLY THE ADMINISTRATOR CAN COMPILE A $INTERNAL PROGRAM.
+
+             What        - the compiler accepts $INTERNAL only in a session that is both in internal mode and the
+                           administrator.  The bootstrap compile (sd -i) now holds the administrator flag for the
+                           programs it builds.
+             Why         - internal programs are the only ones that may make a session the administrator, so building
+                           one is an administrative act; SD Core for Windows has required both since August.
+             Does NOT    - Change ordinary programs, or the installer: every internal session it starts is already the
+                           administrator.  A developer build that compiles SD's own programs does so as the sdsys user.
+
+17 Nov 26  AN ACCOUNT BACKUP STOPS WHEN A LINUX GROUP CANNOT BE READ.
+
+             What        - when BACKUP.ACCOUNT (and the other callers of the account manifest) cannot read whether a
+                           user account's Linux user is in sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers
+                           or sdsshnokey, it stops with "Cannot read the Linux group <group> (status N)" instead of
+                           writing the answer as "not a member".
+             Why         - "not in sdsshnokey" is what lets a restored account sign in over ssh with a key, so a group
+                           file that could not be read made the backup say key sign-in was allowed, and a restore from
+                           it turned key sign-in on.  A route read that way was silently lost instead.
+             Does NOT    - Change a backup on a machine whose group file reads normally, or treat a group that does
+                           not exist as an error (nobody is in it).
+
+17 Nov 26  THE AUDIT TRAIL SAYS WHEN A GROUP COULD NOT BE READ.
+
+             What        - an API login refused because the sdusers group could not be read is audited "the sdusers
+                           group could not be read, status N", and an account entry over the API refused for the same
+                           reason "branch=4 group.lookup.failed status=N", instead of "not a member".  Request 70's
+                           operation 1 is recorded as analyze.file, the verb that runs.
+             Why         - "not a member" and "the machine could not answer" call for different action from whoever
+                           reads the trail; SD Core for Windows already tells them apart.
+             Does NOT    - Let anyone in: both are refused exactly as before.
+
+17 Nov 26  TOOL.REMOTE AND TOOL.CONFIG SAY WHEN A CHANGE IS BEING MADE.
+
+             What        - after Run is chosen in the confirm box, the status line says "Making the change (a few
+                           seconds)..." until the command has run and the page has read everything again.
+             Why         - the owner's rule: a line on the screen before any wait over two seconds, so the page does not
+                           look frozen.
+             Does NOT    - Change what is run or what the page shows afterwards.
+
+17 Nov 26  CONFIG CONTRIB LISTS THE SAME CONTRIBUTORS IN EVERY VERSION.
+
+             What        - the AI agents and models in the contributors list are the same in all four SD Core versions.
+             Why         - the owner's ruling: keep the credits, identical in all four.
+             Does NOT    - Change anything else.
+
 17 Nov 26  DELETE.ACCOUNT TAKES A KEPT LINUX USER OUT OF THE FILES AND AI GROUPS TOO.
 
              What        - when delete.account keeps the account's Linux user (one SD did not make), it now takes that
@@ -251,7 +318,7 @@ Next release - in progress
              Why         - any member of sdusers could suspend every update on the system with sd -suspend, or dump
                            every session and the configuration with -d and -m.  SD Core for Windows has gated them since
                            August.
-             Does NOT    - Change sd -cleanup, sd -u or sd -status, which are as they were.
+             Does NOT    - Change sd -status.  (sd -cleanup and sd -u have an entry of their own, above.)
 
 17 Nov 26  OVER-LONG SH, SH1 AND STARTUP VALUES IN SD.CONF ARE REFUSED.
 

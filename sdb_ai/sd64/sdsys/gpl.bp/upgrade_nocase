@@ -58,6 +58,7 @@
 *      folder's ACL.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4913: when the scan file or the work file cannot be made, the report names the file that was left (10184), as Windows does.
 * 14 Nov 26 dm  Compiler warnings: removed the unused counters already and cat.renamed; kept out.at and seen.at (LOCATE needs its SETTING variable).
 * 15 Oct 26 dm  The rebuild carries the sequential id counter of WRITE ... CREATING.SEQKEY to the new file (audit of the counter).
 * 07 Oct 26 dm  First COMPLETE install run (the owner's, of 40d0378): "Converted 2 of 3" and a
@@ -459,6 +460,7 @@ convert.one:
    create.file scan.path dynamic flags FL$FLAGS.NOCASE on error null
    openpath scan.path to scan.fu else
       crt sysmsg(6170) : ' (' : scan.path : ')'
+      crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): name the file that was left, not only the work file that failed
       close old.fu
       err.count += 1
       return
@@ -523,6 +525,7 @@ convert.one:
       close new.fu
       if not(ospath(new.path, OS$DELETE)) then
          crt sysmsg(6168) : ' (' : new.path : ')'
+         crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): and the file it left
          close old.fu
          err.count += 1
          return
@@ -532,6 +535,7 @@ convert.one:
    create.file new.path dynamic flags FL$FLAGS.NOCASE on error null
    openpath new.path to new.fu else
       crt sysmsg(6170) : ' (' : new.path : ')'
+      crt sysmsg(10184, one.path)   ;* File: %1 - 17 Nov 26 (S.62 P-4913): and the file it left
       close old.fu
       err.count += 1
       return

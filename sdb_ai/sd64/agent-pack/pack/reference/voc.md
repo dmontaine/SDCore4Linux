@@ -106,7 +106,7 @@ last part of the pathname in field 5, which is the name it was cataloged
 under, so a program cataloged under a call name different from its program
 name is not reached this way.
 
-The 248 K-records in a stock VOC are the query processor's vocabulary,
+The 218 K-records in a stock VOC are the query processor's vocabulary,
 and they are what makes a sentence like `list stock with qty > 100 by
 supplier` parse.
 

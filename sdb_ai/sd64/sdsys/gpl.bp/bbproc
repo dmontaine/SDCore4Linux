@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-1279: sets the administrator flag after its root test; BCOMP accepts $INTERNAL only from the administrator.
 * 14 Nov 26 dm  Compiler warning: removed the unused assignment to inp_ln in inp_sub (its only caller is commented out).
 * 28 Oct 26 dm  S.87: the call of $BCOMP no longer passes the is.ctype argument (the C dictionary item type is gone).
 * 26 Oct 26 dm  _sdsysn joins the bootstrap list: LOGIN calls !sdsysn when SDSYS signs on (S.76), and SECOND.COMPILE signs on as SDSYS.
@@ -156,6 +157,10 @@ if system(27) # 0 then
   crt 'Command requires administrator privileges'
   goto abort.bbproc
 end
+
+* 17 Nov 26 dm - S.62 P-1279: BCOMP accepts $INTERNAL only from the administrator now, and this process is root, building the
+*   system: it holds the flag for the programs it compiles.  Set from here because no CPROC or LOGIN has run (sd -i starts $bbproc).
+void kernel(K$ADMINISTRATOR, 1)
 
 if ospath(@sdsys:@ds:'gpl.bp.out/login',OS$EXISTS) then
    crt 'System Already Installed?'

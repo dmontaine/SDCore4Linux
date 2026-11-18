@@ -287,20 +287,6 @@ cited by: `delacc`
 No memory for PROGRAM control area
 ```
 
-### msg:10032
-> kind=message tier=reference since=- src=sdsys/messages/10032:1#d96981ab
-
-```
-%1 is now an SD administrator
-```
-
-### msg:10033
-> kind=message tier=reference since=- src=sdsys/messages/10033:1#82de2b7c
-
-```
-Unable to make %1 an administrator, status: %2
-```
-
 ### msg:10036
 > kind=message tier=reference since=- src=sdsys/messages/10036:1#65716a5b
 
@@ -11027,6 +11013,15 @@ Account %1 may sign in over ssh with a key: %2
 ```
 
 cited by: `create_account`, `modifya`
+
+### msg:14172
+> kind=message tier=reference since=- src=sdsys/messages/14172:1#638f988a
+
+```
+Making the change (a few seconds)...
+```
+
+cited by: `tool_config`, `tool_remote`
 
 ### msg:1418
 > kind=message tier=reference since=- src=sdsys/messages/1418:1#91241493

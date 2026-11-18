@@ -40,8 +40,16 @@ def rows_for(path, bp_dir):
             n = strip_comments(open(p, encoding="utf-8", errors="replace").read()).count("kernel(K$ADMINISTRATOR, 1)")
             if n:
                 sites[name] = n
-    row("K$ADMINISTRATOR is set at four places in CPROC (the install arm, the scheduled job, the local arm, the ssh arm) and at ONE in APISRVR (S.256, 16 Nov 26: an "
-        "SDSYS API session the door admitted), and nowhere else", sites == {"cproc": 4, "apisrvr": 1}, "%s" % sites)
+    row("K$ADMINISTRATOR is set at four places in CPROC (the install arm, the scheduled job, the local arm, the ssh arm), at ONE in APISRVR (S.256, 16 Nov 26: an "
+        "SDSYS API session the door admitted) and at ONE in BBPROC (S.62 P-1279, 17 Nov 26: the bootstrap, root only), and nowhere else",
+        sites == {"cproc": 4, "apisrvr": 1, "bbproc": 1}, "%s" % sites)
+    # 17 Nov 26 (S.62 P-1279): BCOMP accepts $INTERNAL only from the administrator, so the bootstrap ($bbproc, started by "sd -i", where no
+    # CPROC or LOGIN has run) holds the flag for the programs it compiles.  The grant must come AFTER the refusal of anyone who is not root.
+    bb = strip_comments(open(os.path.join(bp_dir, "bbproc"), encoding="utf-8", errors="replace").read())
+    bg = bb.find("void kernel(K$ADMINISTRATOR, 1)")
+    br = re.search(r"if system\(27\) # 0 then\s*\n[^\n]*\n\s*goto abort\.bbproc\s*\n\s*end", bb)
+    row("BBPROC's one grant comes after its root test (system(27) # 0 goes to abort.bbproc) and before anything is compiled",
+        br is not None and 0 < br.end() <= bg < bb.find("unload.object"), "root test at %s, grant at %d" % (br.span() if br else None, bg))
     api = strip_comments(open(os.path.join(bp_dir, "apisrvr"), encoding="utf-8", errors="replace").read())
     ag = api.find("void kernel(K$ADMINISTRATOR, 1)")
     row("APISRVR's one grant is given only when a door admitted SDSYS (sdsys.api.from not null), after the Linux identity was assumed",

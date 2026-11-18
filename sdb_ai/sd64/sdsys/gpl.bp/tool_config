@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Nov 26 dm  S.62 P-4630 (Q9): before SET.CONFIG runs, the status line says 14172 (Making the change (a few seconds)...).
 * 17 Nov 26 dm  S.62 (Q9, the owner's rule of 12 Nov 26, carried from the Windows port's RELEASE_1.1 243): the status line says 14150 (Reading the settings (a few
 *               seconds)...) before the report's !settings_os, so the screen does not look frozen while it runs.
 * 14 Nov 26 dm  Compiler warning: the "Not changed here" SCREEN MSGBOX no longer keeps its answer in bx, which nothing read (RETURNING and ELSE are optional).
@@ -831,6 +832,8 @@ change.param:
       msg = cmsg
       return
    end
+   msg = sysmsg(14172)                                          ;* Making the change (a few seconds)...  17 Nov 26 (S.62 P-4630, the owner's Q9)
+   call $tk_frame(ctx, keys, panes<view>, msg)
    call $tk_run(allow, sent, out, stat, err)
    gosub read.all
    gosub draw.all

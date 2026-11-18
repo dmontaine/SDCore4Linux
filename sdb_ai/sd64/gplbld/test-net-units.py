@@ -1085,7 +1085,10 @@ def checks_2c(srcs, c, ck):
        "is still refused first with 5009",
        re.search(r"if not\(api\.in\.sdfiles\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdapi or sdfiles'\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
                  r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None
-       and re.search(r"if not\(is_grp_member\(scram\.user, 'sdusers'\)\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdusers'\s*\n\s*abort\.message = sysmsg\(5009\)", fin) is not None, "")
+       # 17 Nov 26 (S.62 P-4909): the sdusers lookup is three-valued too - a lookup that could not be made has its own reason, and both refuse with 5009
+       and re.search(r"api\.in\.sdusers = is_grp_member\(scram\.user, 'sdusers'\)\s*\n\s*api\.sdusers\.stat = status\(\)\s*\n\s*if not\(api\.in\.sdusers\) then\s*\n"
+                     r"\s*if api\.sdusers\.stat # 0 then\s*\n\s*scram\.refuse\.reason = 'the sdusers group could not be read, status ' : api\.sdusers\.stat\s*\n"
+                     r"\s*end else\s*\n\s*scram\.refuse\.reason = 'not a member of sdusers'\s*\n\s*end\s*\n\s*abort\.message = sysmsg\(5009\)", fin) is not None, "")
     gi = ap.find("if files.only then")
     gb = ap[gi:ap.find("cproc.date = date()", gi)] if gi >= 0 else ""
     nl_ = ap.find("abort.message = sysmsg(5270)")
@@ -3637,7 +3640,7 @@ mut("apisrvr: the mark is set for everybody", AP2, "if api.files.login then\n   
 mut("apisrvr: the mark is never set", AP2, "files.only = @true", "files.zz = @true")
 mut("apisrvr: the mark is set before the identity is assumed",
     AP2, lambda t: t.replace("                  files.only = @true\n", "", 1).replace("               if not(kernel(K$ASSUME.USER, scram.user)) then", "               files.only = api.files.login\n               if not(kernel(K$ASSUME.USER, scram.user)) then", 1))
-mut("apisrvr: the sdusers test is gone", AP2, "if not(is_grp_member(scram.user, 'sdusers')) then", "if 0 then")
+mut("apisrvr: the sdusers test is gone", AP2, "api.in.sdusers = is_grp_member(scram.user, 'sdusers')", "api.in.sdusers = @true")      # 17 Nov 26 (S.62 P-4909): the lookup is a variable now
 mut("apisrvr: sdfiles is read before sdapi",
     AP2, lambda t: t.replace("is_grp_member(scram.user, 'sdapi')", "is_grp_member(scram.user, 'sdfiles') ;* swapped", 1).replace("api.in.sdfiles = is_grp_member(scram.user, 'sdfiles')", "api.in.sdfiles = is_grp_member(scram.user, 'sdapi')", 1))
 mut("apisrvr: sdapi does not win (the sdfiles route is read for everybody)", AP2, "                  if not(api.in.sdapi) then\n", "                  if @true then\n")

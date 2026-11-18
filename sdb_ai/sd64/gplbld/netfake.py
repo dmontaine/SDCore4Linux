@@ -1274,7 +1274,7 @@ class FileSession:
         return self.server.revision
 
     # ---- 21 Oct 26, S.73 item 3: the administration requests, 68 to 71 (gpl.bp/apifilesok's files.adm; the gate is FileSession.allowed) -------------------------------------
-    ADMIN_VERBS = {1: "analyse.file", 2: "configure.file", 3: "create.index", 4: "build.index", 5: "delete.index", 6: "disable.index", 8: "create.file", 9: "delete.file"}
+    ADMIN_VERBS = {1: "analyze.file", 2: "configure.file", 3: "create.index", 4: "build.index", 5: "delete.index", 6: "disable.index", 8: "create.file", 9: "delete.file"}
     EXCLUSIVE_OPS = frozenset([3, 4, 5, 6])      # the index verbs need the file to themselves: another session holding it open makes the verb refuse (reply OK, a non-zero STATUS())
 
     def _seqkey(self, data, keep):
@@ -3952,11 +3952,11 @@ def selftest_admin(srv, row):
 
     # ---- the server verb (70) --------------------------------------------------------------------------------------------------------
     r = c.req(R_FILEADMIN, A(1, f_af))
-    row("vb.fileadmin operation 1 (analyse.file): the file is named by the OPEN FILE, the answer is the verb's lines and STATUS() its return code (0); the audit line is 'api admin request=70 op=analyse.file file=af user=alice'",
-        r == (0, 0, b"analyse.file af done") and ses.audit[-1:] == ["api admin request=70 op=analyse.file file=af user=alice"] and ses.admin_log[-1] == ("analyse.file", "af", ""), repr((r, ses.audit[-1:], ses.admin_log[-1:])))
+    row("vb.fileadmin operation 1 (analyze.file): the file is named by the OPEN FILE, the answer is the verb's lines and STATUS() its return code (0); the audit line is 'api admin request=70 op=analyze.file file=af user=alice'",
+        r == (0, 0, b"analyze.file af done") and ses.audit[-1:] == ["api admin request=70 op=analyze.file file=af user=alice"] and ses.admin_log[-1] == ("analyze.file", "af", ""), repr((r, ses.audit[-1:], ses.admin_log[-1:])))
     r1_, r2_ = c.req(R_FILEADMIN, A(7, f_af)), c.req(R_FILEADMIN, A(10, f_af))
     row("... an operation that is none of 1 to 6, 8 and 9 (7 is free; there is no enable.index) is an ON ERROR reply with message 11531, and nothing is audited for it",
-        r1_ == (1, 0, msg(11531, 7).encode("latin-1")) and r2_ == (1, 0, msg(11531, 10).encode("latin-1")) and ses.audit[-1:] == ["api admin request=70 op=analyse.file file=af user=alice"], repr((r1_, r2_, ses.audit[-1:])))
+        r1_ == (1, 0, msg(11531, 7).encode("latin-1")) and r2_ == (1, 0, msg(11531, 10).encode("latin-1")) and ses.audit[-1:] == ["api admin request=70 op=analyze.file file=af user=alice"], repr((r1_, r2_, ses.audit[-1:])))
     n_audit = len(ses.audit)
     bad = {}
     for label, words in (("pathname", "pathname /etc"), ("force", "col1 FORCE"), ("lptr", "lptr"), ("no.query", "no.query"), ("a slash", "../x"), ("a quote", "a'b"),
@@ -3965,11 +3965,11 @@ def selftest_admin(srv, row):
     row("... the words check refuses PATHNAME, FORCE, LPTR, NO.QUERY, a slash, a quote, two blanks, DIRECTORY before the last word and a text of over 200 characters - each an ON ERROR reply with message 11530, "
         "nothing audited, nothing run",
         all(v[0] == 1 and "is not accepted here" in v[2].decode("latin-1") for v in bad.values()) and len(ses.audit) == n_audit
-        and ses.admin_log[-1][0] == "analyse.file", repr(bad))
+        and ses.admin_log[-1][0] == "analyze.file", repr(bad))
     r_ok = c.req(R_FILEADMIN, A(3, f_af, "city 2 d"))
     row("CONTROL: ordinary words (letters, digits, . _ -) go to the verb", r_ok == (0, 0, b"create.index af done") and ses.admin_log[-1] == ("create.index", "af", "city 2 d"), repr((r_ok, ses.admin_log[-1])))
     r_v1, r_v2 = c.req(R_FILEADMIN, A(1, f_voc)), c.req(R_FILEADMIN, A(4, f_voc))
-    row("... check.edit applies to every operation but the report: analyse.file on a Q-pointer to a VOC is served, build.index on it is SV$ERROR 11405",
+    row("... check.edit applies to every operation but the report: analyze.file on a Q-pointer to a VOC is served, build.index on it is SV$ERROR 11405",
         r_v1[0] == 0 and r_v2 == (3, 0, b"") and c.error_text() == msg(11405), repr((r_v1, r_v2, c.error_text())))
     r = c.req(R_FILEADMIN, A(1, 9))
     row("... a file number that is not open is SV$ERROR with 5268", r == (3, 0, b"") and c.error_text() == msg(5268), repr((r, c.error_text())))
@@ -3992,14 +3992,14 @@ def selftest_admin(srv, row):
     s2 = srv.sessions[-1]
     o2, = opened(c2, "af")
     r_x = c.req(R_FILEADMIN, A(4, f_af))
-    row("an index verb with the file open in ANOTHER session is the verb's refusal: reply OK, STATUS() -1 and the words 'exclusive access' (the verbs need the file to themselves); analyse.file is not refused",
+    row("an index verb with the file open in ANOTHER session is the verb's refusal: reply OK, STATUS() -1 and the words 'exclusive access' (the verbs need the file to themselves); analyze.file is not refused",
         r_x[0] == 0 and r_x[1] == 2 ** 32 - 1 and b"exclusive access" in r_x[2] and c.req(R_FILEADMIN, A(1, f_af))[1] == 0, repr(r_x))
     bye(c2, s2)
     r_y = c.req(R_FILEADMIN, A(4, f_af))
     row("... and once the other session has closed it the same request is served (STATUS() 0)", r_y == (0, 0, b"build.index af done"), repr(r_y))
     f_dict, = opened(c, "dict af")
     r_dn = c.req(R_FILEADMIN, A(1, f_dict))
-    row("a dictionary is named by the name it was opened under: 'dict af'", ses.audit[-1:] == ["api admin request=70 op=analyse.file file=dict af user=alice"] and r_dn[0] == 0, repr((r_dn, ses.audit[-1:])))
+    row("a dictionary is named by the name it was opened under: 'dict af'", ses.audit[-1:] == ["api admin request=70 op=analyze.file file=dict af user=alice"] and r_dn[0] == 0, repr((r_dn, ses.audit[-1:])))
     bye(c, ses)
     c = connect(files_only=True, write_group=True, admin_group=True, no_file_access=True)
     ses = srv.sessions[-1]
@@ -4516,7 +4516,7 @@ MUTANTS = {
     "SELECTINDEX of a value does not set the position": ("        self.scanpos[(self.cur_fno, name)] = (\"K\", value)\n", "        pass\n", ["S4/S5 SELECTINDEX of a value (39 or 26) sets the position"]),
     "a left scan answers the first key to the left, not the nearest": ("            hit = cand[-1] if cand else None", "            hit = cand[0] if cand else None", ["S2 setright, then selectleft"]),
     "request 70 is not audited": ("        self.audit.append(\"api admin request=70 op=%s file=%s user=%s\" % (verb, shown, self.user))", "        pass",
-        ["vb.fileadmin operation 1 (analyse.file)", "... an operation that is none of 1 to 6", "operation 8 (create.file) names a NEW file", "a dictionary is named by the name"]),
+        ["vb.fileadmin operation 1 (analyze.file)", "... an operation that is none of 1 to 6", "operation 8 (create.file) names a NEW file", "a dictionary is named by the name"]),
 }
 
 

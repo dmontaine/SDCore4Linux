@@ -19,8 +19,10 @@ from source during the install.
 | `sd64/sdsys/` | the SDSYS system account as shipped: `gpl.bp` (the SD BASIC system programs), `messages`, `newvoc`, `voc_template`, and the `changelog` |
 | `sd64/gplbld/` | the build: the Python tooling that compiles the SD BASIC system programs, and the helpers the installer places on the machine (`sd-elevate`, `ssh-forcecommand.sh`, `reconcile-accounts.sh`, the `sudoers` drop-in) |
 | `sd64/Makefile` | builds the C half |
-| `sd64/usr/lib/systemd/system/` | the systemd units: `sd.service` and the client socket |
+| `sd64/usr/lib/systemd/system/` | the systemd units: `sd.service`, `sd-lnxd.service` (the daemon), the client socket and the AI helper's socket |
+| `sd64/agent-pack/` | the SD BASIC guide and knowledge pack for an AI agent; the installer copies `guide/` and `pack/` into the installation |
 | `sd64/examples/` | example programs, including embedded Python |
 | `sd64/terminfo.src/` | terminal definitions |
+| `sd64/bin/`, `sd64/gplobj/` | build output, not tracked |
 
 See `sd64/sdsys/changelog` for the changes in each version.
