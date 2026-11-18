@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 18 Nov 26 dm S.62 round 7: SSH / API / BOTH / NONE on a group account says 10087 (a group account, reach it with logto)
+*              instead of 10081 status 2, as set.files and SD Core for Windows say it; nothing else changes.
 * 17 Nov 26 dm S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in is off as delivered for the accounts SD makes, a documented loosening for the administrator):
 *           SSH-KEY-ON / SSH-KEY-OFF take the account's Linux user out of the group sdsshnokey and put it back (sshd offers a member no key sign-in).  set.sshkey is the one
 *           routine: a group or other account is refused (10087, 10081), and so is a USER account whose Linux user SD did not make (14170: its keys are its own); the
@@ -938,6 +940,15 @@ set.unsuspended:
 * so it is reported with its status rather than called a change.
 
 set.route:
+* 18 Nov 26 dm - S.62 round 7: a group account is refused with its own reason, as set.files and the other route actions
+*   refuse it (10087), before the sdusers test that would only have said "status 2".  Same refusal, nothing changed; the words
+*   SD Core for Windows already gives.
+   if group.name[1,4] = 'sdg_' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto
+      return
+   end
+
    route.user = acc.name
 
    if not(valid_os_name(route.user)) then
