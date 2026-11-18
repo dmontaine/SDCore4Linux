@@ -102,10 +102,11 @@ def checks(raw):
        and len(re.findall(r"\bexecute\b", ld)) == len(re.findall(r"\bexecute\b[^\n]*\btrapping aborts\b", ld)))
     ca = code(raw["createa"])
     i_aud = ca.find("void kernel(K$AUDIT, 'create.account account='")
-    i_ld = ca.find("execute 'load.examples ' : downcase(acc.name) trapping aborts")
-    ck("X5", "create.account runs load.examples for the account it made, after its audit line, trapping aborts, goes back to the account it began in, "
-             "and says 14185 when the examples were not loaded", 0 < i_aud < i_ld
-       and 0 < i_ld < ca.find("if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts") and "sysmsg(14185" in ca)
+    i_ld = ca.find("execute 'load.examples ' : downcase(acc.name) trapping aborts\n")
+    ck("X5", "create.account runs load.examples for the account it made, after its audit line, trapping aborts and NOT capturing (S.270: capturing "
+             "around a trapped abort crashed the process), goes back to the account it began in, and says 14185 when its return code is not 0", 0 < i_aud < i_ld
+       and 0 < i_ld < ca.find("if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts") and "if ex.code # 0 then crt sysmsg(14185" in ca
+       and not re.search(r"execute 'load\.examples[^\n]*capturing", ca))
     inst = raw["inst"] or ""
     b = inst.find("# EXAMPLES-BEGIN")
     blk = inst[b:inst.find("# EXAMPLES-END")] if b >= 0 else ""
@@ -166,8 +167,10 @@ MUTANTS = [
     ("load.examples does not ask for the administrator", "X4", sub("load", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001)", "   if 0 then\n      stop sysmsg(2001)")),
     ("a suspended account is entered", "X4", sub("load", "if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue", "null")),
     ("the compile is not judged", "X4", sub("load", "if index(out, 'Compiled 1 program(s) with no errors', 1) then", "if 1 then")),
-    ("create.account does not load the examples", "X5", sub("createa", "   execute 'load.examples ' : downcase(acc.name) trapping aborts capturing ex.out", "   ex.out = ''")),
-    ("create.account does not go back where it began", "X5", sub("createa", "   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts capturing ex.lt\n", "")),
+    ("create.account does not load the examples", "X5", sub("createa", "   execute 'load.examples ' : downcase(acc.name) trapping aborts\n", "   null\n")),
+    ("create.account does not go back where it began", "X5", sub("createa", "   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts\n", "")),
+    ("create.account captures load.examples again (S.270 crash)", "X5", sub("createa", "   execute 'load.examples ' : downcase(acc.name) trapping aborts\n",
+                                                                           "   execute 'load.examples ' : downcase(acc.name) trapping aborts capturing ex.out\n")),
     ("load.examples' create.file aborts out of the verb", "X4", sub("load", "execute 'create.file examples.bp directory' trapping aborts capturing mk", "execute 'create.file examples.bp directory' capturing mk")),
     ("the installer block does not warn", "X6", sub("inst", "    echo \"WARNING: the example programs were not put into the accounts.\"\n", "")),
     ("the installer block runs load.examples as root's session, not internally", "X6", sub("inst", "sudo bin/sd -internal load.examples < /dev/null", "sudo bin/sd load.examples < /dev/null")),

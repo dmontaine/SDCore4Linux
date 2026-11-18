@@ -351,15 +351,13 @@ $include createacc.h
 *   sdsys user joins the account's group (sdu_<name>) above, and a process keeps the groups it started with, so load.examples' create.file
 *   ABORTED there (8207) and the abort ended it before its way back.  load.examples now traps its aborts; here the call traps them too, the
 *   session is put back in the account it started in whatever happened, and a load that did not happen is said with what to type (14185).
+*   NOT CAPTURED (measured on the VM, 18 Nov): CAPTURING around a command whose own EXECUTE traps an abort crashed the process (Fault type
+*   11 in $loadexamples, S.270), so load.examples prints its own lines here and is judged by its return code (-ER$FAILED when anything failed).
    ex.origin = downcase(@who)
-   execute 'load.examples ' : downcase(acc.name) trapping aborts capturing ex.out
-   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts capturing ex.lt
-   ex.failed = @false
-   for ex.i = 1 to dcount(ex.out, @fm)
-      if index(ex.out<ex.i>, 'Example programs in examples.bp', 1) or ex.out<ex.i>[1, 9] = 'Compiled ' or index(ex.out<ex.i>, 'was not loaded', 1) then crt ex.out<ex.i>
-      if index(ex.out<ex.i>, 'Could not enter the account', 1) or index(ex.out<ex.i>, 'was not loaded', 1) then ex.failed = @true
-   next ex.i
-   if ex.failed or index(ex.out, 'Example programs in examples.bp of 1 account', 1) = 0 then crt sysmsg(14185, downcase(acc.name))
+   execute 'load.examples ' : downcase(acc.name) trapping aborts
+   ex.code = @system.return.code
+   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts
+   if ex.code # 0 then crt sysmsg(14185, downcase(acc.name))
 
 * 17 Nov 26 dm - S.62 (P-3329): the account is made, so the command succeeded.  The code was still the -ER$ARGS preset, or whatever the
 *   nested load.examples left; a paragraph or a caller that tests @system.return.code now sees 0.
