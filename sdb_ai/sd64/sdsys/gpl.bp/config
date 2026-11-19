@@ -19,7 +19,8 @@
 * 
 * START-HISTORY:
 * 19 Nov 26 dm  S.273: CONFIG GPL and CONFIG CONTRIB read and display their file (show.text) instead of "sh less", which the SH gate
-*               refused to every account without sh-on - the ordinary accounts the sign-on banner sends there.
+*               refused to every account without sh-on - the ordinary accounts the sign-on banner sends there.  CONFIG goes into
+*               newvoc; every form but GPL and CONTRIB asks for the administrator first (Solo's rule).
 * 14 Nov 26 dm  S.242 stage 1: the listing gains XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX and XFERKIND.
 * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
 * 28 Oct 26 dm  S.87: the contrib and licence pages are shown with sh less (the ! verb is gone).
@@ -75,6 +76,14 @@ $include parser.h
    call @parser(parser$get.token, token.type, token, keyword)  ;* Verb
 
    call @parser(parser$get.token, token.type, param, keyword)
+
+* 19 Nov 26 dm - S.273: CONFIG is in every account's VOC now (newvoc), because the sign-on banner tells every
+*    session to type CONFIG GPL and CONFIG CONTRIB, and it was in SDSYS's VOC alone.  Those two read-only displays
+*    are open to everyone; every other form - the listing, LPTR, setting a parameter - needs the administrator, as
+*    it did when only SDSYS had the verb.  The same rule as SD Core Solo for Linux (its ruling 35 / SOLO 21).
+   if upcase(param) # 'GPL' and upcase(param) # 'CONTRIB' then
+      if not(kernel(K$ADMINISTRATOR, -1)) then stop sysmsg(2001) ;* Command requires administrator privileges
+   end
 
    begin case
       case upcase(param) = 'GPL' 		; gosub show.gpl

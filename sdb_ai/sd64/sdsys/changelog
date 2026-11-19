@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  CONFIG GPL AND CONFIG CONTRIB WORK IN EVERY ACCOUNT.
+
+             What        - The sign-on banner tells every session to type CONFIG GPL for the licence and CONFIG
+                           CONTRIB for the contributors.  Both now work in every account and show the text inside
+                           SD, paged like any other output.
+             Why         - CONFIG was a verb of the SDSYS account only, so an ordinary account answered "CONFIG is
+                           not in your VOC"; and the two pages ran the operating system's "less" through SH, which
+                           is off for every new account, so even an account given the verb was refused.
+             Does NOT    - Open the rest of CONFIG.  Listing the settings (CONFIG, CONFIG LPTR) and setting one for
+                           the session still need the administrator, and answer "Command requires administrator
+                           privileges" in any other account.
+
 19 Nov 26  THE API WORKS ON UBUNTU 24.04.
 
              What        - Every connection to the API on Ubuntu 24.04 was refused with "TLS relay ended before the

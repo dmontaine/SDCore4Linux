@@ -14537,7 +14537,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 13
 },
 "msg:2050": {
 "kind": "message",
@@ -26913,7 +26913,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 39
+"words": 36
 },
 "tcl:configure.file": {
 "kind": "tcl.verb",
@@ -29566,7 +29566,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 101
+"words": 100
 },
 "voc:type:F": {
 "kind": "voc.type",
@@ -29629,7 +29629,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 126
+"words": 119
 },
 "voc:types": {
 "kind": "voc.types",

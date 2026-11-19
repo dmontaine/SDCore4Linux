@@ -11720,7 +11720,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 25 more
+cited by: `audit_read`, `backupa`, `catalog`, `config`, `cproc`, `createa`, `delacc`, `delcat` and 26 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -11951,7 +11951,7 @@ cited by: `pterm`
 Cannot load %1 - %2 not found
 ```
 
-cited by: `_voc_cat`
+cited by: `_voc_cat`, `config`
 
 ### msg:2050
 > kind=message tier=reference since=- src=sdsys/messages/2050:1#2646b57d
