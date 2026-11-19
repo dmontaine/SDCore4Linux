@@ -36,6 +36,8 @@
 #
 # START-HISTORY:
 # 18 Nov 26 dm  S.267 - written; syntax-checked (bash -n), NOT run.
+# 19 Nov 26 dm  first run (Ubuntu 24.04, package dev20261119c, driven by .claude/vmtools/drive-localsdsys.py on the owner's word): 53 of 54; L10's
+#               wait read a line already on the terminal, so the console login came after L15 - it now empties the terminal first.
 # END-HISTORY
 
 set -u
@@ -265,6 +267,9 @@ say "=== L10 the console ==="
 T10=$(date +%s)
 say "      THE PERSON: at the VM's own console, log in as $LISTED, type  sd-sdsys  and press Enter, log out, then press Enter here."
 if [ "$COMMIT" -eq 1 ]; then
+  # 19 Nov 26: throw away what is already waiting on the terminal first - the first run's L10 read a line left over from an earlier ssh row and went
+  #   on at once, so the console login came after L15 had cleared the lists and the helper said list-empty, not not-ssh.
+  while read -r -t 0.3 _ < /dev/tty; do :; done
   read -r _ < /dev/tty
   J=$(journal_since "$T10")
   printf '%s\n' "$J" | tail -n 5 | sed -e 's/^/      | /'
