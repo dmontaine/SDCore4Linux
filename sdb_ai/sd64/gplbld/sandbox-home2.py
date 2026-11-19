@@ -19,7 +19,7 @@
 #   C  SUB-MENUS.  The delivered page has no folder tile, so the rows run on the sandbox's COPY of tool_home with one declared (the Develop group becomes the menu develop, a tile Develop in
 #      Everyone opens it) and a chain of nine menus: the page and its path on the status line, the Back tile, Esc and Backspace and the menu and a click, the focus given back, a menu that is
 #      open above refused (11956), the ninth level refused (11957), Switch account starting at the top page, and a tile started in a sub-menu coming back as a Recent tile
-#   D  THE STANDARD TILE IDS.  SET.TILE accepts all fourteen ids without the "not standard" note, and with all of them off the page draws nothing but Sign out (the ids are the tiles it draws)
+#   D  THE STANDARD TILE IDS.  SET.TILE accepts all fifteen ids without the "not standard" note, and with all of them off the page draws nothing but Sign out (the ids are the tiles it draws)
 #   B  CREATE.ACCOUNT's START-MENU, START-TERMINAL and PINS-ON, on an OTHER account (a sandbox cannot make Linux users: GROUP and USER need root and are for the VM witness): the register
 #      fields, the lines said, the audit line, two start words refused with nothing made, words that restate the delivered state refused, and !create_account called with a start word that is
 #      neither (nothing made).  sudo is a stand-in first in PATH whose log is read
@@ -361,8 +361,8 @@ def c_sub():
 
 # ------------------------------------------------------------------------------------------------------------------------------- D  the standard ids
 
-STANDARD = "editor ide terminal keys switch signout files voc dict query bulk catalog test recent".split()
-LABELS = ("Editor", "IDE", "Terminal", "Keys", "Switch account", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")
+STANDARD = "editor ide examples terminal keys switch signout files voc dict query bulk catalog test recent".split()   # 19 Nov 26: examples
+LABELS = ("Editor", "IDE", "Example programs", "Terminal", "Keys", "Switch account", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")
 
 
 def d_ids():
@@ -371,11 +371,11 @@ def d_ids():
     offs = [t for t in STANDARD if t != "signout"]
     out = adm(*(["set.tile %s %s off" % (a, t) for t in offs] + ["set.tile %s zzcustom off" % a]))
     nonstd = [ln for ln in out if "is not a standard tile" in ln]
-    R("D1", "SET.TILE takes all fourteen standard ids (the seven development tiles and recent among them) with 'is now off' and no 'not a standard tile' note; an id that is not one still gets the note",
-      len([ln for ln in out if re.search(r"^Tile \S+ is now off for zzhm$", ln)]) == 14 and len(nonstd) == 1 and "zzcustom" in nonstd[0], repr(out[-6:]))
+    R("D1", "SET.TILE takes all the standard ids but Sign out (the seven development tiles, examples and recent among them) with 'is now off' and no 'not a standard tile' note; an id that is not one still gets the note",
+      len([ln for ln in out if re.search(r"^Tile \S+ is now off for zzhm$", ln)]) == len(offs) + 1 and len(nonstd) == 1 and "zzcustom" in nonstd[0], repr(out[-6:]))
     r = g.reg_read(a)
     f17 = r[16] if len(r) > 16 else ""
-    R("D1b", "...and field 17 of the register record holds the fourteen ids", sorted(f17.split()) == sorted(offs + ["zzcustom"]), repr(f17))
+    R("D1b", "...and field 17 of the register record holds those ids and the custom one", sorted(f17.split()) == sorted(offs + ["zzcustom"]), repr(f17))
     h = H(a)
     T = h.text()
     R("D2", "with every standard id off (all but Sign out, which cannot be) the page draws nothing but Sign out: no tile of the page is outside the standard ids, and no group heading is left",

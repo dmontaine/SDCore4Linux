@@ -137,8 +137,8 @@ def main():
         row("the accounts, in order, without SDSYS: zzhd zzhm zzhs zzht zzhv (zzhs is marked suspended), each with where it starts (own word, or 'default (terminal)')",
             all(re.search(p, h.line(r)) for p, r in ((r"zzhd\s+OTHER\s+default \(terminal\)", 3), (r"zzhm\s+OTHER\s+menu", 4), (r"zzhs\s+OTHER \(s\)\s+menu", 5), (r"zzht\s+OTHER\s+terminal", 6), (r"zzhv\s+OTHER\s+menu", 7)))
             and "sdsys" not in T.replace("administrator", ""), repr([h.line(r)[:60] for r in range(2, 9)]))
-        row("the first account is selected (reverse video on its row) and the Menu box is for it: 'Starts in' and the fourteen standard ids (the six tiles of the account, the seven development tiles and the Recent group), all on ([x])",
-            "r" in h.style(3, 5)[2] and "Starts in" in h.line(2)[72:] and len(re.findall(r"\[x\] [A-Z]", T)) == 14, repr((h.style(3, 5), h.line(2)[72:100], len(re.findall(r"\[x\] [A-Z]", T)))))
+        row("the first account is selected (reverse video on its row) and the Menu box is for it: 'Starts in' and the fifteen standard ids (the seven tiles of the account, the seven development tiles and the Recent group), all on ([x])",
+            "r" in h.style(3, 5)[2] and "Starts in" in h.line(2)[72:] and len(re.findall(r"\[x\] [A-Z]", T)) == 15, repr((h.style(3, 5), h.line(2)[72:100], len(re.findall(r"\[x\] [A-Z]", T)))))
         h.key("down")
         row("Down selects the next account (zzhm): its row is in reverse video and zzhd's is not", "r" in h.style(4, 5)[2] and "r" not in h.style(3, 5)[2], repr((h.style(3, 5), h.style(4, 5))))
         h.key("up")
@@ -163,8 +163,9 @@ def main():
             f17 == "ide" and "Tile ide is now off for zzhd" in h.line(40), repr((f17, h.line(40))))
         T = h.text()
         row("the page is read from the register again: zzhd's row lists 'ide' under Tiles off and the IDE row of the Menu box is [ ]",
-            re.search(r"zzhd\s+OTHER\s+default \(terminal\)\s+no\s+ide", h.line(3)) is not None and re.search(r"\[ \] IDE", T) is not None and len(re.findall(r"\[x\] [A-Z]", T)) == 13, repr((h.line(3)[:80], len(re.findall(r"\[x\] [A-Z]", T)))))
-        h.key("down")                               # one Down from the IDE row to Terminal (two before S.88 g-P1: the Record editor row lay between them)
+            re.search(r"zzhd\s+OTHER\s+default \(terminal\)\s+no\s+ide", h.line(3)) is not None and re.search(r"\[ \] IDE", T) is not None and len(re.findall(r"\[x\] [A-Z]", T)) == 14, repr((h.line(3)[:80], len(re.findall(r"\[x\] [A-Z]", T)))))
+        h.key("down")                               # two Downs from the IDE row to Terminal: the Example programs row lies between them (19 Nov 26)
+        h.key("down")
         h.key("enter", idle=1.0)
         T = h.text()
         row("Enter on the Terminal row says plainly what it does - the prompt is removed for an account that starts in the screen - and will ask for the account's name",
@@ -178,7 +179,7 @@ def main():
         h.typed("r", idle=1.0)
         h.typed("zzhd\r", idle=2.0)
         f17 = g.reg_read("zzhd")[16] if len(g.reg_read("zzhd")) > 16 else ""
-        row("the right name runs it: field 17 is 'ide terminal' and the command's own answer is under the page", f17 == "ide terminal" and "Tile terminal is now off for zzhd" in h.line(40), repr((f17, h.line(40))))
+        row("the right name runs it: field 17 is 'ide terminal' and the command's own answer is under the page", f17 == "ide terminal" and "Tile terminal is now off for zzhd" in h.line(40), repr((f17, h.line(40))))   # stale-ok: a register value (the tiles turned off), not set.tile's id list
         T = h.text()
         row("What this means, for an account that starts in the screen (zzhd follows the default, terminal) with the Terminal tile off: it starts at the prompt, so it keeps the prompt",
             "zzhd starts in the command prompt" in T and "has the prompt" in T, T[-700:])
@@ -187,7 +188,7 @@ def main():
         h.key("down", idle=0.4)
         h.key("enter", idle=0.8)
         row("the Sign out row cannot be changed: the status line says it cannot be turned off, and no box was opened", "Sign out cannot be turned off" in h.line(40) and "this will run" not in h.text(), repr(h.line(40)))
-        for _ in range(6):                          # 7 before S.88 g-P1 (Sign out is the eighth row now, own programs the second)
+        for _ in range(7):                          # Sign out is the ninth row (the Example programs row came in 19 Nov 26), own programs the second
             h.key("up", idle=0.3)
         h.key("enter", idle=1.0)
         T = h.text()
@@ -229,10 +230,10 @@ def main():
         h.key("f6", idle=0.5)
         h.key("f6", idle=0.5)
         T = h.text()
-        row("the Menu box has a row for each standard id - Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests and the Recent group after the six it had (S.88 g-P1 took the Record editor row away): 16 rows, the last on row 17 with its [?]; the explanation starts under the box (row 22) and the key hints are one line under the system default (row 37)",
+        row("the Menu box has a row for each standard id - Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests and the Recent group after the six it had (S.88 g-P1 took the Record editor row away): 17 rows (the Example programs row came in 19 Nov 26), the last on row 18 with its [?]; the explanation starts under the box (below the box) and the key hints are one line under the system default (row 37)",
             all(re.search(p, T) for p in (r"\[x\] Files\s+files", r"\[x\] Vocabulary\s+voc", r"\[x\] Dictionary\s+dict", r"\[x\] Queries\s+query", r"\[x\] Bulk update\s+bulk", r"\[x\] Programs\s+catalog", r"\[x\] Tests\s+test", r"\[x\] Recent group\s+recent"))
-            and h.line(17)[134:137] == "[?]" and "Recent group" in h.line(17) and "What this means" in h.line(22) and "Help" in h.line(36) and "Arrows move" in h.line(37), repr((h.line(17)[72:140], h.line(22)[:30], h.line(36)[:30])))
-        for _ in range(8):                          # 9 before S.88 g-P1: the Files row is the ninth row now (starts in, own programs, editor, ide, terminal, keys, switch, signout, files)
+            and h.line(18)[134:137] == "[?]" and "Recent group" in h.line(18) and any("What this means" in h.line(i) for i in range(19, 30)) and "Help" in h.line(36) and "Arrows move" in h.line(37), repr((h.line(18)[72:140], [i for i in range(19, 30) if "What this means" in h.line(i)], h.line(36)[:30])))
+        for _ in range(9):                          # the Files row is the tenth row (starts in, own programs, editor, ide, examples, terminal, keys, switch, signout, files)
             h.key("down", idle=0.3)
         h.key("enter", idle=1.0)
         T = h.text()
@@ -253,7 +254,7 @@ def main():
         row("Enter again offers to turn it on: 'set.tile zzhd recent on' and says the person may turn it on in the View menu", "set.tile zzhd recent on" in T and "View menu" in T, T[-400:])
         h.typed("r", idle=2.0)
         r = g.reg_read("zzhd")
-        row("Run: field 17 is 'ide terminal' again", (r[16] if len(r) > 16 else "") == "ide terminal" and re.search(r"\[x\] Recent group", h.text()) is not None, repr(h.line(40)))
+        row("Run: field 17 is 'ide terminal' again", (r[16] if len(r) > 16 else "") == "ide terminal" and re.search(r"\[x\] Recent group", h.text()) is not None, repr(h.line(40)))   # stale-ok: a register value, not set.tile's id list
         h.key("ctrl-q", idle=1.5)
         row("Ctrl-Q leaves the page and the prompt is there (the administrator's session)", h.prompt() and "What this means" not in h.text(), h.text()[-200:])
         h.end()

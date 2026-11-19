@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 19 Nov 26 dm  An Example programs tile in Tools (load.examples into this account), dimmed with the reason where the account has no bp.edit.
 * 17 Nov 26 dm  S.62 (P-4667, P-4668): a tile whose tool.* verb is not in this account's VOC is left off the page (add.tile), as Windows does since 12 Nov 26.
 * 15 Nov 26 dm  Windows row 303: F6 and AI > Ask the AI say "the AI is not set up on this computer (the administrator sets it up in AI)" when the computer has no provider,
 *               model or key, and "the AI is not on for this account" only when the account's gate is off ($tk_ai 'why'; ai.off.text).
@@ -380,6 +381,12 @@ build.page:
    gr<g> = gname : @vm : bnd : @vm : 6
    id = 'editor' ; grp = g ; label = 'Editor' ; glyph = '[=]' ; sub = 'edit a record' ; act = 'cmd:sed' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'ide' ; grp = g ; label = 'IDE' ; glyph = '</>' ; sub = 'programs and files' ; act = 'cmd:ide' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   * 19 Nov 26 (the owner: the person loads the example programs, "an option both from the command line and from the full screen app"; of bp.edit,
+   * "respect the gate"): LOAD.EXAMPLES into this account.  Dimmed with the reason where the account has no bp.edit; chosen anyway, the verb refuses in
+   * its own words (11408), and the tile waits for a key so its summary or refusal can be read.
+   ex.why = ''
+   if not(is.admin) and not(kernel(K$BP.EDIT, -1)) then ex.why = 'needs bp.edit: ask the administrator'
+   id = 'examples' ; grp = g ; label = 'Example programs' ; glyph = '[E]' ; sub = 'load them here' ; act = 'cmd:load.examples' ; pal = pal.tools ; size = 'n' ; pause = 1 ; why = ex.why ; gosub add.tile
    * 15 Nov 26 (S.242 stage 6; the owner: a home screen tile): files in from an sftp client, only where RECEIVE would open a transfer - the system switch, the person's own user
    * account, its xfer gate - so a tile never stands for a door that is shut.  It waits for a key after, so the summary and each file's SHA-256 can be read.  SEND takes a file
    * and record ids, so it stays a typed command.

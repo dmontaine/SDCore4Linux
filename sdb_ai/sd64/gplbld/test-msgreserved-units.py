@@ -74,9 +74,11 @@ RESERVED_FOR_OVERFLOW = range(14995, 15000)
 # 2 Nov 26 (cproc's ssh arm) and 11190 with S.106 (2 Nov 26); the fourteen below went on the owner's word of
 # 17 Nov 26 ("DELETE the ones in Linux's own blocks"), each printed by nothing.  10032 and 10033, orphans in the shared
 # legacy range, were left on that word ("unless Windows deletes its copies"); both Windows products had deleted theirs,
-# so they went in round 2 of the audit (S.62 P-1242, P-1243).  Add a number here in the change that deletes its file.
+# so they went in round 2 of the audit (S.62 P-1242, P-1243).  14185 went on 19 Nov 26 with create.account's loading of the
+# example programs (the owner: the person loads their own).  Add a number here in the change that deletes its file.
 RETIRED = {10191, 11190, 10032, 10033,
-           11137, 11144, 11186, 11187, 11198, 11652, 11670, 11671, 11753, 11754, 11761, 11985, 11986, 11987}
+           11137, 11144, 11186, 11187, 11198, 11652, 11670, 11671, 11753, 11754, 11761, 11985, 11986, 11987,
+           14185}
 
 
 def message_ids(messages_dir):

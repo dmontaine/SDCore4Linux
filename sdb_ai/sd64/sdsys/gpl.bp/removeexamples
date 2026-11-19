@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 19 Nov 26 dm  As LOAD.EXAMPLES: with no account named, this account, for anybody with bp.edit (11408 otherwise); naming accounts is the
+*               administrator's; no form for every account.  In every account's VOC.
 * 18 Nov 26 dm  Every EXECUTE traps aborts, as load.examples': an abort in an account the session cannot write ended the verb inside that account.
 * 17 Nov 26 dm  New (the owner, 17 Nov 2026: "there should be a companion remove.examples verb for the administrator, both load.examples and remove.examples
 *               should take a list of accounts").  Made from loadexamples, which it undoes.
@@ -11,16 +13,17 @@
 *
 * START-DESCRIPTION:
 *
-*   REMOVE.EXAMPLES                     every registered account
-*   REMOVE.EXAMPLES account ...         the accounts named, a list; a name that is not registered is said and skipped, and the others go on
+*   REMOVE.EXAMPLES                     the account this session is in - anybody whose account has bp.edit (the administrator always may)
+*   REMOVE.EXAMPLES account ...         the administrator's: the accounts named, a list; a name that is not registered is said and skipped, and
+*                                       the others go on
 *
-*   The administrator's verb, the companion of LOAD.EXAMPLES.  In each account it deletes from examples.bp every program the system ships (the files of
+*   The companion of LOAD.EXAMPLES.  In each account it deletes from examples.bp every program the system ships (the files of
 *   the examples directory of the SD system directory, the same list LOAD.EXAMPLES writes) together with its compiled object in examples.bp.out.
 *   A program the administrator or the account's person added under another name is KEPT, and so are its object and the file; examples.bp and
 *   examples.bp.out are deleted only when nothing is left in examples.bp.  An account with no examples.bp is counted and left alone.
 *
-*   THE EXAMPLES COME BACK: the installer and an upgrade run LOAD.EXAMPLES for every account, and create.account runs it for a new one, so what this
-*   verb removes is put back by the next of those, or by LOAD.EXAMPLES by hand.  It enters each account with LOGTO, as the administrator may (an
+*   NOTHING PUTS THEM BACK BY ITSELF (19 Nov 26: the installer and create.account no longer run LOAD.EXAMPLES); LOAD.EXAMPLES does, when someone
+*   runs it.  For the administrator's list it enters each account with LOGTO, as the administrator may (an
 *   administrator's LOGTO runs no LOGIN paragraph), and goes back to the account it began in.  An account it cannot enter, and a program that cannot be
 *   deleted, is named and counted; the command goes on with the others.
 *
@@ -37,8 +40,15 @@ $include keys.h
 $include err.h
 
    @system.return.code = -ER$ARGS
-   if not(kernel(K$ADMINISTRATOR, -1)) then
+*  19 Nov 26 dm - as LOAD.EXAMPLES (the owner, 19 Nov 2026: the person loads their own; "respect the gate"): with no account named this account,
+*  for anybody whose account has bp.edit (11408 otherwise, before anything is deleted); naming accounts is the administrator's.
+   is.admin = kernel(K$ADMINISTRATOR, -1)
+   if dcount(trim(@sentence), ' ') > 1 and not(is.admin) then
       stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+   if not(is.admin) and not(kernel(K$BP.EDIT, -1)) then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11408) ;* Programs can only be compiled or cataloged by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)
    end
 
    keychars = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
@@ -64,11 +74,14 @@ $include err.h
    next i
    if names = '' then stop sysmsg(14121, src)
 
-*  The accounts: those named (a list, each once), or every one in the register.  A name that is not registered is said and skipped.
+*  The accounts: those named (a list, each once; the administrator's), or the account this session is in.  A name that is not registered is said
+*  and skipped.
    want = downcase(trim(@sentence))                              ;* the verb, then the account names
    openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(6003)
    accts = ''
-   if dcount(want, ' ') > 1 then
+   if dcount(want, ' ') = 1 then
+      accts = downcase(@who)
+   end else
       for w = 2 to dcount(want, ' ')
          aid = field(want, ' ', w)
          read arec from acc.f, aid else
@@ -76,16 +89,14 @@ $include err.h
             n.bad += 1
             continue
          end
+*        19 Nov 26: a SUSPENDED account named is said and skipped here, whatever the session is (an internal administrator's LOGTO would enter it)
+         if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then
+            display sysmsg(14131, aid)                           ;* Could not enter the account %1; its example programs were left as they are
+            n.bad += 1
+            continue
+         end
          locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>
       next w
-   end else
-      select acc.f to 11
-      loop
-         readnext aid from 11 else exit
-         read arec from acc.f, aid else continue
-         if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then continue     ;* a suspended account is not entered (LOGTO refuses it)
-         locate aid in accts<1> by 'AL' setting ap else ins aid before accts<ap>
-      repeat
    end
    close acc.f
 

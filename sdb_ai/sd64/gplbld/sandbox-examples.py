@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
-"""sandbox-examples.py - the example programs: LOAD.EXAMPLES gives every account its own examples.bp, compiled, and an ordinary account uses it.
+"""sandbox-examples.py - the example programs: LOAD.EXAMPLES gives an account its own examples.bp, compiled, and an ordinary account uses it.
 
-    SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,reach,run,remove]
+    SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,self,reach,run,remove]
+
+19 Nov 2026 (the owner: "wouldnt it be easier to just have the user load the examples rather than do it for every account.  most accounts will not
+need the examples"; of bp.edit, "respect the gate"): nothing loads every account; the administrator's no-name form is SDSYS alone, a list loads the
+accounts named, and a person loads their own with bp.edit (section self).
 
 No install, no sudo; <dir> a SHORT path under /tmp.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  (17 Nov 2026; the owner: "there should be
 a examples.bp file available to all users that contains those programs and a set of training programs typical for a Computer Science 101 course", then, asked
 how every account reaches it, "A copy in every account" - the shared account serves no program file and an outside F-pointer meets the OS gate.)
 
 The fixture accounts are sandbox-home.py's (zzhd zzhm zzht zzhv in service, zzhs SUSPENDED).  Sections (load and its rows always run first):
-  load   LOAD.EXAMPLES as the administrator: every account in service gets examples.bp and the suspended one does not, the counts, every record
-         equal to its shipped file, every program compiled (its object in examples.bp.out), a second run changes and compiles nothing, a program
-         the administrator added is kept and a shipped one changed by hand is put back, LOAD.EXAMPLES NAME does that account only
+  load   LOAD.EXAMPLES as the administrator: with no name SDSYS alone and no other account; a list zzhd zzhm zzht zzhs loads the three in service
+         and not the suspended one; the counts, every record equal to its shipped file, every program compiled (its object in examples.bp.out), a
+         second run changes and compiles nothing, a program the administrator added is kept and a shipped one changed by hand is put back,
+         LOAD.EXAMPLES NAME does that account only
+  self   the person loads their own (zzhv): refused (11408) with bp.edit off and nothing made, naming an account refused (2001), with bp.edit on
+         their own account only, compiled, and a program runs
   reach  an ORDINARY fixture account (zzhd): its VOC holds examples.bp as its own file, COUNT counts the programs, RUN examples.bp NAME runs one where
          it is, COPY to its own bp, BASIC and RUN give the same; it cannot write into examples.bp (bp.edit off as delivered)
-  remove REMOVE.EXAMPLES with a list, with an unregistered name, with no name; the administrator's own program kept with its file; LOAD.EXAMPLES
-         with a list; an ordinary account cannot run it (WRITTEN 17 Nov 2026, NOT RUN)
+  remove REMOVE.EXAMPLES with a list, with an unregistered name; the administrator's own program kept with its file; LOAD.EXAMPLES with a list;
+         the person's own (2001 naming another, 11408 without bp.edit, their account only with it); the administrator's no-name form SDSYS alone
   run    every training program, run from the ordinary account, against an answer this suite works out in Python (fizzbuzz, the primes, the
          gcds, the sorts, the searches...), lines compared with runs of spaces made one; cs03 and cs21 with input on the pipe; cs20 makes and removes
          its file in zzhd; cs22 depends on today, so only its shape is held
@@ -45,6 +52,7 @@ def shipped():
 
 
 INSERVICE = ("zzhd", "zzhm", "zzht", "zzhv")
+LISTED = ("zzhd", "zzhm", "zzht")                   # 19 Nov 26: the accounts the administrator's list loads; zzhv is left to its person (self)
 
 
 def adir(acct):
@@ -204,42 +212,76 @@ def expected():
 # ------------------------------------------------------------------------------------------------- sections
 
 def section_load():
-    say("\n--- load: LOAD.EXAMPLES in every account")
+    # 19 Nov 26 (the owner: "have the user load the examples rather than do it for every account"; "respect the gate"): the administrator's
+    # LOAD.EXAMPLES with no name is SDSYS alone (the account the session is in); the accounts are loaded by naming them, or by their person (self)
+    say("\n--- load: LOAD.EXAMPLES as the administrator - no name is SDSYS alone, a list loads the accounts named")
     names = shipped()
+    n = len(names)
     row("L0 the shipped directory holds the five TUI programs and the training programs (the null case: there is something to load)",
-        all(n in names for n in ("hello", "menus", "notes", "browse", "stock")) and len([n for n in names if n.startswith("cs")]) >= 20, repr(names))
+        all(x in names for x in ("hello", "menus", "notes", "browse", "stock")) and len([x for x in names if x.startswith("cs")]) >= 20, repr(names))
     row("L0b no account has an examples.bp before LOAD.EXAMPLES (the null case of what follows)", not any(os.path.exists(xbp("", a)) for a in INSERVICE + ("zzhs", "sdsys")))
     out = load()
-    every = INSERVICE + ("sdsys",)
-    total = len(every) * len(names)
-    row("L1 the first run: every account in service and SDSYS, every program new in each, every one compiled",
-        counts(out) == ((len(every), total, 0, 0), (total, total, 0)), repr((counts(out), out[-6:])))
-    row("L1b the SUSPENDED account zzhs is not entered and has no examples.bp", not os.path.exists(xbp("", "zzhs")))
+    row("L1 the administrator with no name: SDSYS alone, every program new and compiled", counts(out) == ((1, n, 0, 0), (n, n, 0)) and os.path.isdir(xbp("", "sdsys")),
+        repr((counts(out), out[-6:])))
+    row("L1b no other account was given an examples.bp (no form loads the whole register)", not any(os.path.exists(xbp("", a)) for a in INSERVICE + ("zzhs",)))
+    out = load(" ".join(LISTED + ("zzhs",)))
+    row("L1c the administrator's list %s zzhs: the three in service loaded, every program new and compiled; zzhs, SUSPENDED, is not entered (14123) "
+        "and has no examples.bp" % " ".join(LISTED),
+        counts(out) == ((3, 3 * n, 0, 0), (3 * n, 3 * n, 0)) and has(out, r"Could not enter the account zzhs") and not os.path.exists(xbp("", "zzhs")),
+        repr((counts(out), out[-6:])))
+    every = LISTED + ("sdsys",)
     bad = []
     for a in every:
-        for n in names:
-            want = [l.rstrip() for l in open(os.path.join(SRC, n), encoding="latin-1").read().rstrip("\n").split("\n")]
+        for x in names:
+            want = [l.rstrip() for l in open(os.path.join(SRC, x), encoding="latin-1").read().rstrip("\n").split("\n")]
             try:
-                got = open(xbp(n, a), encoding="latin-1").read().rstrip("\n").split("\n")
+                got = open(xbp(x, a), encoding="latin-1").read().rstrip("\n").split("\n")
             except OSError:
                 got = None
             if got != want:
-                bad.append(a + " " + n)
-    row("L2 every account's examples.bp holds every shipped file, line for line", not bad, repr(bad[:6]))
-    missing = [a + " " + n for a in every for n in names if not os.path.isfile(os.path.join(adir(a), "examples.bp.out", n))]
-    row("L3 every program has its object in each account's examples.bp.out", not missing, repr(missing[:6]))
-    out = load()
-    row("L4 a second run changes nothing and compiles nothing", counts(out) == ((len(every), 0, 0, len(every) * len(names)), (0, 0, 0)), repr(counts(out)))
+                bad.append(a + " " + x)
+    row("L2 every loaded account's examples.bp holds every shipped file, line for line", not bad, repr(bad[:6]))
+    missing = [a + " " + x for a in every for x in names if not os.path.isfile(os.path.join(adir(a), "examples.bp.out", x))]
+    row("L3 every program has its object in each loaded account's examples.bp.out", not missing, repr(missing[:6]))
+    out = load(" ".join(LISTED))
+    row("L4 a second run of the list changes nothing and compiles nothing", counts(out) == ((3, 0, 0, 3 * n), (0, 0, 0)), repr(counts(out)))
     g.put(xbp("zzmine"), "* zzmine - the administrator's own\n   crt 'mine'\nend\n")
     g.put(xbp("cs01.hello"), "* changed by hand\n   crt 'not the shipped program'\nend\n")
     out = load("zzhd")
     row("L5 LOAD.EXAMPLES zzhd: that account only; the administrator's program kept, a shipped one changed by hand put back and compiled again",
-        counts(out) == ((1, 0, 1, len(names) - 1), (1, 1, 1)) and "not the shipped program" not in open(xbp("cs01.hello")).read() and os.path.exists(xbp("zzmine")), repr(counts(out)))
+        counts(out) == ((1, 0, 1, n - 1), (1, 1, 1)) and "not the shipped program" not in open(xbp("cs01.hello")).read() and os.path.exists(xbp("zzmine")), repr(counts(out)))
     os.remove(xbp("zzmine"))
     out = load("zznone")
     row("L5b an account that is not registered is said (14122) and nothing is made", has(out, r"No account is registered as zznone"), repr(out[-3:]))
-    out = g.plain("zzhd", ["load.examples"])
-    row("L6 an ordinary account cannot run LOAD.EXAMPLES (the verb is not in its VOC)", has(out, r"not in your VOC"), repr(out[:4]))
+
+
+def bp_edit(acct, on):
+    """field 11 of the account's register record (bp.edit), yes or no; read by the next session's sign-on"""
+    rec = g.reg_read(acct)
+    while rec and rec[-1] == "":
+        rec.pop()
+    rec += [""] * (12 - len(rec))
+    rec[10] = "yes" if on else "no"
+    g.reg_write(acct, rec)
+
+
+def section_self():
+    # 19 Nov 26: THE PERSON LOADS THEIR OWN.  zzhv, an ordinary fixture account in service, has no examples.bp yet (load did not name it)
+    say("\n--- self: an ordinary account loads its own examples (zzhv), only with bp.edit")
+    n = len(shipped())
+    BP_REFUSED = r"Programs can only be compiled or cataloged by an account that has bp\.edit"
+    bp_edit("zzhv", False)
+    out = g.plain("zzhv", ["load.examples"])
+    row("S1 with bp.edit OFF, as delivered, LOAD.EXAMPLES in the person's own account is refused in BASIC's words (11408) and nothing is made",
+        has(out, BP_REFUSED) and not os.path.exists(xbp("", "zzhv")), repr(out[-4:]))
+    out = g.plain("zzhv", ["load.examples zzht"])
+    row("S2 naming an account is the administrator's: refused (2001), whatever bp.edit says", has(out, r"Command requires administrator privileges"), repr(out[-4:]))
+    bp_edit("zzhv", True)
+    out = g.plain("zzhv", ["load.examples"])
+    row("S3 with bp.edit ON the person's LOAD.EXAMPLES loads their own account only: every program new and compiled, the objects there",
+        counts(out) == ((1, n, 0, 0), (n, n, 0)) and all(os.path.isfile(os.path.join(adir("zzhv"), "examples.bp.out", x)) for x in shipped()), repr((counts(out), out[-6:])))
+    out = g.plain("zzhv", ["RUN examples.bp cs01.hello"])
+    row("S4 and runs one where it is", contains(out, ["Hello, world!", "This is SD BASIC.", "One plus one is 2"]), repr(out[-5:]))
 
 
 def section_reach():
@@ -307,11 +349,9 @@ def rcounts(out):
 
 
 def section_remove():
-    """WRITTEN WITH THE VERB (17 Nov 2026) AND NOT YET RUN: the first run of this section is the first measurement of REMOVE.EXAMPLES and of the lists."""
-    say("\n--- remove: REMOVE.EXAMPLES, and both verbs with a list of accounts (runs after run, on what load left)")
+    say("\n--- remove: REMOVE.EXAMPLES, and both verbs with a list of accounts (runs after run, on what load and self left)")
     names = shipped()
     n = len(names)
-    every = INSERVICE + ("sdsys",)
     out = adm("remove.examples zzhd zzhm")
     row("M1 REMOVE.EXAMPLES zzhd zzhm (a list): each loses its n programs and its examples.bp, none was left behind",
         rcounts(out) == ((2, 2 * n, 2), (0, 0)), repr((rcounts(out), out[-5:])))
@@ -327,18 +367,28 @@ def section_remove():
     out = load("zzhd zzhm zzht")
     row("M3 LOAD.EXAMPLES zzhd zzhm zzht (a list): all three given every program again, compiled, the added one kept",
         counts(out) == ((3, 3 * n, 0, 0), (3 * n, 3 * n, 1)) and all(os.path.isfile(os.path.join(adir(a), "examples.bp.out", x)) for a in ("zzhd", "zzhm", "zzht") for x in names), repr((counts(out), out[-4:])))
-    out = g.plain("zzhd", ["remove.examples"])
-    row("M4 an ordinary account cannot run REMOVE.EXAMPLES (the verb is not in its VOC)", has(out, r"not in your VOC"), repr(out[:4]))
+    out = g.plain("zzhv", ["remove.examples zzhd"])
+    row("M4 an ordinary account may not name an account (2001), and zzhd keeps its examples", has(out, r"Command requires administrator privileges")
+        and os.path.isdir(xbp("", "zzhd")), repr(out[-4:]))
+    bp_edit("zzhv", False)
+    out = g.plain("zzhv", ["remove.examples"])
+    row("M4b with bp.edit OFF the person's own REMOVE.EXAMPLES is refused (11408) and the examples stay", has(out, r"Programs can only be compiled or cataloged by an account that has bp\.edit")
+        and os.path.isdir(xbp("", "zzhv")), repr(out[-4:]))
+    bp_edit("zzhv", True)
+    out = g.plain("zzhv", ["remove.examples"])
+    row("M4c with bp.edit ON it removes them from the person's own account only", rcounts(out) == ((1, n, 1), (0, 0)) and not os.path.exists(xbp("", "zzhv"))
+        and os.path.isdir(xbp("", "zzhd")), repr((rcounts(out), out[-5:])))
     out = adm("remove.examples")
-    row("M5 REMOVE.EXAMPLES with no name: every account in service and SDSYS; zzht keeps its file for the added program, the others lose theirs",
-        rcounts(out) == ((len(every), len(every) * n, len(every) - 1), (0, 1)) and os.path.exists(xbp("zzmine", "zzht")), repr((rcounts(out), out[-5:])))
-    row("M5b zzhs, SUSPENDED, was not entered and has no examples.bp either way", not os.path.exists(xbp("", "zzhs")))
+    row("M5 the administrator's REMOVE.EXAMPLES with no name: SDSYS alone; the accounts keep theirs",
+        rcounts(out) == ((1, n, 1), (0, 0)) and not os.path.exists(xbp("", "sdsys")) and os.path.isdir(xbp("", "zzhd")) and os.path.exists(xbp("zzmine", "zzht")), repr((rcounts(out), out[-5:])))
 
 
 def main():
     try:
         sh.setup("sandbox-examples.py")
         section_load()
+        if ONLY is None or "self" in ONLY or "remove" in ONLY:
+            section_self()
         if ONLY is None or "reach" in ONLY:
             section_reach()
         if ONLY is None or "run" in ONLY:

@@ -18,7 +18,7 @@
 * 
 * 
 * START-HISTORY:
-* 18 Nov 26 dm The session is put back where it started after load.examples, which traps aborts now; 14185 when the examples were not loaded.
+* 19 Nov 26 dm The new account gets no example programs from here (the owner: the person loads their own with load.examples); 14185 is gone.
 * 18 Nov 26 dm S.268: the session's umask is given back after create_account (which sets 002 and left it for the rest of an SDSYS session).
 * 17 Nov 26 dm S.62 (LC3): SSH-KEY-ON, a Linux user SD makes for the account keeps key sign-in over ssh (off unless typed: the user is put in sdsshnokey); CA$SSH.KEY in
 *           createacc.h; !create_account refuses it for a group or other account; the audit gates= list names it; the usage says it.
@@ -344,20 +344,10 @@ $include createacc.h
    if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)
    void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)
 
-* 17 Nov 26 dm - THE EXAMPLE PROGRAMS (owner, 17 Nov 2026: "there should be a examples.bp file available to all users", asked how, "A copy in every
-*   account"): the new account gets its own examples.bp, compiled, from LOAD.EXAMPLES; its two summary lines are shown.  A failure there does not
-*   undo the account (it is made and audited above); the administrator runs load.examples <name> again.
-* 18 Nov 26 dm - THE OWNER FOUND THE ADMINISTRATOR LEFT IN THE NEW ACCOUNT (18 Nov 2026).  This session cannot write in a new USER account: the
-*   sdsys user joins the account's group (sdu_<name>) above, and a process keeps the groups it started with, so load.examples' create.file
-*   ABORTED there (8207) and the abort ended it before its way back.  load.examples now traps its aborts; here the call traps them too, the
-*   session is put back in the account it started in whatever happened, and a load that did not happen is said with what to type (14185).
-*   NOT CAPTURED (measured on the VM, 18 Nov): CAPTURING around a command whose own EXECUTE traps an abort crashed the process (Fault type
-*   11 in $loadexamples, S.270), so load.examples prints its own lines here and is judged by its return code (-ER$FAILED when anything failed).
-   ex.origin = downcase(@who)
-   execute 'load.examples ' : downcase(acc.name) trapping aborts
-   ex.code = @system.return.code
-   if downcase(@who) # ex.origin then execute 'logto ' : ex.origin trapping aborts
-   if ex.code # 0 then crt sysmsg(14185, downcase(acc.name))
+* 19 Nov 26 dm - NO EXAMPLE PROGRAMS ARE LOADED HERE (owner, 19 Nov 2026: "wouldnt it be easier to just have the user load the examples rather than
+*   do it for every account.  most accounts will not need the examples").  The person types load.examples in their own account (or uses the home
+*   screen's tile), which needs bp.edit; the administrator may name accounts.  Loading them from this session could not work for a user account
+*   anyway: the session lacks the account's new Linux group (18 Nov), and loading left it in the new account.
 
 * 17 Nov 26 dm - S.62 (P-3329): the account is made, so the command succeeded.  The code was still the -ER$ARGS preset, or whatever the
 *   nested load.examples left; a paragraph or a caller that tests @system.return.code now sees 0.

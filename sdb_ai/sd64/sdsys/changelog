@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  YOU LOAD THE EXAMPLE PROGRAMS INTO YOUR OWN ACCOUNT, WHEN YOU WANT THEM.
+
+             What        - load.examples with no account name puts SD's example programs into the account you are
+                           in (the file examples.bp), compiled.  Anyone may run it whose account has bp.edit; the
+                           home screen's Tools group has an Example programs tile that does the same.  Without
+                           bp.edit it is refused before anything is written, and the tile is dimmed and says why.
+                           remove.examples takes them out again, with the same rule.  Naming accounts is still the
+                           administrator's (load.examples ann bob).
+             Why         - most accounts do not need the examples.  They were put into every account by the
+                           installer and by create.account; now an account has them only when someone loads them.
+                           Loading them from create.account also could not work for a new user account (the session
+                           making it is not yet in the account's group) and left the administrator in the new account.
+             Does NOT    - Load them anywhere by itself: not at install, not at upgrade, not for a new account.  It
+                           does not remove the examples.bp an account already has.  It does not open bp.edit: an
+                           account without it cannot load or change the examples; the administrator can give it
+                           bp-on or load them for the account by name.  The administrator's load.examples with no
+                           name loads the SDSYS account only; there is no form for every account any more.
+
 18 Nov 26  AN ssh TUNNEL AIMED AT THIS COMPUTER'S OWN ADDRESS CAN NO LONGER REACH SDSYS'S API SIGN-IN.
 
              What        - a connection to the API that comes from one of this computer's own network addresses is

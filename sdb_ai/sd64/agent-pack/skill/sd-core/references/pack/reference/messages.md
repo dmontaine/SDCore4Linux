@@ -4618,7 +4618,7 @@ cited by: `edit_msg`
 Programs can only be compiled or cataloged by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)
 ```
 
-cited by: `basic`, `catalog`, `decat`, `delcat`
+cited by: `basic`, `catalog`, `decat`, `delcat`, `loadexamples`, `removeexamples`
 
 ### msg:11409
 > kind=message tier=reference since=- src=sdsys/messages/11409:1#6018b5c6
@@ -11137,15 +11137,6 @@ cited by: `localsdsys`
 ```
 
 cited by: `localsdsys`, `tool_remote`
-
-### msg:14185
-> kind=message tier=reference since=- src=sdsys/messages/14185:1#153b41d5
-
-```
-The example programs could not be put into %1 from this session: sign off, sign in to SDSYS again and type load.examples %1
-```
-
-cited by: `createa`
 
 ### msg:1419
 > kind=message tier=reference since=- src=sdsys/messages/1419:1#9a69ea26
