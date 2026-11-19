@@ -194,8 +194,10 @@ return
 *    "sh less" (S.87), and SH is a per-account gate OFF for every new account, so an ordinary account - the one
 *    the sign-on banner tells to type CONFIG GPL - was refused "not permitted to use the operating system shell".
 *    This program is $internal, so it reads the file in SDSYS itself; the terminal's own pagination pages it.
+* 19 Nov 26 dm - READONLY (SD Core for Windows 66ce8b36): the page only reads, and a read-write open failed in an ordinary account
+*    on Windows; it is also the form that never creates a missing file.
 show.text:
-   openseq txt.path to txt.f else
+   openseq txt.path readonly to txt.f else
       close txt.f
       display sysmsg(2030, 'CONFIG', txt.path)   ;* Cannot load %1 - %2 not found
       return
