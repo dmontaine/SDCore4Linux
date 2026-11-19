@@ -1605,6 +1605,36 @@ sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 sudo chown -R root:root "$sdsysdir/bin"
 sudo chmod -R go-w "$sdsysdir/bin"
 # ROOTBIN-EARLY-END
+# 19 Nov 26 dm - S.262: THE CLIENT LIBRARY.  The source builds none any more: the one SD ships is the clean-room library (S.250), released as binaries
+#            only, in the release package's clients folder beside this installer (clients/Linux64 for OpenSSL 3, clients/Linux64-openssl4 for OpenSSL 4).
+#            The build that matches the OpenSSL bin/sd links is put in bin under the names it has there (sdclilib.so and libsdcli.so), root:root 755, as
+#            Windows' installer puts its clients in usr\clients.  Here bin is root's already (ROOTBIN-EARLY) and the ROOTBIN block seals it later with
+#            them inside.  A file that is a link, or a package without the folder (an install from a GitHub clone), installs none and says so; the
+#            install goes on either way.  test-install-clients.sh runs this block.
+# CLIENTS-BEGIN
+clients_installed=0
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/clients" ]; then
+    clients_ssl=$(ldd "$sdsysdir/bin/sd" 2>/dev/null | sed -n 's/.*libssl\.so\.\([0-9][0-9]*\).*/\1/p' | head -1 || true)
+    if [ "$clients_ssl" = "4" ]; then clients_src="$installer_dir/clients/Linux64-openssl4"; else clients_src="$installer_dir/clients/Linux64"; fi
+    for clients_f in sdclilib.so libsdcli.so; do
+        [ -f "$clients_src/$clients_f" ] && [ ! -L "$clients_src/$clients_f" ] || continue
+        if sudo install -o root -g root -m 755 "$clients_src/$clients_f" "$sdsysdir/bin/$clients_f"; then
+            clients_installed=$((clients_installed+1))
+        else
+            printf "%b\n" "$RED"
+            echo "WARNING: the client library ${clients_f} was not installed into $sdsysdir/bin."
+            printf "%b\n" "$NC"
+        fi
+    done
+    if [ "$clients_installed" -gt 0 ]; then
+        echo "Installed the client library (${clients_installed} files, OpenSSL ${clients_ssl:-3}) into $sdsysdir/bin"
+    else
+        echo "No client library for this system's OpenSSL in ${clients_src}, so none was installed."
+    fi
+else
+    echo "No client library was installed (not run from a release package)."
+fi
+# CLIENTS-END
 
 sudo cp sd.conf /etc/sd.conf
 sudo chmod 644 /etc/sd.conf

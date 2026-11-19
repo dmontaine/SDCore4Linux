@@ -62,7 +62,6 @@ COMP     := gcc
 #   link a sandbox build; plain "make" does not need it.
 OPENSSL_LIBS ?= -lssl -lcrypto
 L_FLAGS    := -Wl,--no-as-needed -lm -ldl -lsodium $(OPENSSL_LIBS) $(PY_LDFLAGS)
-SONAME_OPT := -soname
 
 RM       := rm
 
@@ -126,20 +125,14 @@ OPT_FLAGS := -O2 -fwrapv -fno-strict-aliasing -U_FORTIFY_SOURCE -D_FORTIFY_SOURC
 
 sd: ARCH :=
 sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(OPT_FLAGS) $(ARCH) -fPIE $(EXTRA_C_FLAGS)
-sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
+# 19 Nov 26 dm - S.262: the client library (sdclilib.so / libsdcli.so) is no longer
+#   built.  The one SD ships is the clean-room library (S.250), released as binaries
+#   only; the GPL client source (gplsrc/sdclilib.c) is gone, and with it the
+#   position-independent sd_tls_pic.o it alone linked.  The owner: "The problem was
+#   commercial software dynamically linking to gpl software".
+sd: $(SDOBJS) sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
 	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd
-
-# 15 Sep 26 dm - S.19: the client libraries speak TLS (sd_tls.c), compiled
-#   position-independent as its own object; sd links the ordinary sd_tls.o.
-sdclilib.so: sdclilib.o linuxlb.o sd_tls_pic.o
-	@echo Linking $@
-	@$(COMP) -shared -Wl,$(SONAME_OPT),sdclilib.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o $(GPLOBJ)sd_tls_pic.o $(OPENSSL_LIBS) -o $(GPLBIN)sdclilib.so
-	@$(COMP) -shared -Wl,$(SONAME_OPT),libsdcli.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o $(GPLOBJ)sd_tls_pic.o $(OPENSSL_LIBS) -o $(GPLBIN)libsdcli.so
-
-sd_tls_pic.o: sd_tls.c sd_tls.h
-	@echo Compiling $@ with -fPIC
-	@$(COMP) $(C_FLAGS) -fPIC -c $(GPLSRC)sd_tls.c -o $(GPLOBJ)sd_tls_pic.o
 
 sdtic: sdtic.o inipath.o
 	@echo Linking $@
@@ -167,10 +160,6 @@ terminfo:
 	@rm -Rf $(TERMINFO)
 	@mkdir -p $(TERMINFO)
 	@$(GPLBIN)sdtic -pterminfo $(MAIN)terminfo.src
-
-sdclilib.o: sdclilib.c revstamp.h
-	@echo Compiling $@ with -fPIC
-	@$(COMP) $(C_FLAGS) -fPIC -c $(GPLSRC)sdclilib.c -o $(GPLOBJ)sdclilib.o
 
 linuxlb.o: linuxlb.c
 	@echo Compiling $@
@@ -223,11 +212,9 @@ sysseg.o: sysseg.c sd.h locks.h config.h revstamp.h
 #   what "clear gplobj/*.o after a header change" did by hand.  These lines
 #   carry no recipe, so they only ADD prerequisites; the explicit rules above
 #   keep theirs.  SDOBJS is what sd is linked from (gpl.src), OBJS is every
-#   gplsrc/*.c (the tools sdtic, sdfix, sdconv, sdidx, sdlnxd and the client
-#   library), and sd_tls_pic.o is the client library's copy of sd_tls.c.
+#   gplsrc/*.c (the tools sdtic, sdfix, sdconv, sdidx and sdlnxd).
 $(SDOBJS): $(SDHDRS)
 $(OBJS): $(SDHDRS)
-sd_tls_pic.o: $(SDHDRS)
 
 .c.o:
 	@echo Compiling $@, $(BITSIZE) bit target.
@@ -245,5 +232,5 @@ check-includes:
 clean:
 	@echo Cleaning build files
 	@$(RM) -f $(GPLOBJ)*.o
-	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
+	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
 	@$(RM) -Rf $(TERMINFO)

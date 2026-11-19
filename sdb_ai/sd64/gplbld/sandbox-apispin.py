@@ -468,6 +468,10 @@ def part_k(secs=8.0):
 def part_d():
     say("\n--- D. legitimate use is not harmed ----------------------------------------------------------------------------")
     os.environ["SD_CONFIG"] = os.path.join(BOX, "sd.conf")
+    if not os.path.isfile(os.path.join(SYS, "bin", "sdclilib.so")):     # 19 Nov 26 S.262: the tree builds no client; the clean-room one is copied in
+        row("D0: a real local API session connects (sdclilib.so, SDConnectLocal)", False,
+            "no client library in %s/bin: set SD_CLIENT_LIB to the clean-room sdclilib.so and build the sandbox again (S.262)" % SYS)
+        return
     lib = ctypes.CDLL(os.path.join(SYS, "bin", "sdclilib.so"))
     for fn in ("SDRead", "SDExecute", "SDRespond"):
         getattr(lib, fn).restype = ctypes.c_void_p

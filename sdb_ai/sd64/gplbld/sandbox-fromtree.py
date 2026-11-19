@@ -242,6 +242,14 @@ def main():
         for d in ("bin", "gplsrc", "gplobj", "terminfo"):
             if os.path.isdir(os.path.join(tree, d)):
                 shutil.copytree(os.path.join(tree, d), os.path.join(sysd, d), dirs_exist_ok=True)
+        # 19 Nov 26 dm - S.262: the tree no longer builds a client library.  The suites that drive the API server through it
+        #   (sandbox-qmclient, sandbox-apispin) load the clean-room one, copied here into the sandbox's bin under both names:
+        #   SD_CLIENT_LIB names the .so, else the private SDClientLib build.  It is not on GitHub, so a clone may have none; the
+        #   copy is then left out and those suites say CANNOT RUN (they test for the file); every other suite needs no client.
+        cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/Projects/SDClientLib/build/sdclilib.so"
+        if os.path.isfile(cl):
+            for nm in ("sdclilib.so", "libsdcli.so"):
+                shutil.copy2(cl, os.path.join(sysd, "bin", nm))
         os.makedirs(os.path.join(sysd, "gplbld"), exist_ok=True)
         shutil.copytree(os.path.join(tree, "gplbld", "FILES_DICTS"), os.path.join(sysd, "gplbld", "FILES_DICTS"))
         for src in ("bbproc", "bcomp", "pathtkn"):

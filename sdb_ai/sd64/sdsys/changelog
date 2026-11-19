@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  THE CLIENT LIBRARY IS THE ONE WRITTEN NEW FOR SD CORE, AND COMES WITH THE RELEASE PACKAGE.
+
+             What        - The C client library that external programs use to reach SD through the API
+                           (sdclilib.so, libsdcli.so) is a clean-room library written for SD Core under the Blue Oak
+                           Model License 1.0.0, so a program of any licence may link it.  It is delivered as
+                           binaries in the release package's clients folder, and the installer puts the build for
+                           this system's OpenSSL into /usr/local/sdsys/bin.  The source no longer builds the old
+                           client library.  The C header in syscom had six functions (SDMarkMapping, SDSelectIndex,
+                           SDSelectLeft, SDSelectRight, SDSetLeft, SDSetRight) declared with int where the library
+                           takes 16-bit values; they are corrected.
+             Why         - The old library was GPL, so a commercial program that linked it was bound by the GPL.
+                           Talking to SD over the network is not linking, so nothing else changes.
+             Does NOT    - Change SD's BASIC client (an SD program connecting to another SD server), the language
+                           bindings in syscom, or the API itself.  An install made from a copy of the source, not
+                           from a release package, has no client library: copy it from a package's clients folder.
+
 19 Nov 26  A TRIGGER ON AN ACCOUNT'S VOC NO LONGER STOPS THAT ACCOUNT'S SIGN-ON.
 
              What        - An account whose VOC has a trigger (SET.TRIGGER) can be signed on to again, and the

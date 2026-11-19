@@ -45,9 +45,10 @@
 # MUTANTS.  QMC_MUTANT=<name> makes one deliberate fault in the sandbox's own copy of apisrvr (never the tree) before the run, and
 # the rows that notice it must fail: open, openseq, trans, conv, execute, call (the SDCLIENT test of that request disabled),
 # path-none (vb.openseq stops asking K$PATH.OK), path-all (it refuses every pathname), fixture-os-off (the os-on account is not).
-# Two names are REPAIRS, not faults, for defects this part found (neither is in the tree; the rows T*-6 and T*-5 are red on it until
-# they are): fix-call-return (vb.call returns after refusing, where it now goes on to run the subroutine) and fix-execute-lib
-# (sdclilib.c's SDExecute copies reply_len bytes, where it strcpy's an on-error reply's text into a 1-byte buffer).
+# One name is a REPAIR, not a fault, for a defect this part found: fix-call-return (vb.call returns after refusing, where it now
+# goes on to run the subroutine).  (fix-execute-lib, the repair of the GPL client's SDExecute, went with that library: S.262, 19 Nov
+# 26.  The client under test is now the clean-room library, copied into the sandbox's bin by sandbox-fromtree.py; with none there
+# the suite says CANNOT RUN.)
 #   F  the program form of NON.DURABLE.TXN, G  SDTxn
 #   H  SDEvaluate / SDEvalConv (sheet 247): D, A and I items, an item the dictionary has not, a phrase, an I-type that will not
 #      compile, several names, the conversion applied or not, the dictionary left unwritten, @ID put back
@@ -333,24 +334,6 @@ def apply_mutant(name):
         apply_mutant("fix-call-return")
         apply_mutant("call")
         return
-    if name == "fix-execute-lib":
-        # NOT a fault: the repair of the defect row T1-5 / T2-5 finds in sdclilib.c's SDExecute, built in the sandbox's tree copy
-        src_c = os.path.join(q3.BOX, "tree", "gplsrc", "sdclilib.c")
-        old = "  reply = malloc(reply_len + 1);\n  strcpy(reply, buff->data.execute.reply);\n"
-        new = "  reply = malloc(reply_len + 1);\n  memcpy(reply, buff->data.execute.reply, reply_len);\n  reply[reply_len] = '\\0';\n"
-        with open(src_c, encoding="utf-8", errors="replace") as f:
-            csrc = f.read()
-        if csrc.count(old) != 1:
-            q3.bail("fix-execute-lib: SDExecute's copy is found %d times, not once" % csrc.count(old))
-        with open(src_c, "w", encoding="utf-8") as f:
-            f.write(csrc.replace(old, new))
-        mk = subprocess.run(["make"], cwd=os.path.join(q3.BOX, "tree"), capture_output=True, text=True, errors="replace",
-                            timeout=600)
-        if mk.returncode != 0:
-            q3.bail("fix-execute-lib: make failed:\n" + (mk.stdout + mk.stderr)[-600:])
-        shutil.copy2(os.path.join(q3.BOX, "tree", "bin", "sdclilib.so"), os.path.join(q3.SYS, "bin", "sdclilib.so"))
-        say("sandbox-qmclient: FIX fix-execute-lib: SDExecute copies reply_len bytes; sdclilib.so rebuilt and copied into the sandbox")
-        return
     if name not in MUTANTS:
         q3.bail("no mutant named %s" % name)
     old, new = MUTANTS[name]
@@ -463,6 +446,9 @@ def main():
         q3.bail("no SD_REV_STAMP in revstamp.h")
 
     os.environ["SD_CONFIG"] = os.path.join(BOX, "sd.conf")
+    if not os.path.isfile(os.path.join(SYS, "bin", "sdclilib.so")):
+        q3.bail("no client library in %s/bin: the tree builds none (S.262); set SD_CLIENT_LIB to the clean-room sdclilib.so and build "
+                "the sandbox again" % SYS)
     lib = ctypes.CDLL(os.path.join(SYS, "bin", "sdclilib.so"))
     for fn in ("SDRevision", "SDGetVar", "SDSystem", "SDIndices", "SDTrans", "SDRTrans", "SDRead", "SDReadu", "SDExecute", "SDError",
                "SDEvaluate", "SDEvalConv", "SDIConv", "SDOConv", "SDIConvs", "SDOConvs", "SDChange", "SDRespond",

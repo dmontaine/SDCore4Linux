@@ -109,6 +109,9 @@ EXPECT_WRITABLE = {
 # arbitrary code reaching every session that starts afterwards.  This is the
 # port's verify-pcodeacl, and the file list is this tree's bin.
 BIN_FILES = ("pcode", "sd", "libsdcli.so")
+# 19 Nov 26 S.262: the tree builds no client library; an install from a release package has the clean-room one in bin (both names),
+# an install from a GitHub clone has none.  So the library is checked when it is there and its absence is not a failure.
+BIN_OPTIONAL = ("libsdcli.so",)
 
 MSG_SDSYS_GATE = "The SDSYS account is entered only by running SD as the sdsys OS user"      # message 10002 as the teardown (S.25-S.28) left it
 # Message 2001, printed by the verb itself once it has started - so seeing it
@@ -350,7 +353,10 @@ def main():
     for f in BIN_FILES:
         path = os.path.join(a.sdsys, "bin", f)
         if not os.path.exists(path):
-            run.note("B:%s exists" % f, True, False)
+            if f in BIN_OPTIONAL:
+                run.say("      bin/%-14s absent (an install from a clone has no client library: S.262)" % f)
+            else:
+                run.note("B:%s exists" % f, True, False)
             continue
         ok, detail = file_writable(path)
         run.say("      bin/%-14s %-24s %s" % (f, describe(path), detail))
