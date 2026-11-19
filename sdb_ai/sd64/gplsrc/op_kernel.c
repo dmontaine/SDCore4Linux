@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Nov 26 dm  S.264: K_OWN_ADDR (176) - is an address one of this machine's own (sd_ownaddr.c)?
  * 18 Nov 26 dm  S.267: K_SDSYS_LOCAL (175) - a listed user's ssh login from this computer reaching SDSYS, and the local API list (sd_localsdsys.c).
  * 17 Nov 26 dm  S.62 P-4608: a phantom child whose exec of bin/sd fails (or whose path is too long) writes why to the error log.
  * 14 Nov 26 dm  S.241: a phantom gives back a pipe its parent session held on fds 0-2 (release_pipe_fds(), sysseg.c).
@@ -99,6 +100,7 @@
 #include "locks.h"
 #include "sd_jobmark.h"
 #include "sd_localsdsys.h"
+#include "sd_ownaddr.h"
 #include "sd_sftp.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
@@ -558,6 +560,17 @@ void op_kernel() {
           sd_local_why = "bad-argument";
           k_put_c_string("", &result);
         }
+      }
+      break;
+
+    case K_OWN_ADDR: /* 18 Nov 26, S.264: 1 the address is one of this machine's own, 0 not, -1 not an address / unreadable */
+      {
+        char own_arg[80];
+
+        if (k_get_c_string(descr, own_arg, sizeof(own_arg) - 1) < 0)
+          result.data.value = -1;
+        else
+          result.data.value = sd_own_address(own_arg);
       }
       break;
 

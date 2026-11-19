@@ -179,6 +179,9 @@
 * 18 Nov 26 dm - S.267.  kernel(K$SDSYS.LOCAL, 0): the Linux user behind a listed user's ssh login from this computer, or ''; 1: the reason word
 *   of the last ''; 'api' : @fm : user: 1 when the user is on the local API list.  175, not 174 (Windows' K$OS.SDSYS.USER).  Must match gplsrc/keys.h.
       $define K$SDSYS.LOCAL    175      ;* A listed user's local ssh login reaching SDSYS, or '' (S.267)
+* 18 Nov 26 dm - S.264.  kernel(K$OWN.ADDR, address): 1 the address is one of this machine's own, 0 not, -1 not an address or unreadable.
+*   Must match gplsrc/keys.h.
+      $define K$OWN.ADDR       176      ;* Is this address one of this machine's own? (S.264)
 * 10 Sep 26 dm - Parity audit: 57-59 are the Windows port's K$AUDIT, K$WINPATH
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.

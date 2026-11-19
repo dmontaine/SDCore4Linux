@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+18 Nov 26  AN ssh TUNNEL AIMED AT THIS COMPUTER'S OWN ADDRESS CAN NO LONGER REACH SDSYS'S API SIGN-IN.
+
+             What        - a connection to the API that comes from one of this computer's own network addresses is
+                           now treated as coming from this computer, as loopback already was.  For SDSYS that means
+                           the local door, which admits only the Unix socket and a real sdsys login; over TCP it is
+                           refused whatever the remote.sdsys api list holds.
+             Why         - an ssh tunnel ends on this computer.  Aimed at its network address, it arrived from that
+                           address, so a list holding the computer's own address, or a range containing it, let
+                           anyone with an ssh login here reach SDSYS's sign-in with the password alone.  The
+                           documentation warned against listing it; now the list cannot be used that way.
+             Does NOT    - Change anything for an administration computer elsewhere on the network: its address is
+                           not this computer's, and the list decides as before.  remote.sdsys api is still shut as
+                           delivered.
+
 18 Nov 26  A SESSION NO LONGER CRASHES WHEN A CAPTURED COMMAND TRAPS AN ABORT INSIDE IT.
 
              What        - EXECUTE ... CAPTURING around a program that itself runs a command with EXECUTE ...

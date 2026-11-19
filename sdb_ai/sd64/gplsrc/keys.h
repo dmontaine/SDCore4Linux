@@ -263,6 +263,10 @@
    /etc/sdcore/sdsys-local-api (sd_localsdsys.c).  175, NOT 174: 174 is SD Core for Windows' K_OS_SDSYS_USER (above).  GPL.BP/INT$KEYS.H
    carries the same number.                                                                                                              */
 #define K_SDSYS_LOCAL        175
+/* 18 Nov 26 dm - S.264.  kernel(K$OWN.ADDR, address): 1 when the address is one of this machine's own interface addresses
+   (sd_ownaddr.c, getifaddrs, compared as bits), 0 when not, -1 when it is not an address or the interfaces could not be read.
+   GPL.BP/INT$KEYS.H carries the same number.                                                                                    */
+#define K_OWN_ADDR           176
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
    AND K_WINPID (its keys.h), so these three - which the port does not have -
    move to 90-92, a block clear of the port's 0-64.  A key number is compiled

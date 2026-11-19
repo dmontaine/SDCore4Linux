@@ -82,6 +82,7 @@ reccache
 sd_encrypt_sodium
 sd_jobmark
 sd_localsdsys
+sd_ownaddr
 sd_sftp
 sd_keyring
 sd_scram
