@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  THE API WORKS ON UBUNTU 24.04.
+
+             What        - Every connection to the API on Ubuntu 24.04 was refused with "TLS relay ended before the
+                           session started".  It now connects as on every other system.
+             Why         - The part of SD that does the TLS for an API connection runs under a filter that lets it
+                           make only the system calls it needs, and stops it at any other.  The OpenSSL of Ubuntu
+                           24.04 asks the kernel to take over the encryption during the handshake (a setsockopt()
+                           call), and the filter stopped the relay for it.  Now that call is simply refused and
+                           OpenSSL does the encryption itself, as it does everywhere else.
+             Does NOT    - Let the relay do anything more: it still cannot open a file, make a connection, run a
+                           program or start another process.
+
 19 Nov 26  THE CLIENT LIBRARY IS THE ONE WRITTEN NEW FOR SD CORE, AND COMES WITH THE RELEASE PACKAGE.
 
              What        - The C client library that external programs use to reach SD through the API

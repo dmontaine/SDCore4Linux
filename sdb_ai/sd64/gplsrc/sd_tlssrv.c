@@ -12,6 +12,8 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 19 Nov 26 dm S.272: the relay's filter answers setsockopt() and getsockopt() with EPERM instead of killing it.
+ *              Ubuntu 24.04's OpenSSL 3.0 calls setsockopt() in the handshake and every API connection there was refused.
  * 30 Sep 26 dm LSOLO 18: confine() - no_new_privs and a seccomp whitelist in
  *              the relay, since Solo is never root and drop_privilege()
  *              therefore drops nothing.
@@ -376,8 +378,17 @@ static const int relay_allowed[] = {
 };
 #define RELAY_ALLOWED_COUNT ((int)(sizeof(relay_allowed) / sizeof(relay_allowed[0])))
 
+/* 19 Nov 26 dm - S.272: calls the relay is REFUSED (EPERM) rather than killed for.  Ubuntu 24.04's OpenSSL 3.0
+   calls setsockopt() on the connection during the TLS 1.3 handshake (kernel TLS, TCP_ULP "tls"); the filter
+   killed the relay for it (audit type 1326, syscall 54, SIGSYS) and every API connection on that system was
+   refused "TLS relay ended before the session started".  With EPERM OpenSSL keeps TLS in user space, as it does
+   where kernel TLS is not offered, so the relay behaves the same on every distribution.  Neither call gains the
+   relay anything: the sockets are the two it already holds, and it still cannot open, connect, run or fork. */
+static const int relay_refused[] = { SYS_setsockopt, SYS_getsockopt };
+#define RELAY_REFUSED_COUNT ((int)(sizeof(relay_refused) / sizeof(relay_refused[0])))
+
 static bool confine(char* errmsg, size_t errlen) {
-  struct sock_filter f[RELAY_ALLOWED_COUNT + 7];
+  struct sock_filter f[RELAY_ALLOWED_COUNT + 2 * RELAY_REFUSED_COUNT + 7];
   struct sock_fprog prog;
   int n = 0;
   int i;
@@ -395,6 +406,10 @@ static bool confine(char* errmsg, size_t errlen) {
                                         SECCOMP_RET_KILL_PROCESS);
   f[n++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
                                         offsetof(struct seccomp_data, nr));
+  for (i = 0; i < RELAY_REFUSED_COUNT; i++) {   /* S.272: answered EPERM, not killed */
+    f[n++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (unsigned)relay_refused[i], 0, 1);
+    f[n++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (EPERM & SECCOMP_RET_DATA));
+  }
   for (i = 0; i < RELAY_ALLOWED_COUNT; i++)
     f[n++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K,
                                           (unsigned)relay_allowed[i],
