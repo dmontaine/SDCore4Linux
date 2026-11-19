@@ -481,7 +481,7 @@ def modify_section():
         g.has(out, r"^NETON is not a modify\.account action, and nothing was changed") and not g.has(out, r"Action Must Be"), repr(out[-4:]))
     sdsys_before = g.reg_read("sdsys")
     out = g.adm(["modify.account sdsys net-on"])
-    row("sdsys is refused (2202) and its register record is the same", has_line(out, msg(2202)) and g.reg_read("sdsys") == sdsys_before, repr(out[-3:]))
+    row("sdsys is refused (14189, which names remote.sdsys) and its register record is the same", has_line(out, msg(14189)) and g.reg_read("sdsys") == sdsys_before, repr(out[-3:]))
     out = g.adm(["modify.account zznnosuch net-on"])
     row("an account that is not in the register is refused (6003)", has_line(out, msg(6003)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznnosuch")), repr(out[-3:]))
 
@@ -2238,7 +2238,7 @@ def files_section_body():
         row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
             has_line(out, msg(10081, "zznfilo", 2)) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account sdsys " + word])
-        row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
+        row("%s on sdsys: refused (14189), nothing changed" % word, has_line(out, msg(14189)) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilnosuch " + word])
         row("%s on an account that is not in the register: refused (6003), nothing changed, no record made" % word,
             has_line(out, msg(6003)) and unchanged() and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilnosuch")), repr(out[-3:]))
@@ -2268,7 +2268,7 @@ def files_section_body():
         row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
             has_line(out, msg(10081, "zznfilo", 2)) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account sdsys " + word])
-        row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
+        row("%s on sdsys: refused (14189), nothing changed" % word, has_line(out, msg(14189)) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilnosuch " + word])
         row("%s on an account that is not in the register: refused (6003), nothing changed, no record made" % word,
             has_line(out, msg(6003)) and unchanged() and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilnosuch")), repr(out[-3:]))

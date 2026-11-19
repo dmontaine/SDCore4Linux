@@ -285,9 +285,13 @@ deffun is_sd_user(username) calling '!is_sd_user'
    end
    *
    acc.name = downcase(acc.name)   ;* account names are always lower case (13 Sep 26)
+* 19 Nov 26 dm - S.62 (round 6 OUTSTANDING item 8): say WHY sdsys is refused instead of 2202 "Account name is invalid",
+*   which told the person the one thing they had right.  The refusal is unchanged and still comes before the register is
+*   read and before the action is parsed, so it covers every action.  Not Windows' 12001 "never available": here
+*   remote.sdsys can open ssh and the API for sdsys, so the message names it.
    if acc.name = 'sdsys' then
-      stop sysmsg(2202) ;* Account name is invalid
-   end   
+      stop sysmsg(14189) ;* modify.account does not change sdsys, the administrator; its remote access is opened and shut with remote.sdsys
+   end
    *
    read acc.rec from acc.f, acc.name else      
       stop sysmsg(6003) ;* Account name is invalid

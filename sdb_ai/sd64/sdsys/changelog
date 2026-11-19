@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  MODIFY.ACCOUNT SAYS WHY IT WILL NOT CHANGE SDSYS.
+
+             What        - modify.account sdsys ... now answers "modify.account does not change sdsys, the
+                           administrator; its remote access is opened and shut with remote.sdsys".
+             Why         - It used to answer "Account name is invalid", which told you the one thing you had
+                           right: the name.  SDSYS is never a target of modify.account, whatever you ask for.
+             Does NOT    - Change the refusal itself: every action on sdsys is still refused, before anything is
+                           read or changed.
+
 19 Nov 26  CONFIG GPL AND CONFIG CONTRIB WORK IN EVERY ACCOUNT.
 
              What        - The sign-on banner tells every session to type CONFIG GPL for the licence and CONFIG
