@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 19 Nov 26 dm  Windows RELEASE_1.1 354: the helper's truncated flag is read; a cut-off reply says 11632, an empty one 11632 alone (not 11651).
 * 17 Nov 26 dm  S.62 (P-1289, P-1291, P-1292): an answer of spaces and line feeds only is an empty answer, a line of spaces is an empty line, and an
 *               empty answer still gives the popup one line, as the Windows port's tk_ai does.
 * 15 Nov 26 dm  Windows row 303: read.status keeps which test failed in ai.why (at the END of /tkai/), 'gate' or 'setup', and the op 'why' gives it back, so that HOME can say
@@ -754,6 +755,16 @@ run.ask:
    tok.in = hj{'in'}
    tok.out = hj{'out'}
    gosub read.proposal
+   * 19 Nov 26 (Windows RELEASE_1.1 354): a reply the provider cut at the length limit is said (11632), as the ai verb says it.  With no words at
+   *   all, 11632 alone: the model spent its tokens before a visible word, and "its words follow" (11651) over an empty box said the opposite.
+   if hj{'truncated'} then
+      if trim(atext) = '' then
+         note.p = sysmsg(11632)                       ;* The answer was cut off at the length limit
+      end else
+         if note.p # '' then note.p := @fm
+         note.p := sysmsg(11632)
+      end
+   end
 
    * the popup: what the AI said, the proposal if there is one, and Accept / Reject.  16 Nov 26 (Windows row 325): each paragraph of the answer
    *   is wrapped on its own and an empty line stays empty

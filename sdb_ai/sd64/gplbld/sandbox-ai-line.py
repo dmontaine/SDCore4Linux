@@ -87,6 +87,8 @@ MUTANTS = {
     # 7 Nov 26 (S.160): the standing text shown but not sent; and sent without the wall's screen
     "context-not-sent": ("   ks = cx.send : sysx : @fm : 600", "   ks = sysx : @fm : 600", ["L17"]),
     "context-unscreened": ("      call $tk_aiwall('request', cx.text, why)\n      if why # '' then", "      why = ''\n      if why # '' then", ["L17"]),
+    # 19 Nov 26 (Windows RELEASE_1.1 354): the truncated flag not read - L12b and L12c (counted as L12) must fail
+    "no-truncated": ("   if hj{'truncated'} then\n", "   if @false then\n", ["L12"]),
 }
 CONTEXT_MUTANTS = ("context-not-sent", "context-unscreened")
 
@@ -511,6 +513,18 @@ def sec_proposals():
     h.end()
     h, T = reply("plain words [[notjson]]")
     arow("L12", "words that are not a JSON object are shown as they are with the note (11651) and nothing is proposed", "I would start the editor, I think." in T and msg(11651) in T and "Accept" not in T, T[-600:])
+    h.key("enter", idle=1.5)
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+    # 19 Nov 26 (Windows RELEASE_1.1 354): a reply cut at the length limit.  Empty: the cut is said (11632) and NOT "its words follow" (11651) over nothing.
+    h, T = reply("in detail [[truncempty]]")
+    arow("L12b", "an EMPTY reply cut at the length limit says 11632 alone: no 11651, nothing proposed", msg(11632) in T and msg(11651) not in T and "Accept" not in T and "Run" not in T, T[-600:])
+    h.key("enter", idle=1.5)
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+    h, T = reply("in detail [[trunchalf]]")
+    arow("L12c", "half a JSON object cut at the length limit: its words are shown with 11651 AND 11632, nothing proposed",
+         "hashed, directory and" in T and msg(11651) in T and msg(11632) in T and "Accept" not in T, T[-600:])
     h.key("enter", idle=1.5)
     h.key("ctrl-q", idle=1.5)
     h.end()

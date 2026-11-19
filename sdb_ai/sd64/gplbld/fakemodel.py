@@ -15,6 +15,8 @@
 #   [[shape]] (valid JSON, wrong shape)  [[refuse]] (the model declines)  [[ctrl]] (escape sequences, SD marks and curly quotes in the reply)
 #   [[big]] (a 300,000 character reply)  [[slow]] (waits 3 s)  [[redirect]] (a 302 to another host)  [[trunc]] (stops at the token limit)
 #   [[echo]] (the reply is the whole request body, so a test can read it back through the helper).
+#   19 Nov 26 (Windows RELEASE_1.1 354): [[truncempty]] (NO text, stopped at the token limit: the model spent them before a visible word) and
+#   [[trunchalf]] (half a JSON object, stopped at the token limit).
 # The PKI: a CA (ca.crt), a server certificate it signed for 127.0.0.1 and localhost (server.crt / server.key), a certificate for ANOTHER name signed by
 # the same CA (wrongname.crt), and a self-signed one no CA vouches for (rogue.crt): the helper must accept the first and refuse the other two.
 #
@@ -179,7 +181,7 @@ class FakeModel:
         except (ValueError, KeyError, IndexError, TypeError):
             return self.fail(anth, 400, "bad request")
         marks = [w for w in ("plain", "err429always", "err429", "err500", "err401", "err400key", "err400", "badjson", "shape", "refuse", "ctrl", "big", "slow", "redirect",
-                             "trunc", "echo") if "[[%s]]" % w in prompt]
+                             "trunc", "truncempty", "trunchalf", "echo") if "[[%s]]" % w in prompt]
         jmark = [w for w in JSON_REPLIES if "[[%s]]" % w in prompt]          # 23 Oct 26, AI line: replies in the form the toolkit's AI line asks for
         mark = marks[0] if marks else (jmark[0] if jmark else "plain")
         n = self.count[mark] = self.count.get(mark, 0) + 1
@@ -208,6 +210,10 @@ class FakeModel:
             text = "x" * 300000
         if mark == "trunc":
             stop = "length"
+        if mark == "truncempty":
+            text, stop = "", "length"
+        if mark == "trunchalf":
+            text, stop = '{"say": "The file types SD supports are hashed, directory and', "length"
         if mark == "echo":
             text = body.decode("utf-8")
         if mark in JSON_REPLIES:
