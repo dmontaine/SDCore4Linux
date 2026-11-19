@@ -270,6 +270,21 @@ def u9_rows():
     row("U9g Esc on the top page opens the bar (the Esc rule: File's Sign out drops down)", "Sign out" in drop and h.alive(), repr(drop[:200]))
     h.key("esc", idle=0.7)
     row("U9h ...and Esc again closes it: the page is whole, the session alive", h.home() and "Sign out" not in h.line(1) and h.alive(), repr(h.line(1)[:60]))
+    # 19 Nov 26 S.271 (a tester: "the shortcuts (^Q,^T,^K,^O) work only when the cursor is positioned on the corresponding menu item"):
+    # with View open and the cursor on Refresh, ^K must still give the keys of the page - the open menu used to drop it
+    h.key("f10", idle=0.8)
+    h.key("right", idle=0.5)
+    h.key("right", idle=0.7)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("U9s1 F10, Right, Right: View is open with the cursor on its first entry, Refresh (the control: not on a Keys entry)",
+        "Refresh" in drop and "Theme" in drop and "Keys of this page" not in h.text(), repr(drop[:200]))
+    h.typed("\x0b", idle=1.0)
+    row("U9s2 ...^K with that menu open gives the keys of the page (Help's entry, chosen from another menu) and the menu is closed",
+        "Keys of this page" in h.text() and "Refresh" not in h.line(1), repr(h.text()[:400]))
+    h.key("esc", idle=0.8)
+    row("U9s3 ...Esc closes the keys box: the page is whole, the session alive", h.home() and "Keys of this page" not in h.text() and h.alive(), repr(h.line(12)[:80]))
+    row("U9s4 the Keys tile's icon is [K], not ^K (^K is the keys of the page on every page, not this tile)",
+        "[K]" in h.text() and not any(l.rstrip().endswith("^K") for l in h.lines()[13:19]), repr([l[40:70] for l in h.lines()[14:16]]))
     h.key("f6", idle=0.6)
     # 15 Nov 26 (Windows row 303): a sandbox has no AI helper, so the reason is the computer, not the account - and the account is not blamed
     row("U9i F6 with no AI set up on the computer changes nothing and says so on the status line, without blaming the account",
