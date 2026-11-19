@@ -354,6 +354,7 @@ sd_admin_quiet() {
 
 cleanup() {
     local rc=$?
+    [ -n "${PIN_DIR:-}" ] && rm -rf "$PIN_DIR"
     [ "$COMMIT" -eq 1 ] || exit $rc
     head2 "CLEANUP - removing whatever this run made"
     if [ -n "$VOC_ASIDE" ] && [ -d "$VOC_ASIDE" ]; then
@@ -866,9 +867,19 @@ else
     OUT=$(run_sd "$ACC" "plain account: CT VOC sh, create.account, config; list voc" "CT VOC sh" "CT VOC create.account" "CT VOC config" "LIST VOC WITH TYPE = \"F\" DESC")
     if [ "$COMMIT" -eq 1 ]; then
         ck_line "V1a a plain account HAS sh (S.27: SH for every account)" "VOC sh" "$OUT"
-        for v in create.account config; do ck_says "V1 a plain account lacks $v" "Record '$v' not found" "$OUT"; done
+        ck_says "V1 a plain account lacks create.account" "Record 'create.account' not found" "$OUT"
+        # 19 Nov 26 (S.273): CONFIG is in newvoc now, so a plain account HAS it; only GPL and CONTRIB work there (V1c, V1d), the rest needs the administrator (V1e).
+        ck_line "V1b a plain account HAS config (S.273)" "VOC config" "$OUT"
         # 30 Oct 26: the DESC column of LIST VOC wraps the text at its width ("File for BASIC" / "programs" on two lines), so the row looks for the first line of it
         ck_says "V7 a new account's list voc shows descriptions (the BP file's, wrapped at the column)" "File for BASIC" "$OUT"
+    fi
+    OUT=$(run_sd "$ACC" "plain account: config gpl, config contrib, config (S.273)" "CONFIG GPL" "CONFIG CONTRIB" "CONFIG")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "V1c config gpl shows the licence in a plain account" "GNU GENERAL PUBLIC LICENSE" "$OUT"
+        ck_absent "V1c2 and not through the shell" "not permitted to use the operating system shell" "$OUT"
+        ck_absent "V1c3 and CONFIG is found" "is not in your VOC" "$OUT"
+        ck_says "V1d config contrib shows the contributors" "Contributors to SD and predecessor applications" "$OUT"
+        ck_says "V1e config with no word is refused to a plain account (2001)" "Command requires administrator privileges" "$OUT"
     fi
     OUT=$(run_sd sdsys "sdsys: CT VOC sh, create.account, config" "CT VOC sh" "CT VOC create.account" "CT VOC config")
     if [ "$COMMIT" -eq 1 ]; then
@@ -1004,12 +1015,19 @@ PROBE_PW="$SCRAM_PW"
 head2 "13b. W.4 - the API door: login, the session's groups, a wrong password"
 PROBE="$(dirname "$SELF")/api-probe.py"
 AUD="$SDSYS/audit"
+# 19 Nov 26 - the client library pins the server's certificate on first use (S.236) in ~/.sdcore/known_servers, and this witness runs as
+#   root: after a reinstall the NEW install's certificate met the OLD pin and every api-probe row was refused (correctly) - a run measured
+#   the pin store, not the install.  Each run gives the probe a scratch store of its own, empty at the start and removed by cleanup(), so
+#   the first connection pins this install's certificate and every later probe of the run is held to it.  root's own store is not touched.
+PIN_DIR=$(mktemp -d /tmp/zzrel-pins.XXXXXX) || { echo "cannot make a scratch pin store" >&2; exit 2; }
+PIN_STORE="$PIN_DIR/known_servers"
+export SD_KNOWN_SERVERS="$PIN_STORE"   # every API probe of the run, not only probe(): api-fileop-probe, api-threads-probe and the rest (the unit gives no HOME)
 probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
     say "  --- api-probe: $1 ---" >&2
-    say "      > api-probe.py ${*:2}" >&2
+    say "      > api-probe.py ${*:2}   (pin store $PIN_STORE)" >&2
     if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
     local out
-    out=$(SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" "${@:2}" 2>&1)
+    out=$(SD_KNOWN_SERVERS="$PIN_STORE" SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" "${@:2}" 2>&1)
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
 }
@@ -1533,11 +1551,15 @@ else
         fi
         OUT=$(sprobe "E4 LEG B: the same account and password over $LANIP" "$SDSYS_PW" --host "$LANIP" --user sdsys --account sdsys)
         if [ "$COMMIT" -eq 1 ]; then
-            ck_says "E4 refused at 48 in 10174's words (S.256: shut as delivered until remote.sdsys api on)" "SCRAM: login REFUSED at request 48: SDSYS may be reached through the API from another computer only when the" "$OUT"
+            # 19 Nov 26 (S.264): $LANIP is THIS machine's own address, so the peer is local (K$OWN.ADDR) and meets the local door: refused in 10922's
+            #   words as loopback is, never 10174's "from another computer".  A tunnel aimed at this address can no longer reach SDSYS's sign-in.
+            #   Another computer's 10174 is witness-release-run's two-machine form / Windows' probe-331remote, not this single-VM run.
+            ck_says "E4 over the machine's own address: refused at 48 as LOCAL, in 10922's words (S.264)" "SCRAM: login REFUSED at request 48: SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
+            ck_absent "E4a and NOT in 10174's remote words" "SDSYS may be reached through the API from another computer only when the" "$OUT"
             ck_absent "E4b and did not log in" "server signature VERIFIED" "$OUT"
             NEW=$(tail -n +"$((N0 + 1))" "$AUD")
             printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
-            ck_says "E5 audited with the peer's address" "api refused user=sdsys reason=sdsys on a remote API session from $LANIP" "$NEW"
+            ck_says "E5 audited as a local session with no socket credential, with the address" "api refused user=sdsys reason=sdsys API session with no socket credential from $LANIP" "$NEW"
         fi
         PW_OS=""
         # 18 Sep 26 dm - MODIFY.PASSWORD CANNOT UNSET ONE, BY DESIGN: an empty
