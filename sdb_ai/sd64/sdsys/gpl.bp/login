@@ -66,7 +66,7 @@
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner's
 *               rulings of 12 and 13 Sep): the register key is the lower-cased
 *               name, so every name taken from input, @LOGNAME or a path is
-*               downcased before the lookup, and @WHO reads 'sdsys', 'don'.
+*               downcased before the lookup, and @WHO reads 'sdsys', 'fred'.
 * 13 Sep 26 dm  Reads the $release and $command.stack VOC records by their
 *               lower-case ids (plan M3, the $ records).  Exact reads, and
 *               there are no accounts from before the rename (owner).

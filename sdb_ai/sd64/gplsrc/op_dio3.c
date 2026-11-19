@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Nov 26 dm  S.265: call_trigger() loads a trigger that was not loaded when its file was opened (the account's VOC: $voc_cat could not read
+ *               @voc during $login's open of it), at its first use; a read by $voc_cat itself does not run the not-yet-loaded trigger; one that
+ *               cannot be loaded still refuses (1409).
  * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; WRITE and DELETE inside a transaction, the read note and the 8910 refusal text no
  *               longer call into masters.c (gone).
  * 28 Oct 26 dm  S.87: net_pre_change_lock() can no longer ask a caller to wait (that was AUTOLOCK's): NETL_WAIT, its two arms and the retry_pc of op_write and op_delete are gone.
@@ -2758,7 +2761,7 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
   FILE_VAR *fvar;
   DESCRIPTOR *trg_descr; /* @TRIGGER.RETURN.CODE */
   STRING_CHUNK *str;
-  DH_FILE *dh_file;
+  DH_FILE *dh_file = NULL;
   bool error;
   int16_t args;
   char *trigger_name;
@@ -2777,10 +2780,35 @@ bool call_trigger(DESCRIPTOR *fvar_descr, int16_t mode, DESCRIPTOR *id_descr, DE
     trigger_obj = dh_file->trigger;
   }
 
-  /* Check trigger function was loaded on open */
+  /* Check trigger function was loaded on open.
+     19 Nov 26 dm - S.265: if it was not, load it now, at its first use.  The
+     VOC's own trigger is loaded while the VOC is being opened, when the local
+     catalogue lookup ($voc_cat) cannot read the VOC yet (@voc is assigned only
+     when the open returns); a trigger catalogued in the account was then never
+     found and the account's sign-on stopped.  Two rules keep this tight:
+     - a read made by the catalogue lookup itself (c_base is $voc_cat's code)
+       while the trigger is not yet loaded does not run it: that read only
+       fetches the V CS record the load needs, and running the trigger there
+       would load it from inside its own load;
+     - a trigger that still cannot be loaded refuses the operation (1409), as
+       before: a trigger is never skipped.                                    */
 
   if (trigger_obj == NULL) {
-    k_error(sysmsg(1409), trigger_name, FPtr(fvar->file_id)->pathname);
+    OBJECT_HEADER* tobj;
+
+    if (c_base == pcode_voc_cat)
+      return TRUE;
+    tobj = (OBJECT_HEADER*)load_object(trigger_name, FALSE);
+    if (tobj == NULL) {
+      k_error(sysmsg(1409), trigger_name, FPtr(fvar->file_id)->pathname);
+      return FALSE;
+    }
+    tobj->ext_hdr.prog.refs += 1;
+    trigger_obj = (u_char*)tobj;
+    if (fvar->type == DIRECTORY_FILE)
+      fvar->access.dir.trg->trigger = trigger_obj;
+    else
+      dh_file->trigger = trigger_obj;
   }
 
   /* Check argument count */

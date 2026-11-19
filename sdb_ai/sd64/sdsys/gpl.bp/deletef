@@ -287,7 +287,7 @@ delete.upcased.file:
 * an exhausted list, handed back an EMPTY data.path, and the empty path then
 * failed the "data.path # default.path" test further down and raised the 6135
 * prompt - under NO.QUERY, which had just been honoured five lines earlier.
-* MEASURED 12 Sep 2026 on install 06d3a4a, as don, no sudo: a piped
+* MEASURED 12 Sep 2026 on install 06d3a4a, as an ordinary user, no sudo: a piped
 * "DELETE.FILE ZZVVF NO.QUERY" against a copy of the SYSCOM pointer printed
 * 6145 and 10117 correctly, then printed "OK to delete DATA portion '' (y/<n>)?"
 * THREE TIMES, eating the two commands that followed it - the transcript's tell

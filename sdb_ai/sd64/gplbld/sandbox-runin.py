@@ -762,6 +762,37 @@ def main():
     row("T7c: ... audited (run.in refused account=zzoff file=voc reason=a trigger on a file the command opens)",
         bool(audit_has(r"run\.in refused account=zzoff file=voc reason=a trigger on a file the command opens$")))
     back(w, p, "T7")
+    # T7s1-T7s4 (19 Nov 26, S.265): the account's OWN sign-on with a trigger on its VOC.  $login opens the VOC into @voc, the open loads the trigger at once,
+    #   and _voc_cat read @voc before it was assigned: the sign-on stopped with "Requires file variable".  First the globally catalogued trigger above, then
+    #   one catalogued only in the account (found through the VOC that is being opened: the kernel loads it at its first use).
+    clear_sent()
+    out = sg.plain("zzoff", ["WHO"])
+    row("T7s1 (S.265): an ordinary zzoff session signs on with a GLOBAL trigger on its VOC: WHO names zzoff, no 'Requires file variable'",
+        any(re.search(r"\bzzoff\b", ln) for ln in out) and not any("Requires file variable" in ln for ln in out), "\n".join(out[-10:]))
+    row("T7s2 (S.265): ...and the trigger ran in that session (its record in zzoff's sent): it was loaded, not skipped", sent("zzoff", "trg"), "\n".join(out[-6:]))
+    put(os.path.join(tbp, "zzltrg"), ["subroutine zzltrg(mode, id, data, on.err)",
+                                       "   openpath '%s' to sf then write 'x' to sf, 'ltrg'" % os.path.join(ZOFF, "sent"), "   return", "end"])
+    out = sg.adm(["LOGTO zzoff", "BASIC tbp zzltrg", "CATALOG tbp zzltrg LOCAL"])
+    lt = sg.adm(["LOGTO zzoff", "CT VOC zzltrg"])
+    if not any(re.search(r"^\s*2:\s*CS\s*$", ln) for ln in lt):
+        bail("zzltrg was not catalogued in zzoff (no V CS record):\n" + "\n".join(out[-8:] + lt[-6:]))
+    # SET.TRIGGER asks the catalogue of the account it runs in and needs the file to itself (a LOGTO zzoff session holds zzoff's VOC), so it is set from
+    #   SDSYS while a global copy of zzltrg exists, and that copy is then deleted: from then on zzltrg is found only through zzoff's own VOC (its V CS).
+    put(os.path.join(SYS, "bp", "zzltrg"), ["subroutine zzltrg(mode, id, data, on.err)", "$catalog global no.query", "   return", "end"])
+    out = sg.adm(["BASIC bp zzltrg"])
+    if not in_gcat("zzltrg"):
+        bail("the global copy of zzltrg was not catalogued:\n" + "\n".join(out[-8:]))
+    out = sg.adm(["SET.TRIGGER zzoffvoc zzltrg ALL", "SET.TRIGGER zzoffvoc"])
+    if not sg.has(out, r"zzltrg"):
+        bail("SET.TRIGGER did not give zzoff's VOC the trigger zzltrg:\n" + "\n".join(out[-8:]))
+    out = sg.adm(["DELETE.CATALOG zzltrg GLOBAL"])
+    if in_gcat("zzltrg"):
+        bail("the global copy of zzltrg could not be deleted:\n" + "\n".join(out[-8:]))
+    clear_sent()
+    out = sg.plain("zzoff", ["WHO"])
+    row("T7s3 (S.265): with a trigger catalogued only in zzoff (V CS in the VOC being opened) the sign-on works too: WHO names zzoff, no error",
+        any(re.search(r"\bzzoff\b", ln) for ln in out) and not any(re.search(r"Requires file variable|not loaded|1409", ln) for ln in out), "\n".join(out[-10:]))
+    row("T7s4 (S.265): ...and that trigger ran in the session (sent has ltrg, not trg)", sent("zzoff", "ltrg") and not sent("zzoff", "trg"), "\n".join(out[-6:]))
     out = sg.adm(["SET.TRIGGER zzoffvoc \"\"", "SET.TRIGGER zzoffvoc"])
     if sg.has(out, r"zzgtrg"):
         bail("the trigger could not be taken off zzoff's VOC:\n" + "\n".join(out[-8:]))

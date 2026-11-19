@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+19 Nov 26  A TRIGGER ON AN ACCOUNT'S VOC NO LONGER STOPS THAT ACCOUNT'S SIGN-ON.
+
+             What        - An account whose VOC has a trigger (SET.TRIGGER) can be signed on to again, and the
+                           trigger runs.  This holds whether the trigger's program is in the global catalogue or
+                           catalogued only in that account.
+             Why         - The sign-on stopped with "Requires file variable at line 571 of $login": opening the VOC
+                           loads its trigger at once, and the search of the account's own catalogue read the VOC
+                           before the open had finished.
+             Does NOT    - Skip a trigger.  One that was not found while its file was opened is loaded the first
+                           time it is needed; one that still cannot be found refuses the read or write, as before.
+
 19 Nov 26  A PAGE'S SHORTCUT KEYS WORK WHILE ONE OF ITS MENUS IS OPEN.
 
              What        - With a drop-down menu open on any full-screen page (the home screen, the IDE, the

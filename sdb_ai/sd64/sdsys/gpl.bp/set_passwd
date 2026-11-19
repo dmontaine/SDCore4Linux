@@ -132,7 +132,7 @@ set.status 0
 *   function.
 *
 *   MEASURED 09 Sep 26, NOT REASONED.  An ordinary program with no $internal,
-*   compiled and run as don (uid 1000, no sudo, against the gated binary),
+*   compiled and run as an ordinary user (uid 1000, no sudo, against the gated binary),
 *   called a "!" catalogued function and got a discriminating answer.  So a
 *   four-line program reaches THIS one, and the line below is
 *   OS.EXECUTE "sudo passwd " : username.

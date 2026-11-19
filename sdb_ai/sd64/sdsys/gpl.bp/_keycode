@@ -58,7 +58,7 @@ $include keycode.h
 *   DEL (127) for its backspace key; SD bound whichever one kbs named and ignored
 *   the other.
 *
-*   MEASURED 14 Sep 2026 on install d704658, piped "COUNTX<erase> VOC" as don:
+*   MEASURED 14 Sep 2026 on install d704658, piped "COUNTX<erase> VOC" as an ordinary user:
 *   after TERM vt100 (kbs ^H), DEL did NOT erase ("COUNTX is not in your VOC")
 *   while ^H did; under the default type linux, and xterm, both erased.  Linux
 *   terminal emulators send DEL by default, so backspace died for anyone who

@@ -3126,7 +3126,7 @@ int.logto:
 *
 *   OBJECTION, RECORDED RATHER THAN RESOLVED.  This converts an implicit grant
 *   into an explicit one, and the two are only equivalent for accounts CREATEA
-*   actually made.  ***MEASURED 9 Sep 26: `sdu_don` IS `root,don` AND HAS NO
+*   actually made.  ***MEASURED 9 Sep 26: `sdu_fred` IS `root,fred` AND HAS NO
 *   sdsys***, so that account did not get the -U treatment and an
 *   administrator could NOT enter it before - for that one case this is a
 *   widening, not a preservation.  Why sdu_don differs is an open lead.
