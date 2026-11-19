@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 19 Nov 26 dm  S.273: CONFIG GPL and CONFIG CONTRIB read and display their file (show.text) instead of "sh less", which the SH gate
+*               refused to every account without sh-on - the ordinary accounts the sign-on banner sends there.
 * 14 Nov 26 dm  S.242 stage 1: the listing gains XFER, XFERFILE, XFERSLOT, XFERWAIT, XFERIDLE, XFERMAX and XFERKIND.
 * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
 * 28 Oct 26 dm  S.87: the contrib and licence pages are shown with sh less (the ! verb is gone).
@@ -169,12 +171,31 @@ report.params:
 
 show.contrib:
 	* added contributor display (dsm) 2024-01-22 
-	execute "sh less " : @sdsys:@ds:'contrib'
+	txt.path = @sdsys:@ds:'contrib'
+	gosub show.text
 return
 
 show.gpl:
-   * changed to use man (dsm) 2024-01-24   
-   execute "sh less " : @sdsys:@ds:'licence'
+   * changed to use man (dsm) 2024-01-24
+   txt.path = @sdsys:@ds:'licence'
+   gosub show.text
+return
+
+* 19 Nov 26 dm - S.273: the licence and contributors pages are read and displayed here.  They went through
+*    "sh less" (S.87), and SH is a per-account gate OFF for every new account, so an ordinary account - the one
+*    the sign-on banner tells to type CONFIG GPL - was refused "not permitted to use the operating system shell".
+*    This program is $internal, so it reads the file in SDSYS itself; the terminal's own pagination pages it.
+show.text:
+   openseq txt.path to txt.f else
+      close txt.f
+      display sysmsg(2030, 'CONFIG', txt.path)   ;* Cannot load %1 - %2 not found
+      return
+   end
+   loop
+      readseq txt.line from txt.f else exit
+      display txt.line
+   repeat
+   close txt.f
 return
 
 * ======================================================================
