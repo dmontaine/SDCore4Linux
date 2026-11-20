@@ -2470,7 +2470,7 @@ fi
 #
 # 03 Nov 26 dm - S.143 (owner, 3 Nov 2026: "Yes, installer copies them"): THE DOCUMENTATION PDFS TRAVEL WITH THE INSTALLER TOO.  A release package holds,
 #            beside this script, a folder pdf/ with the per-chapter PDFs of the User, Administrator and Getting Started documents (the names the help
-#            pages' Documentation buttons open).  They are put in the shared account by SD's own docs.install, which judges every file (a lower case
+#            pages' Documentation buttons open) and, since 19 Nov 26, the TUIGuide's (tuiguide-NN-...).  They are put in the shared account by SD's own docs.install, which judges every file (a lower case
 #            plain name, contents beginning %PDF-, a regular file) and writes the audit line; run as root, it leaves the copies root's, so they are
 #            given to sdsys:sdusers like the rest of the folder.  The result is judged file by file on the shared folder, not on sd's exit code.
 #            Nothing here stops the install: no folder (a clone from GitHub has none), no shared account or a refusal each print a note or a

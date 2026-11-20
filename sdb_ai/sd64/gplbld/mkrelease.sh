@@ -38,8 +38,9 @@
 #   SHA256SUMS                          one line for EVERY file under source/ and no other: the installer's PACKAGE-SOURCE block refuses a package whose
 #                                       list and tree differ in either direction
 #   sd-core-for-linux-lVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
-#   pdf/                                the per-chapter PDFs of the three books, as user-NN-..., administrator-NN-..., gettingstarted-NN-... (the names
-#                                       collide otherwise: all three books have 00a-copyright-and-licence.pdf; docs.install takes lower case, 80 characters)
+#   pdf/                                the per-chapter PDFs of the three books and the TUIGuide, as user-NN-..., administrator-NN-..., gettingstarted-NN-...,
+#                                       tuiguide-NN-... (the names collide otherwise: every set has 00a-copyright-and-licence.pdf; docs.install takes lower
+#                                       case, 80 characters)
 #   README.txt, clients/Linux64/, clients/Linux64-openssl4/, clients/Windows64/, clients/Windows32/, clients/bindings/   only when given
 #
 # THEN it unpacks the zip into a scratch folder and checks it as the installer will: SHA256SUMS, the tree against the list, SDCORE-RELEASE against REF,
@@ -167,7 +168,8 @@ done
 
 # the per-chapter PDFs, with the book in the name
 npdf=0
-for book in "User:user" "Administrator:administrator" "GettingStarted:gettingstarted"; do
+# 19 Nov 26 dm - the TUIGuide (using the full-screen pages) ships as a fourth set, tuiguide-NN: the owner, asked whether it should ship: "Yes, ship it".
+for book in "User:user" "Administrator:administrator" "GettingStarted:gettingstarted" "TUIGuide:tuiguide"; do
     dir=${book%%:*}; pre=${book##*:}
     ls "$DOCS/$dir/pdf/"*.pdf >/dev/null 2>&1 || fail "no PDFs in $DOCS/$dir/pdf (rebuild them: S.23)"
     if [ -n "$(find "$DOCS/$dir/markdown" -name '*.md' -newer "$(ls -t "$DOCS/$dir/pdf/"*.pdf | head -1)" 2>/dev/null | head -1)" ]; then
