@@ -35,6 +35,7 @@
 #        helper is NOT asked at all
 #   K2   set.job alone with no job: the helper is asked job-list, and it says no job is defined
 #   K3   the page: J shows the Jobs view, with no job
+#   K4a  N: the form opens with the default schedule shown whole and the schedule's forms under the entries (Windows 365)
 #   K4   N: the form; a bad schedule and a bad name are refused in the form with nothing asked of the helper
 #   K5   N: the box names 'set.job add nightly backup-all daily 02.30', the command and the schedule in words; Esc asks nothing of the helper
 #   K6   N, Run: the helper was asked job-set nightly backup-all daily 02:30 (the colon back), the audit line, the row with the next run systemd gave
@@ -546,6 +547,11 @@ def section_k3_k10():
     say("\n--- K4: the form refuses before anything is asked")
     c0 = len(calls())
     p.key("n", 1.5)
+    T0 = p.text()
+    # K4a (20 Nov 26, Windows 365): the label and the shown default were cut ("Schedule: every 15 minutes," and "default: dail..."); the forms are said under the entries
+    arow("K4a", "the form opens with the whole 'default: daily 02:30' beside the schedule and the schedule's forms said under the entries",
+         "default: daily 02:30" in T0 and "dail..." not in T0 and "monthly 1..28 hh:mm" in T0
+         and "Schedule: every 15 minutes," not in T0, T0[:1800])                               # stale-ok: the cut label must be GONE
     fill(p, ["nightly", "backup-all", "every 7 minutes"], ["", "update-accounts", "daily 02:30"])
     T = p.text()
     ok1 = "the schedule is every 5 10 15 20 30 minutes" in T and not box_open(T)        # norm() reads the bars of 5|10|15 as the box's own
@@ -590,7 +596,7 @@ def section_k3_k10():
     say("\n--- K8: C")
     a1 = audit_off()
     p.key("c", 1.5)
-    fill(p, ["backup-all", "weekly sun 03:00"], ["backup-all", "daily 02:30"])
+    fill(p, ["backup-all", "weekly sun 03:00"], ["backup-all", "daily 02:30"])           # stale-ok: a schedule typed in, not SD's output
     T = p.text()
     ok_box = box_open(T) and "set.job change nightly backup-all weekly sun 03.00" in T and "every Sunday at 03:00" in T and "It replaces what nightly does now" in T
     p.key("r", 5.0)

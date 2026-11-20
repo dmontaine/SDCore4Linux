@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 20 Nov 26 dm Windows 365: the N / C form's schedule label is "Schedule" (it was cut at 28 cells) and its entry 20 cells, so "default: daily 02:30" fits beside it;
+*              the forms of a schedule are said under the entries when the form opens (SCHED.FORMS).
 * 2 Nov 26 dm  S.102 stage 5 (the docs review): a damaged file whose name is not a job name is said to be removed by root by hand (rm /etc/sdcore/jobs.d/<file>);
 *              the page used to advise set.job delete, which refuses such a name.  The help record now points at the Administrator page 23-scheduled-jobs.
 * 2 Nov 26 dm  New (S.102 stage 1, account jobs only: the batch gate's list; the schedules themselves are a later stage).  Made from tool_viewers.
@@ -74,6 +76,7 @@ $include tk.h
    JOBIDS = 'backup-all' : @fm : 'update-accounts'                ;* the root helper's job ids (check-masters and sync-masters went with S.96 M6, 2 Nov 26)
    JOBCMDS = 'backup.account all' : @fm : 'update.accounts all'
    DAYS = 'mon' : @fm : 'tue' : @fm : 'wed' : @fm : 'thu' : @fm : 'fri' : @fm : 'sat' : @fm : 'sun'
+   SCHED.FORMS = 'Schedule: every 5|10|15|20|30 minutes, hourly, daily hh:mm, weekly mon..sun hh:mm or monthly 1..28 hh:mm (hh:mm as 09:30).'
 
    call $tk_open('tool.jobs', 'admin', ctx, err)
    if err # '' then
@@ -933,7 +936,9 @@ job.fields:
    jw = JOBIDS
    convert @fm to @sm in jw
    spec<-1> = 'job' : @vm : 'Job' : @vm : '' : @vm : '' : @vm : 2 : @vm : '' : @vm : jw
-   spec<-1> = 'sched' : @vm : 'Schedule: every 15 minutes, hourly, daily 02:30, weekly sun 03:00, monthly 1 04:00' : @vm : 24 : @vm : 24 : @vm : '' : @vm : 1 : @vm : '' : @vm : (if spec<1>[1, 3] = 'New' then 'default' else 'now')
+* 20 Nov 26 (Windows 365): the label is one word and the entry 20 cells - the form cuts a label at 28 cells and the shown value at the cells the entry leaves, so the
+*   forms were cut after "every 15 minutes," and "default: daily 02:30" to "default: dail...".  The forms are said under the entries when the form opens (job.form).
+   spec<-1> = 'sched' : @vm : 'Schedule' : @vm : 20 : @vm : 24 : @vm : '' : @vm : 1 : @vm : '' : @vm : (if spec<1>[1, 3] = 'New' then 'default' else 'now')
    return
 
 * N: one form, the name, the job and the schedule; the page checks all three before it shows the box (set.job and the root helper check them again)
@@ -983,6 +988,8 @@ job.form:
       msg = 'the form does not fit this window'
       return
    end
+   ftext = SCHED.FORMS : ' ' : sysmsg(14114)
+   call $tk_form('say', ctx, ftext, '', '')    ;* the schedule's forms, under the entries until a refusal replaces them
    loop
       call $tk_form('run', ctx, fans, fv, fid)
       if fans # 'ok' then

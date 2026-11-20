@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+20 Nov 26  UPDATE.ACCOUNTS ALL, REFUSED, SAYS ONLY THAT IT WAS REFUSED.
+
+             What        - Typed in a session that is not the administrator's SDSYS session, update.accounts all
+                           now prints only "Cannot update every registered account from here, so NOTHING has been
+                           updated", and nothing is updated.
+             Why         - It first printed "Copying records from NEWVOC to VOC..." and updated the session's own
+                           VOC, then said NOTHING had been updated - two lines that contradicted each other, and
+                           the second was not true.
+             Does NOT    - Change the walk itself: the administrator's update.accounts all, and update.accounts
+                           without ALL, work as before.
+
+20 Nov 26  THE NEW-JOB FORM OF TOOL.JOBS SHOWS ITS LABEL AND DEFAULT WHOLE.
+
+             What        - The schedule's label is "Schedule", its default ("default: daily 02:30") is shown whole
+                           beside it, and the five forms a schedule may take are said under the entries when the
+                           form opens.
+             Why         - The long label was cut after "every 15 minutes," and the default to "default: dail...",
+                           so the forms were seen only in the refusal after a wrong one.
+             Does NOT    - Change which schedules are accepted.
+
 19 Nov 26  MODIFY.ACCOUNT SAYS WHY IT WILL NOT CHANGE SDSYS.
 
              What        - modify.account sdsys ... now answers "modify.account does not change sdsys, the

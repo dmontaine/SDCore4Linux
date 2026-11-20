@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 20 Nov 26 dm Windows 364: int.update.accounts no longer says 5200 before $LOGIN; LOGIN says it after the mode 4 refusal test.
 * 18 Nov 26 dm S.268: set.account.umask - 022 in SDSYS (group sdusers, every SD user), 002 elsewhere; after LOGTO, RUN.IN and revert.account.
 * 18 Nov 26 dm S.267: an sdsys session whose login was not sdsys's is asked, before the 10195 refusal, whether it is a listed user's ssh login from this
 *              computer (kernel(K$SDSYS.LOCAL)); if so the SD password of sdsys is asked once and the session is granted (audit "elevation granted
@@ -4249,8 +4250,7 @@ int.update.accounts:
          return
    end case
 
-   display sysmsg(5200) ;* Copying records from NEWVOC to VOC...
-   i = '$LOGIN'
+   i = '$LOGIN'                ;* 20 Nov 26 - $LOGIN says 5200 once its refusal test has passed (Windows 364)
    call @i(j,upd.mode)
    i = ''
    display 

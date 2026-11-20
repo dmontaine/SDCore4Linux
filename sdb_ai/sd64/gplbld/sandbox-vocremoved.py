@@ -19,6 +19,7 @@
 # sandbox-gates.py's own functions (prepare, build_account) so that their sessions are ORDINARY, and stale records are planted into
 # their VOCs by an administrator program:
 #   zzvra  the main account (the single-account update, UPDATE.ACCOUNTS from inside it)
+#   N1     UPDATE.ACCOUNTS ALL in a plain SDSYS session: 10172 alone, no 5200 and no update first (Windows 364, 20 Nov 26); U0c the permitted walk still says 5200
 #   zzvrb  the same plants, updated by the administrator's UPDATE.ACCOUNTS ALL; listed first without changing anything
 #   zzvrc  the control: none of the listed names, nothing must be written, saved or audited
 #   zzvrd  the same plants and a VOC the session may not write
@@ -252,6 +253,19 @@ def main():
     row("L5: an ordinary account has no such verb", not g.has(out, r"VOC record\(s\) that SD no longer ships") and g.has(out, r"is not in your VOC"),
         "\n".join(out))
 
+    # --- N. UPDATE.ACCOUNTS ALL from a session that is not the administrator (Windows RELEASE_1.1 364, 20 Nov 26) -------------
+    # It said 5200 "Copying records..." first and updated the session's own VOC, then 10172 "...NOTHING has been updated".  The refusal is now the only line.
+    say("\n--- N. UPDATE.ACCOUNTS ALL refused for a session that is not the administrator ----------------------------------------")
+    # A plain session cannot sign on to the sandbox's SDSYS ("Account <user> not in register"), so the administrator's session drops the flag in a $internal
+    # program (op_kernel.c K_ADMINISTRATOR: only $internal may change it) and says that it did, then types the verb.  NA admin=0 is the null-case guard.
+    g.put(os.path.join(SYS, "gpl.bp", "zzvrn"), "\n".join([          # in gpl.bp, where int$keys.h is (as sandbox-gates.py's probes)
+        "$internal", "program zzvrn", "$include keys.h", "$include int$keys.h", "   void kernel(K$ADMINISTRATOR, 0)",
+        "   crt 'NA admin=':kernel(K$ADMINISTRATOR, -1)", "   execute 'UPDATE.ACCOUNTS ALL'", "   crt 'NA done'", "end", ""]))
+    nout = g.adm(["BASIC gpl.bp zzvrn", "RUN gpl.bp zzvrn"], internal=True)
+    row("N1: an SDSYS session that is not the administrator (NA admin=0) is refused with 10172 and says nothing of copying first (the refusal is its only line)",
+        g.has(nout, r"^NA admin=0$") and g.has(nout, r"^NA done$") and g.has(nout, r"Cannot update every registered account from here")
+        and not g.has(nout, r"Copying records|Updating .*voc|had their VOC updated"), "\n".join(nout[-12:]))
+
     # --- U. one walk of the administrator's UPDATE.ACCOUNTS ALL over the four accounts (zzvrd's VOC made read only for it) -----
     # (UPDATE.ACCOUNTS without ALL is not a verb of an ordinary account, and SDSYS's own run is the SDSYS account's: the walk is the real path.)
     say("\n--- U. UPDATE.ACCOUNTS ALL (mode 4), the account zzvra --------------------------------------------------------------")
@@ -266,6 +280,8 @@ def main():
         subprocess.run(["chmod", "-R", "u+w", vd], check=True)
     row("U0: the walk ran and reported the accounts it updated (3 updated, 1 left as it was) - the control that the rows below are about the walk",
         g.has(walk_out, r"account\(s\) had their VOC updated") and g.has(walk_out, r"1 account\(s\) were left as they were"), "\n".join(walk_out[-8:]))
+    row("U0c: the permitted walk still says 5200 (Copying records from NEWVOC to VOC...) - said by LOGIN since 20 Nov 26, not by cproc",
+        g.has(walk_out, r"Copying records from NEWVOC to VOC"), "\n".join(walk_out[:6]))
     out = segment(walk_out, "zzvra")
     row("U0b: the walk's output for zzvra was found (a segment that begins `Updating .../zzvra/voc`)", out != [], "\n".join(walk_out[:12]))
     post = readback("zzvra")

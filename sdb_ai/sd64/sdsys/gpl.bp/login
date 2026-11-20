@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 20 Nov 26 dm Windows 364: update.accounts all refused (10172) before any VOC is touched; 5200 is said here, after that test, not by cproc.
 * 18 Nov 26 dm S.268: the umask follows the account at sign-on - 022 in SDSYS, whose group is every SD user; 002 elsewhere, as before.
 * 2 Nov 26 dm  S.102: batch.permitted's comment names SET.BATCH and TOOL.JOBS, the new way to change batch.jobs.  No code changed.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
@@ -236,7 +237,22 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    end
 
    if mode = 2 or mode = 3 or mode = 4 then  ;* Just doing a VOC upgrade or install
+* 10 Sep 26 dm - MODE 4 IS "UPDATE.ACCOUNTS ALL", the port's unattended form (its
+*   PRE_RELEASE_FIXES 70): the walk runs without the question, says so first
+*   (10170) and reports the count (10171).  Anywhere but SDSYS under an
+*   administrator it refuses in words (10172) rather than updating one account
+*   and staying silent about the rest.
+* 20 Nov 26 dm - Windows RELEASE_1.1 364: the refusal comes BEFORE anything is
+*   updated, and is the only line.  It used to follow 5200 (printed by cproc)
+*   and this account's own VOC update, so "NOTHING has been updated" was false.
+      if mode = 4 and not(@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1)) then
+         display sysmsg(10172) ;* Cannot update every account from here
+         ok = @true
+         return
+      end
+
       if mode = 2 or mode = 4 then           ;* VOC update (4 = UPDATE.ACCOUNTS ALL)
+         display sysmsg(5200) ;* Copying records from NEWVOC to VOC...
          update.voc.f = voc
 * 26 Oct 26 dm - THE SDSYS ACCOUNT'S OWN VOC IS UPDATED FROM VOC_TEMPLATE, NOT FROM NEWVOC.  The install builds it from the whole of
 *   VOC_TEMPLATE (bbproc) and NEWVOC is a smaller set for the other accounts; where the two hold the same id with different content
@@ -247,15 +263,6 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          gosub update.voc
          if upd.denied then display sysmsg(11983, @path : @ds : 'voc')
          close update.voc.f
-      end
-
-* 10 Sep 26 dm - MODE 4 IS "UPDATE.ACCOUNTS ALL", the port's unattended form (its
-*   PRE_RELEASE_FIXES 70): the walk runs without the question, says so first
-*   (10170) and reports the count (10171).  Anywhere but SDSYS under an
-*   administrator it refuses in words (10172) rather than updating one account
-*   and staying silent about the rest.
-      if mode = 4 and not(@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1)) then
-         display sysmsg(10172) ;* Cannot update every account from here
       end
 
       if @who = 'sdsys' and kernel(K$ADMINISTRATOR,-1) then
