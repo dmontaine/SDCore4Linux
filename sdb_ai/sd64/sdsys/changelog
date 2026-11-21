@@ -1,6 +1,37 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  WHAT THE INSTALL COULD NOT PUT BACK IS SAID IN A RED BOX, WITH THE STEPS TO TYPE.
+
+             What        - When an install over an installed SD, or a reinstall that keeps the accounts and the
+                           configuration, cannot put something back - a scheduled job the helper refuses, the API door
+                           or the sdsys ssh door that was open and could not be opened again, a firewall rule that could
+                           not be added - the closing summary now starts, right under "The SD server is installed.",
+                           with a boxed bold red block that names each one and the exact command to type. A job's
+                           command is printed from its saved definition, quoted, so copying it cannot run anything else.
+                         - The uninstaller does the same for what it could not save for the next install: the note
+                           that reopens the API door or the sdsys ssh door, or a job's definition. It shows the block
+                           at its end, and an install over an installed SD carries it into its own block.
+                         - The closing summary no longer says the firewall rule for the API "was added" when adding it
+                           failed. A note the install does not trust used to be dropped without a word; it is now said.
+             Why         - The owner: "if the admin says not to delete during a deletion then the system should be put
+                           back exactly as it was before the uninstall. If that is impossible then the admin needs to be
+                           warned during the install the exact steps they must take to restore the system exactly as it
+                           was." and "If there are warnings they should not be buried in other text. They need to be
+                           explicit, stand out so that they can not be missed."
+             Does NOT    - Change what is restored or how, or print anything when everything was put back. A note the
+                           install does not trust is still not used.
+
+22 Nov 26  A KEPT sd.conf KEEPS ITS SCREEN THEME.
+
+             What        - An install, an upgrade or a reload no longer touches the SCREENTHEME line of a kept sd.conf:
+                           the one-time change of SCREENTHEME=blue to paper, and the step that added SCREENTHEME=paper to
+                           a file with no such line, are gone. A file with no line stays on the screen library's own
+                           default (mono). A new install still starts in paper, from the shipped sd.conf.
+             Why         - The owner: "Each user can change their theme, I would think they would get their existing
+                           theme back."
+             Does NOT    - Undo a change an earlier build already made: that file keeps paper and its comment line.
+
 22 Nov 26  THE INSTALLER UPGRADES AN INSTALLED SD IN PLACE, AND THE SCHEDULED JOBS SURVIVE IT.
 
              What        - installsdcore.sh no longer stops with "Uninstall it before running this script" when SD is
@@ -1490,9 +1521,8 @@ Next release - in progress
                            colours, the selected one inverted, and no caption is cut by its box (three captions are worded
                            shorter: "who may do what", "edit many records", "run, judge tests"). Leaving a page, the home
                            screen or the IDE gives the terminal back in its own colours. The shipped sd.conf says
-                           SCREENTHEME=paper. An upgrade that keeps the configuration gets SCREENTHEME=paper added if its
-                           sd.conf has no such line, and a SCREENTHEME=blue line is changed to paper once, with a comment
-                           line saying so.
+                           SCREENTHEME=paper, so a new install starts in paper; an install or upgrade that keeps the
+                           configuration leaves its SCREENTHEME line exactly as it was (22 Nov 26).
              Why         - The blue theme's text, and its menu bar (black and red letters on cyan), were hard to read.
              Does NOT    - Remove blue or any other theme: SCREENTHEME=blue (or classic, mono, dark, light) set after the
                            upgrade stays, and a later install leaves it. A terminal with no colour still shows mono, and a

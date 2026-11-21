@@ -104,6 +104,7 @@ runblock() {   # block-text log state helper-rc
   OPTS="$OPTS" IFSL="$IFSL" BLOCK="$b" LOG="$2" STATE="$3" HRC="${4:-0}" BOK="${BOK:-1}" ORC="${ORC:-0}" NOTE_OWNER="${NOTE_OWNER:-0}" bash -c '
       eval "$OPTS"; eval "$IFSL"
       RED=""; NC=""; YELLOW=""
+      restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292: what the block collects for the closing red block
       sdsys_ssh_state=$STATE; sdsys_pw_state=${PWS:-set}; ssh_boundary_ok=$BOK
       fc() {
         { printf "fc"; printf " %s" "$@"; echo; } >> "$LOG"
@@ -128,7 +129,7 @@ code=$(grep -n -v '^ *#' "$INST")
 asks=$(printf '%s\n' "$code" | grep -E 'read [^#]*-p' | grep -i -E 'sdsys' | grep -i -E 'ssh' || true)
 var=$(printf '%s\n' "$code" | grep -E 'open_sdsys_ssh' || true)
 row "N1 no question about sdsys over ssh, no open_sdsys_ssh variable" "$([ -z "$asks$var" ] && echo 0 || echo 1)" "asks: $asks var: $var"
-opens=$(printf '%s\n' "$code" | grep -E 'ssh-forcecommand[^#]*--open-sdsys|sd-elevate[^#]*sdsys-ssh on' | grep -v -E ':\s*echo ' || true)
+opens=$(printf '%s\n' "$code" | grep -E 'ssh-forcecommand[^#]*--open-sdsys|sd-elevate[^#]*sdsys-ssh on' | grep -v -E ':\s*(echo|restore_warn) ' || true)   # S.292: a restore_warn line only SAYS the command, like an echo
 n_open=$(printf '%s\n' "$opens" | grep -c . || true)
 in_block=$(printf '%s\n' "$STATE" | grep -c -E 'ssh-forcecommand --open-sdsys' || true)
 elev=$(printf '%s\n' "$opens" | grep -E 'sd-elevate' || true)
@@ -149,7 +150,7 @@ row "R1 with no note, SDSYS-SSH-STATE asks --sdsys-state once, keeps what it say
 # U1-U3: an upgrade's note
 echo open > "$NOTE"; : > "$T/u1"; out=$(runblock "$STATE" "$T/u1" "sdsys-arm=open" 0); rc=$?
 row "U1 a root-owned note saying open, with the boundary, reopens it (--open-sdsys then --sdsys-state), says so, and the note is gone" \
-    "$([ "$(tr '\n' '|' < "$T/u1")" = "fc --open-sdsys|fc --sdsys-state|" ] && [[ "$out" == *"open again"* && "$out" == *REACHED-END* ]] && [ ! -e "$NOTE" ] && [ $rc = 0 ] && echo 0 || echo 1)" "calls: $(tr '\n' '|' < "$T/u1") out: $out"
+    "$([ "$(tr '\n' '|' < "$T/u1")" = "fc --open-sdsys|fc --sdsys-state|" ] && [[ "$out" == *"open again"* && "$out" == *REACHED-END* && "$out" != *RESTORE-WARN* ]] && [ ! -e "$NOTE" ] && [ $rc = 0 ] && echo 0 || echo 1)" "calls: $(tr '\n' '|' < "$T/u1") out: $out"
 ubad=""
 for case in other-owner link other-word empty; do
   rm -f "$NOTE" "$T/target"; own=0
@@ -161,13 +162,16 @@ for case in other-owner link other-word empty; do
   esac
   : > "$T/u2"; out=$(NOTE_OWNER=$own runblock "$STATE" "$T/u2" "sdsys-arm=closed" 0); rc=$?
   { [ "$(tr '\n' '|' < "$T/u2")" = "fc --sdsys-state|" ] && [ ! -e "$NOTE" ] && [ ! -L "$NOTE" ] && [[ "$out" == *REACHED-END* ]] && [ $rc = 0 ]; } || ubad="$ubad $case"
+  [[ "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] || ubad="$ubad $case-silent"
 done
-row "U2 a note not root's, a link, another word or empty opens nothing, and is removed" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad"
+row "U2 a note not root's, a link, another word or empty opens nothing, is removed, and is COLLECTED for the red block with the sd-elevate command (S.292: it was silent)" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad"
+rm -f "$NOTE"; : > "$T/u2n"; out=$(runblock "$STATE" "$T/u2n" "sdsys-arm=closed" 0)
+row "U2b no note at all: nothing collected" "$([[ "$out" != *RESTORE-WARN* && "$out" == *REACHED-END* ]] && echo 0 || echo 1)" "$out"
 ubad=""
 echo open > "$NOTE"; : > "$T/u3"; out=$(BOK=0 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
-{ ! grep -q -- --open-sdsys "$T/u3" && [[ "$out" == *"could not be opened again"* && "$out" == *"sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* ]] && [ $rc = 0 ]; } || ubad="$ubad no-boundary"
+{ ! grep -q -- --open-sdsys "$T/u3" && [[ "$out" == *"could not be opened again"* && "$out" == *"sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && [ $rc = 0 ]; } || ubad="$ubad no-boundary"
 echo open > "$NOTE"; : > "$T/u3"; out=$(ORC=1 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
-{ [[ "$out" == *"could not be opened again"* && "$out" != *"open again."* && "$out" == *REACHED-END* ]] && [ $rc = 0 ] && [ ! -e "$NOTE" ]; } || ubad="$ubad open-fails"
+{ [[ "$out" == *"could not be opened again"* && "$out" != *"open again."* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && [ $rc = 0 ] && [ ! -e "$NOTE" ]; } || ubad="$ubad open-fails"
 row "U3 a note saying open without the boundary, or with --open-sdsys failing, warns with the sudo command and goes on with status 0" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad out: $out"
 
 # S1-S4: the summary line

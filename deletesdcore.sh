@@ -78,6 +78,40 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 #
 NC='\033[0m' # No Color (reset)
+#
+# RESTORE-WARN-BEGIN
+# 22 Nov 26  S.292 (owner, 21 Nov 2026, Windows chat, relayed T0800: "if the admin says not to delete during a deletion then the system should be put
+#            back exactly as it was before the uninstall.  If that is impossible then the admin needs to be warned during the install the exact steps they
+#            must take to restore the system exactly as it was." and "If there are warnings they should not be buried in other text.  They need to be
+#            explicit, stand out so that they can not be missed."): every restore that did not happen is collected and printed ONCE, as a boxed bold red
+#            block with the exact command for each.  This block is the same text in installsdcore.sh and deletesdcore.sh (test-install-restorewarn.sh
+#            holds the two equal).  A record is WHAT and COMMAND joined by a tab.  When $SD_RESTORE_WARN_FILE is set each record is also appended there,
+#            which is how the install-over carries the uninstaller's records into its own closing block.
+restore_warns=()
+restore_warn() {   # restore_warn WHAT [COMMAND]: collect one record
+    restore_warns+=("$1"$'\t'"${2:-}")
+    if [ -n "${SD_RESTORE_WARN_FILE:-}" ]; then printf '%s\t%s\n' "$1" "${2:-}" >> "$SD_RESTORE_WARN_FILE" || true; fi
+}
+restore_warn_import() {   # restore_warn_import FILE: collect the records another script wrote there
+    local line
+    [ -f "$1" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
+    done < "$1"
+}
+restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
+    local n=0 rec rule='################################################################################'
+    [ "${#restore_warns[@]}" -gt 0 ] || return 0
+    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    for rec in "${restore_warns[@]}"; do
+        n=$((n + 1))
+        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
+        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+    done
+    printf '%s\033[0m\n\n' "$rule"
+}
+# RESTORE-WARN-END
 
 sdsysdir="/usr/local/sdsys"
 systemd_dir="/usr/lib/systemd/system"
@@ -213,6 +247,7 @@ if [ "$conf_deleted" = no ]; then
             if echo open | sudo tee "$acct_path/api-access.saved" > /dev/null && sudo chmod 600 "$acct_path/api-access.saved"; then
                 echo "Saved: API access from other computers is open, and the next install keeps it open."
             else
+                restore_warn "API access from other computers is open, but the note that makes the next install open it again could not be saved, so the next install will leave it LOCAL ONLY.  After the next install, sign in as sdsys and type at the SD prompt" "remote.api on"
                 echo "WARNING: could not note that API access is open; after the next install open it with:  remote.api on"
             fi ;;
     esac
@@ -518,6 +553,7 @@ if [ "$conf_deleted" = no ] && [ -x /usr/local/sbin/ssh-forcecommand ]; then
             if echo open | sudo tee "$acct_path/sdsys-ssh.saved" > /dev/null && sudo chmod 600 "$acct_path/sdsys-ssh.saved"; then
                 echo "Saved: sdsys over ssh is open, and the next install opens it again."
             else
+                restore_warn "SDSYS over ssh is open, but the note that makes the next install open it again could not be saved, so it will stay SHUT.  After the next install open it" "sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
                 echo "WARNING: could not note that sdsys over ssh is open; after the next install open it with:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
             fi ;;
     esac
@@ -560,6 +596,18 @@ if [ "$conf_deleted" = no ] && sudo test -d /etc/sdcore/jobs.d && ! sudo test -L
         echo "Saved the scheduled jobs' definitions ($acct_path/jobs.saved): the next install schedules them again."
     else
         echo "WARNING: the scheduled jobs' definitions could not be saved; after the next install make them again with sd-elevate job-set."
+        # S.292: one exact command per live definition (they are still in /etc/sdcore/jobs.d here), each value quoted with %q
+        for jf in $(sudo find /etc/sdcore/jobs.d -mindepth 1 -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | LC_ALL=C sort); do
+            jb=$(sudo sed -n 's/^job=//p' "/etc/sdcore/jobs.d/$jf" | head -1)
+            js=$(sudo sed -n 's/^schedule=//p' "/etc/sdcore/jobs.d/$jf" | head -1)
+            IFS=' ' read -r -a jw <<< "$js"
+            if [ -n "$jb" ] && [ "${#jw[@]}" -gt 0 ]; then
+                printf -v jc 'sudo /usr/local/sbin/sd-elevate job-set %q %q %s' "$jf" "$jb" "$(printf '%q ' "${jw[@]}")"
+                restore_warn "Scheduled job $jf: its definition could not be saved, so the next install will not schedule it again.  After the next install make it again" "${jc% }"
+            else
+                restore_warn "Scheduled job $jf: its definition could not be saved or read.  After the next install make it again with the job and the schedule you gave it" "sudo /usr/local/sbin/sd-elevate job-set <name> <job> <schedule words>"
+            fi
+        done
     fi
 fi
 # JOBS-SAVE-END
@@ -746,6 +794,8 @@ if [ "$keep_accts" = "DELETE" ] && [ "$conf_deleted" = yes ] && [ -d "$acct_path
 fi
 # HOMESD-TIDY-END
 
+# 22 Nov 26  S.292: what the next install will not put back because it could not be saved, boxed and bold red, each with its exact command (nothing prints when none).
+restore_warn_block "THE UNINSTALL COULD NOT SAVE EVERYTHING FOR THE NEXT INSTALL.  DO THESE STEPS AFTER THE NEXT INSTALL."
 
 printf "%b\n" "$GREEN"
 echo "----------------------------------------------------------------------"

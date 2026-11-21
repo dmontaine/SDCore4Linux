@@ -641,6 +641,40 @@ BLUE='\033[0;34m'
 #
 NC='\033[0m' # No Color (reset)
 #
+# RESTORE-WARN-BEGIN
+# 22 Nov 26  S.292 (owner, 21 Nov 2026, Windows chat, relayed T0800: "if the admin says not to delete during a deletion then the system should be put
+#            back exactly as it was before the uninstall.  If that is impossible then the admin needs to be warned during the install the exact steps they
+#            must take to restore the system exactly as it was." and "If there are warnings they should not be buried in other text.  They need to be
+#            explicit, stand out so that they can not be missed."): every restore that did not happen is collected and printed ONCE, as a boxed bold red
+#            block with the exact command for each.  This block is the same text in installsdcore.sh and deletesdcore.sh (test-install-restorewarn.sh
+#            holds the two equal).  A record is WHAT and COMMAND joined by a tab.  When $SD_RESTORE_WARN_FILE is set each record is also appended there,
+#            which is how the install-over carries the uninstaller's records into its own closing block.
+restore_warns=()
+restore_warn() {   # restore_warn WHAT [COMMAND]: collect one record
+    restore_warns+=("$1"$'\t'"${2:-}")
+    if [ -n "${SD_RESTORE_WARN_FILE:-}" ]; then printf '%s\t%s\n' "$1" "${2:-}" >> "$SD_RESTORE_WARN_FILE" || true; fi
+}
+restore_warn_import() {   # restore_warn_import FILE: collect the records another script wrote there
+    local line
+    [ -f "$1" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
+    done < "$1"
+}
+restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
+    local n=0 rec rule='################################################################################'
+    [ "${#restore_warns[@]}" -gt 0 ] || return 0
+    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    for rec in "${restore_warns[@]}"; do
+        n=$((n + 1))
+        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
+        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+    done
+    printf '%s\033[0m\n\n' "$rule"
+}
+# RESTORE-WARN-END
+#
 # 03 Nov 26 dm - S.144 (owner, 3 Nov 2026: "for this version the source code will be included in the installer zip so that it does not need to be
 #            downloaded during install").  THE RELEASE PACKAGE CARRIES THE SOURCE.  When the folder this script is in holds source/sdb_ai/sd64, the
 #            install builds from it: no GitHub check, no clone, and the AI line's documentation comes from source/docs.  The package is checked first,
@@ -1128,7 +1162,13 @@ upgrade_over_existing() {
 }
 # UPGRADE-OVER-END
 if [ "$upgrade_over" -eq 1 ]; then
+    # 22 Nov 26  S.292: the uninstaller it runs writes what it could not save to this file, and the install carries it into its own closing red block.
+    restore_warn_file="$(mktemp)"
+    export SD_RESTORE_WARN_FILE="$restore_warn_file"
     upgrade_over_existing "${dflt_git_folder}/deletesdcore.sh" || exit 1
+    unset SD_RESTORE_WARN_FILE
+    restore_warn_import "$restore_warn_file"
+    rm -f "$restore_warn_file"
 fi
 
 #
@@ -1854,6 +1894,9 @@ if [ "$keep_access" = y ] && sudo test -f /home/sd/api-access.saved && ! sudo te
    && [ "$(sudo head -1 /home/sd/api-access.saved 2>/dev/null | tr -d '[:space:]' || true)" = open ]; then
     allow_api=y
     echo "API access from other computers was open before the upgrade, and is kept open."
+elif sudo test -e /home/sd/api-access.saved || sudo test -L /home/sd/api-access.saved; then
+    # 22 Nov 26  S.292: a note the install does not trust (not a plain file, not root's, not saying open) used to be dropped without a word.
+    restore_warn "API access from other computers was open before the uninstall, but the saved note was not trusted (it must be a plain file owned by root and saying open), so the API is LOCAL ONLY.  To open it again, sign in as sdsys and type at the SD prompt" "remote.api on"
 fi
 sudo rm -f /home/sd/api-access.saved
 
@@ -1863,11 +1906,12 @@ sudo rm -f /home/sd/api-access.saved
 #            sdsys and lets root itself through, so it is run as root with SUDO_USER taken out of its environment.  A definition job-set refuses is named;
 #            the saved copy is removed either way.  test-install-jobskeep.sh runs this block.
 # JOBS-RESTORE-BEGIN
-restore_saved_jobs() {   # restore_saved_jobs DIR HELPER: prints one line for each job and a count
-    local dir="$1" helper="$2" f name job sched ok=0 bad=0 out
+restore_saved_jobs() {   # restore_saved_jobs DIR HELPER: prints one line for each job and a count; a job NOT scheduled again is also collected for the closing red block (S.292)
+    local dir="$1" helper="$2" f name job sched ok=0 bad=0 out reason cmd
     local -a words
     for f in $(sudo find "$dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | LC_ALL=C sort); do
         name="$f"
+        out=""
         job=$(sudo sed -n 's/^job=//p' "$dir/$f" | head -1)
         sched=$(sudo sed -n 's/^schedule=//p' "$dir/$f" | head -1)
         IFS=' ' read -r -a words <<< "$sched"
@@ -1876,7 +1920,15 @@ restore_saved_jobs() {   # restore_saved_jobs DIR HELPER: prints one line for ea
             echo "  scheduled again: $name ($job, $sched)"
         else
             bad=$((bad+1))
-            echo "  NOT scheduled again: $name - $(printf '%s' "$out" | tail -1)"
+            reason="$(printf '%s' "$out" | tail -1)"
+            echo "  NOT scheduled again: $name - $reason"
+            # S.292: the exact command, from the saved definition and quoted with %q so that nothing in a damaged file can reach a shell
+            if [ -n "$job" ] && [ "${#words[@]}" -gt 0 ]; then
+                printf -v cmd 'sudo %q job-set %q %q %s' "$helper" "$name" "$job" "$(printf '%q ' "${words[@]}")"
+                restore_warn "Scheduled job $name was NOT scheduled again: ${reason:-its saved definition could not be used}.  Make it again" "${cmd% }"
+            else
+                restore_warn "Scheduled job $name was NOT scheduled again: its saved definition could not be read.  Make it again with the job and the schedule you gave it" "sudo $helper job-set <name> <job> <schedule words>"
+            fi
         fi
     done
     echo "Scheduled jobs: $ok scheduled again, $bad NOT."
@@ -1891,7 +1943,19 @@ if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
     if [ "$allow_api" = "y" ]; then
         echo "Allowing API access from other computers (TCP $sd_api_port)."
         sudo sed -i "s#^ListenStream=127\\.0\\.0\\.1:$sd_api_port#ListenStream=0.0.0.0:$sd_api_port#" "$SYSTEMDPATH/sdclient.socket"
-        fw_allow "$sd_api_port/tcp" || true
+        # 22 Nov 26  S.292: a rule that could not be added used to be swallowed here and the closing summary still said it was added.
+        api_fw_added=n
+        if [ "$fw_tool" = none ]; then
+            :
+        elif fw_allow "$sd_api_port/tcp"; then
+            api_fw_added=y
+        else
+            case "$fw_tool" in
+                ufw) fw_cmd="sudo ufw allow $sd_api_port/tcp" ;;
+                *)   fw_cmd="sudo firewall-cmd --permanent --add-port=$sd_api_port/tcp && sudo firewall-cmd --reload" ;;
+            esac
+            restore_warn "The $fw_tool rule for the API (TCP $sd_api_port) could not be added, so other computers cannot reach it.  Add it" "$fw_cmd"
+        fi
     else
         echo "API access is local-only (listener bound to 127.0.0.1:$sd_api_port)."
     fi
@@ -2068,23 +2132,14 @@ fi
 echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dumps, $(grep '^DUMPDIR=' /etc/sd.conf)"
 # SCREENTHEME-BEGIN
 #
-# 8 Nov 26 dm - S.172 (owner: "Change the default theme to more monochrome so that the text is always readable").
-# THE DELIVERED SCREEN THEME IS PAPER (black and dark blue on light grey).  The shipped sd.conf has SCREENTHEME=paper,
-# and a keep-configuration install restores an older file, so: a restored file with no SCREENTHEME line gets
-# SCREENTHEME=paper, the way DUMPDIR is above; a restored SCREENTHEME=blue (the delivered default from 29 Oct 26, not a
-# choice) is changed to paper ONCE - the change leaves the comment line SCREENTHEME_MARK in the file, and a file that has
-# it is not changed again, so an administrator who sets blue afterwards keeps it.  Any other line (mono, classic, dark,
-# light, night, paper) is left alone: the administrator's choice stands, and a terminal with no colour shows mono
-# whatever the line says.  gplbld/test-install-screentheme.sh runs this block.
-SCREENTHEME_MARK='# SCREENTHEME blue was changed to paper by the installer (S.172); set it back to blue to keep the old look'
-if ! grep -q '^SCREENTHEME=' /etc/sd.conf; then
-    echo "SCREENTHEME=paper" | sudo tee -a /etc/sd.conf >/dev/null
-    echo "Added SCREENTHEME=paper to /etc/sd.conf (the restored file did not have it; set it to night, mono, blue, classic, dark or light to change the look)."
-elif grep -q '^SCREENTHEME=blue[[:space:]]*$' /etc/sd.conf && ! grep -qxF "$SCREENTHEME_MARK" /etc/sd.conf; then
-    sudo sed -i 's/^SCREENTHEME=blue[[:space:]]*$/SCREENTHEME=paper/' /etc/sd.conf
-    echo "$SCREENTHEME_MARK" | sudo tee -a /etc/sd.conf >/dev/null
-    echo "Changed SCREENTHEME=blue to SCREENTHEME=paper in /etc/sd.conf (the new delivered look)."
-fi
+# 22 Nov 26 dm - S.293 (owner, 21 Nov 2026, relayed T0830, asked whether S.172's one-time change stands as an exception to "put back exactly as it was":
+#            "Each user can change their theme, I would think they would get their existing theme back.").  NOTHING HERE TOUCHES A RESTORED /etc/sd.conf's
+#            SCREENTHEME ANY MORE.  Until 22 Nov this block (8 Nov 26, S.172, owner: "Change the default theme to more monochrome so that the text is always
+#            readable") gave a restored file with no line SCREENTHEME=paper and changed a restored SCREENTHEME=blue to paper once, leaving a marker comment
+#            in the file; both are gone.  An install, an upgrade, a reload and a keep-configuration install leave the line exactly as the file had it, and a
+#            file with no line stays on the screen library's own default (mono).  The delivered paper is the SHIPPED sd.conf's SCREENTHEME=paper, so it reaches a
+#            NEW install only.  A file an older install already converted keeps paper and its marker comment, which nothing reads.
+#            gplbld/test-install-screentheme.sh holds that this block runs no command and that no other line of the installer mentions SCREENTHEME.
 # SCREENTHEME-END
 #
 # 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL, $sdsysdir/audit.
@@ -3274,6 +3329,8 @@ fi
 #            and working, and the door stays shut.  Then the state is read back for the closing summary.  test-install-sdsysssh.sh runs this block.
 # SDSYS-SSH-STATE-BEGIN
 sdsys_ssh_saved=""
+sdsys_ssh_note_seen=0
+if sudo test -e /home/sd/sdsys-ssh.saved || sudo test -L /home/sd/sdsys-ssh.saved; then sdsys_ssh_note_seen=1; fi   # S.292: a note that is there but not trusted is said, not dropped
 if sudo test -f /home/sd/sdsys-ssh.saved && ! sudo test -L /home/sd/sdsys-ssh.saved \
    && [ "$(sudo stat -c %u /home/sd/sdsys-ssh.saved 2>/dev/null || true)" = 0 ]; then
     sdsys_ssh_saved=$(sudo head -1 /home/sd/sdsys-ssh.saved 2>/dev/null | tr -d '[:space:]' || true)
@@ -3283,10 +3340,13 @@ if [ "$sdsys_ssh_saved" = open ]; then
     if [ "$ssh_boundary_ok" = 1 ] && sudo /usr/local/sbin/ssh-forcecommand --open-sdsys; then
         echo "sdsys over ssh was open before the upgrade, and is open again."
     else
+        restore_warn "SDSYS over ssh was open before the uninstall and could not be opened again.  Once the cause is resolved, open it again" "sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
         printf "%b\n" "$RED"
         echo "WARNING: sdsys over ssh was open before the upgrade and could not be opened again.  Once the cause is resolved:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
         printf "%b\n" "$NC"
     fi
+elif [ "$sdsys_ssh_note_seen" = 1 ]; then
+    restore_warn "A saved note about SDSYS over ssh was found but not trusted (it must be a plain file owned by root and saying open), so SDSYS over ssh stays SHUT.  If it was open before the uninstall, open it again" "sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
 fi
 sdsys_ssh_state=$(sudo /usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null || true)
 # SDSYS-SSH-STATE-END
@@ -3376,6 +3436,8 @@ echo ---------------------------------------------------------------
 # printf "%bThe SD server is installed.%b\n" "$RED" "$YELLOW"
 printf "%bThe SD server is installed.%b\n" "$RED" "$NC"
 if [ -n "$pkg_pre" ]; then echo "Pre-release ${pkg_pre}, commit ${sdcore_commit:0:12}.  What is installed is recorded in ${sdsysdir}/.sdcore-install"; fi
+# 22 Nov 26  S.292: what the install could not put back, boxed and bold red right under the banner, each with its exact command (nothing prints when there is none).
+restore_warn_block "THE INSTALL COULD NOT PUT BACK EVERYTHING YOU KEPT.  DO THESE STEPS TO RESTORE IT EXACTLY AS IT WAS."
 # --------------------
 echo "---------------------------"
 echo
@@ -3428,9 +3490,12 @@ else
     echo "ssh access: not enabled - sshd left as the box had it."
 fi
 if [ "$allow_api" = "y" ]; then
-    if [ "$fw_tool" != none ]; then
+    if [ "$fw_tool" != none ] && [ "${api_fw_added:-n}" = y ]; then
         echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port and a $fw_tool"
         echo "  allow rule for $sd_api_port was added.  Clients still enter an SD user/password."
+    elif [ "$fw_tool" != none ]; then
+        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port but the $fw_tool allow rule for"
+        echo "  $sd_api_port was NOT added (see the red block at the top of this summary): other computers cannot reach it yet."
     else
         echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port (no ufw or firewalld found;"
         echo "  open TCP $sd_api_port with this distribution's own firewall tool if it has one)."

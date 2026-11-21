@@ -55,7 +55,8 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 echo "installer : $INSTALLER"; echo "remover   : $REMOVER"
 awk '/^# JOBS-SAVE-BEGIN$/,/^# JOBS-SAVE-END$/' "$REMOVER" | sed -e "s#/etc/sdcore/jobs.d#$T/etc/jobs.d#g" > "$T/save.sh"
 awk '/^# JOBS-RESTORE-BEGIN$/,/^# JOBS-RESTORE-END$/' "$INSTALLER" > "$T/restore.sh"
-grep -q 'jobs.saved' "$T/save.sh" && grep -q '^restore_saved_jobs()' "$T/restore.sh" || { echo "test-install-jobskeep: CANNOT RUN - a block is missing"; exit 2; }
+awk '/^# RESTORE-WARN-BEGIN$/,/^# RESTORE-WARN-END$/' "$INSTALLER" > "$T/warn.sh"   # 22 Nov 26 (S.292): restore_saved_jobs now collects what it could not restore
+grep -q 'jobs.saved' "$T/save.sh" && grep -q '^restore_saved_jobs()' "$T/restore.sh" && grep -q '^restore_warn()' "$T/warn.sh" || { echo "test-install-jobskeep: CANNOT RUN - a block is missing"; exit 2; }
 has() { printf '%s\n' "$1" | grep -qF -- "$2"; }
 
 mkjobs() {   # mkjobs DIR: two definitions as job-set writes them
@@ -64,12 +65,17 @@ mkjobs() {   # mkjobs DIR: two definitions as job-set writes them
   printf '%s\n' '# an SD scheduled job' 'name=often' 'job=sync' 'command=sync.masters' 'schedule=every 15 minutes' 'oncalendar=*-*-* *:0/15:00' > "$1/often"
 }
 save() {   # save CONF_DELETED ACCT -> output
-  acct_path="$2" conf_deleted="$1" bash -c 'set -uo pipefail; sudo() { "$@"; }; . "'"$T"'/save.sh"' 2>&1
+  acct_path="$2" conf_deleted="$1" bash -c 'set -uo pipefail; sudo() { "$@"; }; restore_warn() { echo "RESTORE-WARN: $1 | $2"; }; . "'"$T"'/save.sh"' 2>&1
 }
 mkjobs "$T/etc/jobs.d"; mkdir -p "$T/a1"
 out="$(save no "$T/a1")"
 row "J1 the configuration kept: both definitions are copied to jobs.saved (mode 700), and it is said" \
   "$([ -f "$T/a1/jobs.saved/nightly" ] && [ -f "$T/a1/jobs.saved/often" ] && [ "$(stat -c %a "$T/a1/jobs.saved")" = 700 ] && has "$out" "Saved the scheduled jobs' definitions" && echo 0 || echo 1)" "$out"
+mkdir -p "$T/a1u"; chmod 555 "$T/a1u"
+out="$(save no "$T/a1u")"; chmod 755 "$T/a1u"
+row "J1b the save FAILS (the directory cannot be written): the old warning stays and ONE exact job-set command per live definition is collected for the closing red block (S.292)" \
+  "$(has "$out" "WARNING: the scheduled jobs' definitions could not be saved" && has "$out" "| sudo /usr/local/sbin/sd-elevate job-set nightly backup daily 02:30" && has "$out" "| sudo /usr/local/sbin/sd-elevate job-set often sync every 15 minutes" && echo 0 || echo 1)" "$out"
+row "J1c a save that WORKED collects nothing" "$(! has "$(save no "$T/a1")" "RESTORE-WARN" && echo 0 || echo 1)"
 mkdir -p "$T/a2/jobs.saved"; echo old > "$T/a2/jobs.saved/stale"
 out="$(save yes "$T/a2")"
 row "J2 the configuration deleted: nothing is saved, and an older saved copy is removed" "$([ ! -e "$T/a2/jobs.saved" ] && ! has "$out" "Saved" && echo 0 || echo 1)" "$out"
@@ -85,18 +91,27 @@ restore() {   # restore DIR -> output; the helper's log is $T/hlog
     set -euo pipefail
     IFS=$'"'"'\n\t'"'"'
     sudo() { "$@"; }
+    . "'"$T"'/warn.sh"
     . "'"$T"'/restore.sh"
     restore_saved_jobs "$1" "$2"
+    restore_warn_block "TEST HEADING"
   ' _ "$1" "$T/helper" 2>&1
 }
 mkjobs "$T/r1"
 out="$(restore "$T/r1")"
 row "J4 each saved definition goes to job-set with its name, its job and its schedule as WORDS, with SUDO_USER taken out; the count is said" \
   "$(grep -qxF 'ARGS|job-set|nightly|backup|daily|02:30 SUDO_USER=unset' "$T/hlog" && grep -qxF 'ARGS|job-set|often|sync|every|15|minutes SUDO_USER=unset' "$T/hlog" && has "$out" "Scheduled jobs: 2 scheduled again, 0 NOT." && echo 0 || echo 1)" "log=$(tr '\n' ';' < "$T/hlog") out=$out"
+row "J4b a restore with nothing refused prints NO red block (S.292: nothing to warn about, nothing printed)" "$(! has "$out" "TEST HEADING" && echo 0 || echo 1)" "$out"
 mkdir -p "$T/r2"; printf '%s\n' 'name=bad' 'job=refuse-me' 'schedule=hourly' > "$T/r2/bad"; printf '%s\n' 'name=empty' 'schedule=hourly' > "$T/r2/empty"
 out="$(restore "$T/r2")"
 row "J5 a definition job-set refuses, and one with no job, are each named NOT scheduled; the count says 0 and 2" \
   "$(has "$out" "NOT scheduled again: bad" && has "$out" "NOT scheduled again: empty" && has "$out" "Scheduled jobs: 0 scheduled again, 2 NOT." && ! grep -q 'job-set|empty' "$T/hlog" && echo 0 || echo 1)" "$out"
+row "J5b both are also in the closing red block with the EXACT command: the refused one from its definition (values quoted), the unreadable one as a template" \
+  "$(has "$out" "TEST HEADING" && has "$out" "Type:  sudo $T/helper job-set bad refuse-me hourly" && has "$out" "Type:  sudo $T/helper job-set <name> <job> <schedule words>" && echo 0 || echo 1)" "$out"
+mkdir -p "$T/r3"; printf '%s\n' 'name=evil' 'job=refuse-me' 'schedule=daily 03:00; touch /tmp/pwned' > "$T/r3/evil"
+out="$(restore "$T/r3")"
+row "J5c a definition holding shell syntax is printed QUOTED (%q), so copying the command cannot run what the damaged file says" \
+  "$(has "$out" "Type:  sudo $T/helper job-set evil refuse-me daily 03:00\\; touch /tmp/pwned" && echo 0 || echo 1)" "$out"
 
 l_save="$(grep -n '^# JOBS-SAVE-BEGIN$' "$REMOVER" | cut -d: -f1)"; l_rm="$(grep -n '^sudo rm -rf /etc/sdcore/jobs.d$' "$REMOVER" | cut -d: -f1)"
 l_tim="$(grep -n 'sudo rm -f /etc/systemd/system/sdcore-job-\*.timer' "$REMOVER" | head -1 | cut -d: -f1)"

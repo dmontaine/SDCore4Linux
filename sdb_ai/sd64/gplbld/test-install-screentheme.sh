@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# test-install-screentheme.sh - installsdcore.sh gives a restored sd.conf the delivered theme, paper: added where there is no
-# SCREENTHEME line, and a restored SCREENTHEME=blue changed to paper once (S.88 3.7a, 29 Oct 2026; S.172, 8 Nov 2026).
+# test-install-screentheme.sh - installsdcore.sh leaves a restored sd.conf's SCREENTHEME exactly as it is (S.293, 22 Nov 2026).  Until then it gave the file
+# the delivered theme: paper added where there was no line, and a restored SCREENTHEME=blue changed to paper once (S.88 3.7a, 29 Oct 2026; S.172, 8 Nov 2026).
 #
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-screentheme.sh
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-screentheme.sh --selftest
@@ -13,22 +13,22 @@
 # START-HISTORY:
 # 29 Oct 26 dm  New (S.88 3.7a): blue added to a file without the line.
 # 8 Nov 26 dm   S.172: the delivered theme is paper; rows F to H for the once-only change of a restored blue.
+# 22 Nov 26 dm  S.293 (owner, 21 Nov 2026, relayed T0830, asked whether S.172's one-time change stands as an exception to "put back exactly as it was": "Each
+#               user can change their theme, I would think they would get their existing theme back."): BOTH steps are gone.  The rows now say the opposite:
+#               nothing is added, nothing is changed, nothing is written, nothing is said.
 # END-HISTORY
 #
-# WHY IT EXISTS.  The shipped sd.conf says SCREENTHEME=paper, but a keep-configuration install puts back an older file,
-# and CONFIG('SCREENTHEME') is what the screen library reads.  The block between SCREENTHEME-BEGIN and SCREENTHEME-END is
-# cut out of the installer and run under its own "set" and IFS with sudo a function and /etc/sd.conf swapped for a
-# scratch file:
+# WHY IT EXISTS.  The shipped sd.conf says SCREENTHEME=paper and a keep-configuration install puts back an older file; CONFIG('SCREENTHEME') is what the screen
+# library reads.  A user's own theme must come back as it was, so the block between SCREENTHEME-BEGIN and SCREENTHEME-END (now only the comment that says so)
+# is cut out of the installer and run under its own "set" and IFS with sudo a function and /etc/sd.conf swapped for a scratch file:
 #
-#   A  a file without the line gets SCREENTHEME=paper at the end, the other lines untouched and in order, and the block says so
-#   B  a file with SCREENTHEME=classic is left byte for byte as it was, and the block prints nothing
-#   C  an explicit SCREENTHEME=mono is left alone (the administrator's choice stands)
-#   D  a comment and a look-alike name do not count as the line: the real one is added
-#   E  the block comes once, after the DUMPDIR step, and the shipped sd.conf has SCREENTHEME=paper once, in the [sd] section
-#   F  a restored SCREENTHEME=blue becomes paper in place (the other lines in order), the marker comment is added once, the block says so
-#   G  a second run over F's result changes nothing and says nothing (the marker stops it)
-#   H  a file that has the marker and SCREENTHEME=blue (the administrator set blue again) is left byte for byte;
-#      SCREENTHEME=bluex and SCREENTHEME=night are left alone
+#   A  a restored file with NO SCREENTHEME line is left byte for byte (nothing added: it stays on the library's own default), and nothing is said
+#   B  SCREENTHEME=classic, mono, night, paper and a look-alike name are each left byte for byte
+#   C  a comment and look-alike names do not make the block add the real line
+#   D  a restored SCREENTHEME=blue is left as blue - not changed to paper, no marker line added
+#   E  a file an OLDER install already converted (paper and the old marker line) is left byte for byte
+#   F  the block comes once, after the DUMPDIR step, and the shipped sd.conf has SCREENTHEME=paper once, in the [sd] section (a NEW install gets paper from it)
+#   G  the block holds no command at all, and no other line of the installer that is not a comment mentions SCREENTHEME
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 THIS="$HERE/$(basename "$0")"
@@ -39,9 +39,10 @@ MARK='# SCREENTHEME blue was changed to paper by the installer (S.172); set it b
 if [ "${1:-}" = "--selftest" ]; then
   REAL="$(cd "$HERE/../../.." && pwd)/installsdcore.sh"
   T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-  caught=0; missed=0
+  caught=0; missed=0; total=0
   mutant() {   # name, sed expression
     local name="$1" expr="$2" f="$T/$1.sh" rc
+    total=$((total+1))
     sed -e "$expr" "$REAL" > "$f"
     if cmp -s "$REAL" "$f"; then echo "  [MISSED] $name: the mutation changed nothing"; missed=$((missed+1)); return; fi
     INSTALLER="$f" bash "$THIS" > "$T/$name.out" 2>&1; rc=$?
@@ -51,14 +52,14 @@ if [ "${1:-}" = "--selftest" ]; then
   echo "selftest: the real installer first (must pass), then mutants (each must not)"
   INSTALLER="$REAL" bash "$THIS" > "$T/real.out" 2>&1 || { echo "  [FAIL] the real installer does not pass:"; tail -5 "$T/real.out"; exit 1; }
   echo "  [ok] the real installer passes"
-  mutant unanchored-test    's/grep -q .^SCREENTHEME=. /grep -q SCREENTHEME /'
-  mutant wrong-theme        's/echo "SCREENTHEME=paper"/echo "SCREENTHEME=blue"/'
-  mutant overwrites-file    's/echo "SCREENTHEME=paper" | sudo tee -a/echo "SCREENTHEME=paper" | sudo tee/'
-  mutant no-marker-test     's/ \&\& ! grep -qxF "\$SCREENTHEME_MARK" \/etc\/sd.conf//'
-  mutant no-marker-written  's/^    echo "\$SCREENTHEME_MARK" | sudo tee -a \/etc\/sd.conf >\/dev\/null$/    true/'
-  mutant blue-unanchored    's/grep -q .^SCREENTHEME=blue\[\[:space:\]\]\*\$. /grep -q SCREENTHEME=blue /'
-  echo "selftest: $caught of 6 mutants caught, $missed missed"
-  [ "$caught" -eq 6 ] && [ "$missed" -eq 0 ]
+  # each mutant puts one OLD behaviour (or a new one) back inside the block
+  mutant adds-paper-to-lineless 's/^# SCREENTHEME-BEGIN$/&\nif ! grep -q "^SCREENTHEME=" \/etc\/sd.conf; then echo "SCREENTHEME=paper" | sudo tee -a \/etc\/sd.conf >\/dev\/null; fi/'
+  mutant converts-blue          's/^# SCREENTHEME-BEGIN$/&\nsudo sed -i "s\/^SCREENTHEME=blue[[:space:]]*$\/SCREENTHEME=paper\/" \/etc\/sd.conf/'
+  mutant writes-the-marker      's/^# SCREENTHEME-BEGIN$/&\necho "# marker" | sudo tee -a \/etc\/sd.conf >\/dev\/null/'
+  mutant says-something         's/^# SCREENTHEME-BEGIN$/&\necho "SCREENTHEME is kept"/'
+  mutant code-outside-block     's/^# SCREENTHEME-END$/&\nsudo sed -i "s\/SCREENTHEME=blue\/SCREENTHEME=paper\/" \/etc\/sd.conf/'
+  echo "selftest: $caught of $total mutants caught, $missed missed"
+  [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
 fi
 
@@ -82,6 +83,11 @@ run_block() {   # scratch file -> block's output
   local body; body=$(printf '%s\n' "$BLOCK" | sed "s#/etc/sd\.conf#$scr#g")
   bash -c "$OPTS"$'\n'"sudo() { \"\$@\"; }"$'\n'"$body" 2>&1
 }
+same() {   # conf-file -> 0 when the block leaves it byte for byte and prints nothing
+  local f="$1" out
+  cp "$f" "$f.before"; out=$(run_block "$f")
+  cmp -s "$f" "$f.before" && [ -z "$out" ]
+}
 
 # A
 cat > "$T/a.conf" <<'EOF'
@@ -89,72 +95,54 @@ cat > "$T/a.conf" <<'EOF'
 NUMFILES=80
 DUMPDIR=/usr/local/sdsys/dumps
 EOF
-out=$(run_block "$T/a.conf")
-want=$'[sd]\nNUMFILES=80\nDUMPDIR=/usr/local/sdsys/dumps\nSCREENTHEME=paper'
-got=$(cat "$T/a.conf")
-row "A: the line is added at the end and the others stay in order" $([ "$got" = "$want" ] && echo 0 || echo 1) "got: $(printf '%s' "$got" | tr '\n' '|')"
-row "A: ... and the block says it added SCREENTHEME=paper" $(printf '%s' "$out" | grep -q '^Added SCREENTHEME=paper to ' && echo 0 || echo 1) "output: $out"
-out2=$(run_block "$T/a.conf")
-row "A: ... and a second run changes nothing and says nothing" $([ "$(cat "$T/a.conf")" = "$want" ] && [ -z "$out2" ] && echo 0 || echo 1) "output: $out2"
+cp "$T/a.conf" "$T/a.before"; out=$(run_block "$T/a.conf")
+row "A: a restored file with NO SCREENTHEME line is left byte for byte (it stays on the library's default)" $(cmp -s "$T/a.conf" "$T/a.before" && echo 0 || echo 1) "got: $(tr '\n' '|' < "$T/a.conf")"
+row "A: ... and the block says nothing" $([ -z "$out" ] && echo 0 || echo 1) "output: $out"
 
 # B
-printf '[sd]\nNUMFILES=80\nSCREENTHEME=classic\n' > "$T/b.conf"
-cp "$T/b.conf" "$T/b.before"
-out=$(run_block "$T/b.conf")
-row "B: a file with SCREENTHEME=classic is left byte for byte" $(cmp -s "$T/b.conf" "$T/b.before" && echo 0 || echo 1) "changed"
-row "B: ... and the block prints nothing" $([ -z "$out" ] && echo 0 || echo 1) "output: $out"
+bad=""
+for v in classic mono night paper bluex dark light; do
+  printf '[sd]\nNUMFILES=80\nSCREENTHEME=%s\n' "$v" > "$T/b.conf"; same "$T/b.conf" || bad="$bad $v"
+done
+row "B: SCREENTHEME=classic, mono, night, paper, dark, light and a look-alike are each left byte for byte, nothing said" $([ -z "$bad" ] && echo 0 || echo 1) "changed for:$bad"
 
 # C
-printf '[sd]\nSCREENTHEME=mono\n' > "$T/c.conf"
-cp "$T/c.conf" "$T/c.before"
-out=$(run_block "$T/c.conf")
-row "C: an explicit SCREENTHEME=mono is left alone" $(cmp -s "$T/c.conf" "$T/c.before" && [ -z "$out" ] && echo 0 || echo 1) "output: $out"
-
-# D
-cat > "$T/d.conf" <<'EOF'
+cat > "$T/c.conf" <<'EOF'
 [sd]
 # SCREENTHEME=classic
 XSCREENTHEME=1
  SCREENTHEME=classic
 EOF
-out=$(run_block "$T/d.conf")
-want=$'[sd]\n# SCREENTHEME=classic\nXSCREENTHEME=1\n SCREENTHEME=classic\nSCREENTHEME=paper'
-got=$(cat "$T/d.conf")
-row "D: a comment and look-alike names do not count; the real line is added" $([ "$got" = "$want" ] && echo 0 || echo 1) "got: $(printf '%s' "$got" | tr '\n' '|')"
+row "C: a comment and look-alike names are left alone too - the real line is NOT added" $(same "$T/c.conf" && echo 0 || echo 1) "changed: $(tr '\n' '|' < "$T/c.conf")"
+
+# D
+printf '[sd]\nNUMFILES=80\nSCREENTHEME=blue\nDUMPDIR=/x\n' > "$T/d.conf"
+cp "$T/d.conf" "$T/d.before"; out=$(run_block "$T/d.conf")
+row "D: a restored SCREENTHEME=blue stays blue (no change to paper, no marker line)" $(cmp -s "$T/d.conf" "$T/d.before" && ! grep -qF 'SCREENTHEME blue was changed' "$T/d.conf" && echo 0 || echo 1) "got: $(tr '\n' '|' < "$T/d.conf")"
+row "D: ... and the block says nothing" $([ -z "$out" ] && echo 0 || echo 1) "output: $out"
+printf '[sd]\nSCREENTHEME=blue   \n' > "$T/d2.conf"
+row "D: blue with trailing spaces stays exactly as it was" $(same "$T/d2.conf" && echo 0 || echo 1) "changed"
 
 # E
+printf '[sd]\nSCREENTHEME=paper\n%s\n' "$MARK" > "$T/e.conf"
+row "E: a file an OLDER install already converted (paper and the old marker line) is left byte for byte" $(same "$T/e.conf" && echo 0 || echo 1) "changed"
+printf '[sd]\nSCREENTHEME=blue\n%s\n' "$MARK" > "$T/e2.conf"
+row "E: blue set again after the old marker is left byte for byte" $(same "$T/e2.conf" && echo 0 || echo 1) "changed"
+
+# F
 nb=$(grep -c '^# SCREENTHEME-BEGIN$' "$INST")
 ld=$(grep -n "^if ! grep -q '\^DUMPDIR='" "$INST" | head -1 | cut -d: -f1)
 ls=$(grep -n '^# SCREENTHEME-BEGIN$' "$INST" | head -1 | cut -d: -f1)
-row "E: the block is in the installer once and comes after the DUMPDIR step" $([ "$nb" = 1 ] && [ -n "$ld" ] && [ -n "$ls" ] && [ "$ld" -lt "$ls" ] && echo 0 || echo 1) "blocks $nb, dumpdir ${ld:-?} screentheme ${ls:-?}"
+row "F: the block is in the installer once and comes after the DUMPDIR step" $([ "$nb" = 1 ] && [ -n "$ld" ] && [ -n "$ls" ] && [ "$ld" -lt "$ls" ] && echo 0 || echo 1) "blocks $nb, dumpdir ${ld:-?} screentheme ${ls:-?}"
 shipped=$(awk '/^\[/{sec=tolower($0)} /^SCREENTHEME=paper$/{if (sec=="[sd]") n++} END{print n+0}' "$SD64/sd.conf")
 total=$(grep -c '^SCREENTHEME=' "$SD64/sd.conf")
-row "E: the shipped sd.conf has SCREENTHEME=paper once, in [sd], and no other SCREENTHEME line" $([ "$shipped" = 1 ] && [ "$total" = 1 ] && echo 0 || echo 1) "in [sd] $shipped, all $total"
-
-# F
-printf '[sd]\nNUMFILES=80\nSCREENTHEME=blue\nDUMPDIR=/x\n' > "$T/f.conf"
-out=$(run_block "$T/f.conf")
-want="[sd]"$'\n'"NUMFILES=80"$'\n'"SCREENTHEME=paper"$'\n'"DUMPDIR=/x"$'\n'"$MARK"
-got=$(cat "$T/f.conf")
-row "F: a restored SCREENTHEME=blue becomes paper in place and the marker is added at the end" $([ "$got" = "$want" ] && echo 0 || echo 1) "got: $(printf '%s' "$got" | tr '\n' '|')"
-row "F: ... and the block says it changed blue to paper" $(printf '%s' "$out" | grep -q '^Changed SCREENTHEME=blue to SCREENTHEME=paper ' && echo 0 || echo 1) "output: $out"
+row "F: the shipped sd.conf has SCREENTHEME=paper once, in [sd], and no other SCREENTHEME line (a NEW install gets paper from it)" $([ "$shipped" = 1 ] && [ "$total" = 1 ] && echo 0 || echo 1) "in [sd] $shipped, all $total"
 
 # G
-cp "$T/f.conf" "$T/g.before"
-out=$(run_block "$T/f.conf")
-row "G: a second run over F changes nothing and says nothing" $(cmp -s "$T/f.conf" "$T/g.before" && [ -z "$out" ] && echo 0 || echo 1) "output: $out"
-
-# H
-printf '[sd]\nSCREENTHEME=blue\n%s\n' "$MARK" > "$T/h.conf"
-cp "$T/h.conf" "$T/h.before"
-out=$(run_block "$T/h.conf")
-row "H: blue set again after the marker is left byte for byte, nothing said" $(cmp -s "$T/h.conf" "$T/h.before" && [ -z "$out" ] && echo 0 || echo 1) "output: $out"
-for v in bluex night; do
-  printf '[sd]\nSCREENTHEME=%s\n' "$v" > "$T/h2.conf"
-  cp "$T/h2.conf" "$T/h2.before"
-  out=$(run_block "$T/h2.conf")
-  row "H: SCREENTHEME=$v is left alone" $(cmp -s "$T/h2.conf" "$T/h2.before" && [ -z "$out" ] && echo 0 || echo 1) "output: $out"
-done
+code=$(printf '%s\n' "$BLOCK" | grep -v -E '^[[:space:]]*(#|$)' || true)
+row "G: the block holds no command at all (comments only)" $([ -z "$code" ] && echo 0 || echo 1) "commands: $code"
+others=$(grep -n 'SCREENTHEME' "$INST" | grep -v -E '^[0-9]+:[[:space:]]*#' || true)
+row "G: no line of the installer that is not a comment mentions SCREENTHEME" $([ -z "$others" ] && echo 0 || echo 1) "lines: $others"
 
 echo "test-install-screentheme: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

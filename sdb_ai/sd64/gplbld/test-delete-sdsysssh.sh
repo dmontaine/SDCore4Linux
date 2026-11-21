@@ -79,6 +79,7 @@ run() {   # conf_deleted state helper-present(1/0) note-dir-writable(1/0)
   OPTS="$OPTS" BLK="$blk" CD="$1" STATE="$2" AP="$T/acct" bash -c '
       eval "$OPTS"
       sudo() { "$@"; }
+      restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292: what the block collects for the closing red block
       conf_deleted=$CD; acct_path=$AP
       eval "$BLK"
       echo REACHED-END' 2>&1
@@ -89,7 +90,7 @@ run() {   # conf_deleted state helper-present(1/0) note-dir-writable(1/0)
 N="$T/acct/sdsys-ssh.saved"
 
 rm -f "$N"; out=$(run no "sdsys-arm=open" 1 1); rc=$?
-row "K1 kept + open: the note says open, mode 600" "$([ $rc = 0 ] && [ "$(cat "$N" 2>/dev/null)" = open ] && [ "$(stat -c %a "$N")" = 600 ] && [[ "$out" == *"next install opens it again"* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
+row "K1 kept + open: the note says open, mode 600" "$([ $rc = 0 ] && [ "$(cat "$N" 2>/dev/null)" = open ] && [ "$(stat -c %a "$N")" = 600 ] && [[ "$out" == *"next install opens it again"* && "$out" != *RESTORE-WARN* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
 bad=""
 for st in "sdsys-arm=closed" "absent" ""; do rm -f "$N"; out=$(run no "$st" 1 1); [ -e "$N" ] && bad="$bad '$st'"; done
 row "K2 kept + closed or unknown: no note" "$([ -z "$bad" ] && echo 0 || echo 1)" "noted for:$bad"
@@ -101,7 +102,7 @@ for args in "no sdsys-arm=closed 1" "yes sdsys-arm=open 1" "no sdsys-arm=open 0"
 done
 row "K4 a stale note is removed (closed, configuration deleted, no helper)" "$([ -z "$bad" ] && echo 0 || echo 1)" "left for:$bad"
 rm -f "$N"; out=$(run no "sdsys-arm=open" 1 0); rc=$?
-row "K5 a note that cannot be written warns with the sudo command and goes on" "$([ $rc = 0 ] && [ ! -e "$N" ] && [[ "$out" == *"could not note that"* && "$out" == *"sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
+row "K5 a note that cannot be written warns with the sudo command, COLLECTS it for the closing red block (S.292), and goes on" "$([ $rc = 0 ] && [ ! -e "$N" ] && [[ "$out" == *"could not note that"* && "$out" == *"sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
 
 lq=$(grep -n -m1 '^read -r -p "Keep your existing configuration' "$DEL" | cut -d: -f1)
 lb=$(grep -n -m1 '^# SDSYS-SSH-SAVE-BEGIN$' "$DEL" | cut -d: -f1)

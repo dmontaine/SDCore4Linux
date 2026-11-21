@@ -86,12 +86,14 @@ run_keep() {   # keep owner
   OPTS="$IOPTS" BLK="$(sub "$KEEP")" KA="$1" OWN="$2" bash -c '
       eval "$OPTS"; keep_access=$KA; allow_api=n
       sudo() { if [ "$1" = stat ]; then echo "$OWN"; else "$@"; fi; }
+      restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292: what the block collects for the closing red block
       eval "$BLK"; echo "API=$allow_api"' 2>&1
 }
 run_save() {   # conf_deleted listen
   OPTS="$DOPTS" BLK="$(sub "$SAVE")" CD="$1" LISTEN="$2" AP="$H" bash -c '
       eval "$OPTS"; conf_deleted=$CD; acct_path=$AP
       sudo() { "$@"; }
+      restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292 (the failure branch of the save collects a record)
       systemctl() { printf "%s\n" "$LISTEN"; }
       eval "$BLK"; echo REACHED-END' 2>&1
 }
@@ -112,13 +114,15 @@ rm -f "$H/sd.conf"
 # K1 / K2
 N="$H/api-access.saved"
 echo open > "$N"; o=$(run_keep y 0)
-row "K1 keep + a root-owned note saying open: allow_api=y, said, note gone" "$([[ "$o" == *"API=y"* && "$o" == *"kept open"* ]] && [ ! -e "$N" ] && echo 0 || echo 1)" "$o"
+row "K1 keep + a root-owned note saying open: allow_api=y, said, note gone, and NOTHING collected for the red block" "$([[ "$o" == *"API=y"* && "$o" == *"kept open"* && "$o" != *RESTORE-WARN* ]] && [ ! -e "$N" ] && echo 0 || echo 1)" "$o"
 bad=""
-echo open > "$N"; o=$(run_keep y 1000); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad not-root"
-rm -f "$N" "$T/tgt"; echo open > "$T/tgt"; ln -s "$T/tgt" "$N"; o=$(run_keep y 0); { [[ "$o" == *"API=n"* ]] && [ ! -L "$N" ]; } || bad="$bad link"
-echo opened > "$N"; o=$(run_keep y 0); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad other-word"
-echo open > "$N"; o=$(run_keep n 0); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad no-keep"
-row "K2 a note not root's, a link, another word, or no upgrade: the API not opened; the note gone" "$([ -z "$bad" ] && echo 0 || echo 1)" "wrong for:$bad"
+echo open > "$N"; o=$(run_keep y 1000); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad not-root"; [[ "$o" == *"RESTORE-WARN: "*"| remote.api on"* ]] || bad="$bad not-root-silent"
+rm -f "$N" "$T/tgt"; echo open > "$T/tgt"; ln -s "$T/tgt" "$N"; o=$(run_keep y 0); { [[ "$o" == *"API=n"* ]] && [ ! -L "$N" ]; } || bad="$bad link"; [[ "$o" == *"RESTORE-WARN: "*"| remote.api on"* ]] || bad="$bad link-silent"
+echo opened > "$N"; o=$(run_keep y 0); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad other-word"; [[ "$o" == *"RESTORE-WARN: "*"| remote.api on"* ]] || bad="$bad other-word-silent"
+echo open > "$N"; o=$(run_keep n 0); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ]; } || bad="$bad no-keep"; [[ "$o" == *"RESTORE-WARN: "*"| remote.api on"* ]] || bad="$bad no-keep-silent"
+row "K2 a note not root's, a link, another word, or no upgrade: the API not opened; the note gone; and each is COLLECTED for the red block with 'remote.api on' (S.292: it used to be silent)" "$([ -z "$bad" ] && echo 0 || echo 1)" "wrong for:$bad"
+rm -f "$N"; o=$(run_keep y 0)
+row "K3 no note at all: nothing collected (a fresh install is not warned about a note that never was)" "$([[ "$o" != *RESTORE-WARN* && "$o" == *"API=n"* ]] && echo 0 || echo 1)" "$o"
 
 # D1-D3
 bad=""
