@@ -44,6 +44,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant missing-script-goes-on i "s/    if \[ ! -f \"\$del\" \]; then/    if false; then/"
   mutant refusal-is-back      i "s/^    upgrade_over=1\$/    echo 'Uninstall it before running this script.'; exit 1/"
   mutant call-dropped         i "s/^    upgrade_over_existing \"\\\${dflt_git_folder}\\/deletesdcore.sh\" || exit 1/    true/"
+  mutant access-asked-again   i 's/^if \[ -f \/home\/sd\/sd.conf \] || \[ "\${upgrade_over:-0}" -eq 1 \]; then/if [ -f \/home\/sd\/sd.conf ]; then/'
   mutant uninstaller-new-prompt r "s/^read -r -p \"Restart computer now? (y\\/N) \" yn/read -r -p \"Sure? \" sure\\nread -r -p \"Restart computer now? (y\\/N) \" yn/"
   echo "selftest: $caught caught, $missed missed"
   [ "$missed" -eq 0 ]
@@ -96,6 +97,10 @@ row "W4 the uninstaller asks exactly four questions on an upgrade path (Continue
 q1="$(grep -n 'read -r -p "Continue?' "$REMOVER" | head -1 | cut -d: -f1)"; q2="$(grep -n 'read -r -p "Keep your existing accounts?' "$REMOVER" | head -1 | cut -d: -f1)"
 q3="$(grep -n 'read -r -p "Keep your existing configuration?' "$REMOVER" | head -1 | cut -d: -f1)"; q4="$(grep -n 'read -r -p "Restart computer now?' "$REMOVER" | head -1 | cut -d: -f1)"
 row "W5 ...in the order the answers are given in" "$([ -n "$q1" ] && [ -n "$q2" ] && [ -n "$q3" ] && [ -n "$q4" ] && [ "$q1" -lt "$q2" ] && [ "$q2" -lt "$q3" ] && [ "$q3" -lt "$q4" ] && echo 0 || echo 1)" "$q1 $q2 $q3 $q4"
+
+acc="$(awk '/^# ACCESS-ASK-BEGIN$/,/^# ACCESS-ASK-END$/' "$INSTALLER")"
+row "W6 an install over asks no access question: ACCESS-ASK keeps access when upgrade_over is 1, as when a saved sd.conf is there (found on the VM, 22 Nov)" \
+  "$(printf '%s\n' "$acc" | grep -qF 'if [ -f /home/sd/sd.conf ] || [ "${upgrade_over:-0}" -eq 1 ]; then' && echo 0 || echo 1)"
 
 echo
 echo "test-install-upgradeover: $passed passed, $failed failed"

@@ -819,7 +819,10 @@ allow_ssh=n
 allow_api=n
 keep_access=n
 printf "%b\n" "$YELLOW"
-if [ -f /home/sd/sd.conf ]; then
+# 22 Nov 26  S.282: an install over an installed SD keeps access as an upgrade does.  The keep-configuration uninstall that saves the API's note runs only
+#            later (UPGRADE-OVER, after the source is fetched), so /home/sd/sd.conf is not there yet; without the upgrade_over test the first VM run of
+#            the install-over asked both questions and the answer replaced what the administrator had.
+if [ -f /home/sd/sd.conf ] || [ "${upgrade_over:-0}" -eq 1 ]; then   # ${...:-0}: test-install-keepaccess.sh runs this block alone
     keep_access=y
     echo "Access from other computers (ssh and the API) is kept as it was: the configuration was saved."
 else

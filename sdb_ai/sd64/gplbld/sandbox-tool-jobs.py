@@ -384,6 +384,11 @@ def section_j2():
         bail("tool.jobs never drew its page, so no row below can be believed")
     new = audit_new(a0)
     arow("J2a", "opening the page writes 'tool start app=tool.jobs' once", len(re.findall(r"tool start app=tool\.jobs$", new, re.M)) == 1, repr(new[-200:]))
+    # 22 Nov 26 (S.279, Windows 366): the help box's three lines are WHOLE at 140 columns - screen text cuts a line that is too long, and it used to
+    # cut "F1 or ? explains the box." and the last words of the third line.
+    W = " ".join(T.split())
+    arow("J2h", "the account view's help lines are shown whole: 'Enter in Commands allows or stops allowing.', 'F1 or ? explains the box.' and '... scheduled jobs. Ctrl-Q leaves.'",
+         "Enter in Commands allows or stops allowing." in W and "F1 or ? explains the box." in W and "J shows the administrator's scheduled jobs. Ctrl-Q leaves." in W, repr(W[-600:]))
     found = p.walk_to(ACC)
     arow("J2b", "the fixture account is listed with 0 commands allowed", found and re.search(r"\b%s 0\b" % ACC, p.text()) is not None, repr(p.text()[:400]))
     p.key("enter", 1.0)
@@ -542,6 +547,9 @@ def section_k3_k10():
     if "Scheduled jobs of the administrator" not in T:
         dump(p.h)
         bail("J did not show the Jobs view, so no row below can be believed")
+    W = " ".join(T.split())
+    arow("K3h", "the Jobs view's help lines are shown whole (S.279): '... R runs it now.', 'F1 or ? explains the box.' and '... account commands. Ctrl-Q leaves.'",
+         "D deletes it, R runs it now." in W and "F1 or ? explains the box." in W and "A goes back to the account commands. Ctrl-Q leaves." in W, repr(W[-600:]))
     arow("K3", "J shows the Jobs view; it read the list (the helper was asked job-list) and says no job is scheduled", "No job is scheduled" in T and calls()[-1:] == ["job-list"], repr((T[:400], calls()[-2:])))
 
     say("\n--- K4: the form refuses before anything is asked")
