@@ -1,6 +1,37 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  A PASSWORD PROMPT NEVER STARTS WITH WHAT WAS TYPED BEFORE IT.
+
+             What        - Every hidden prompt (INPUT ... HIDDEN, and an entry with no echo) now throws away what was
+                           typed ahead before it asks, when the answer comes from the keyboard.  CLEARINPUT no longer
+                           loops for ever, eating the stream, when the input is a pipe: on a pipe it does nothing.
+             Why         - A paste, or an impatient Enter, made before a password prompt appeared was taken as the start
+                           of the password, so the field showed stars already in it (seen on the Windows product).
+             Does NOT    - Touch answers a script pipes in, or answers stacked with DATA; and a key typed in the instant
+                           between the clearing and the prompt showing is still taken.
+
+22 Nov 26  A KEEP REINSTALL NO LONGER WARNS ABOUT FILES THAT ARE ALREADY CASE INSENSITIVE.
+
+             What        - The case-folding walk that an upgrade or a reinstall that keeps the accounts runs no longer
+                           counts, or names in its closing warning, a file that an account's VOC points at under SDSYS or
+                           outside the account when that file is already case insensitive.  A file that is not, and a
+                           file it cannot open to look, are still counted and named.
+             Why         - SDSYS's own files are case insensitive from the day they are made, so every such reinstall
+                           ended "Some files were not converted" over files with nothing to convert (found by the Windows
+                           product, row 377).
+             Does NOT    - Convert or change any file under SDSYS or outside the account; the look is a read only open.
+
+22 Nov 26  AN ACTIVE UFW FIREWALL IS FOUND ON DEBIAN, SO THE API RULE IS ADDED AND REMOVED.
+
+             What        - The installer and the uninstaller now look for ufw as the file /usr/sbin/ufw as well as on
+                           the command path.  With ufw active, an install that opens the API to other computers adds the
+                           rule for it, and an uninstall removes it.
+             Why         - An ordinary user's command path on Debian has no /usr/sbin, so ufw was never found: the API
+                           was opened with no firewall rule, the install said "no ufw or firewalld found", and the
+                           uninstall left nothing to remove.  Found on a fresh Debian 13 machine.
+             Does NOT    - Touch a firewall rule that is not SD's own, or change anything on a computer with no ufw.
+
 22 Nov 26  WHAT THE INSTALL COULD NOT PUT BACK IS SAID IN A RED BOX, WITH THE STEPS TO TYPE.
 
              What        - When an install over an installed SD, or a reinstall that keeps the accounts and the

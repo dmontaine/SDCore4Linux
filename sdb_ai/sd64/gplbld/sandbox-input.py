@@ -28,8 +28,11 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from ptydrive import PtySession  # noqa: E402
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
@@ -134,11 +137,44 @@ def main():
                         re.search(r"(?m)^%s\s*$" % re.escape(ex), out) is not None, "no such echo line")
                     row("%s/%s and for the masked entry: %r" % (t, label, ey),
                         re.search(r"(?m)^%s\s*$" % re.escape(ey), out) is not None, "no such echo line")
+        # 22 Nov 26 - WINDOWS ROW 372 (mail T1330): TYPE-AHEAD IS NEVER THE START OF A PASSWORD.  Keys typed before the prompt appears
+        # (a paste, an impatient Enter) must not be in the field.  This needs a PSEUDO-TERMINAL (a pipe has no type-ahead: it is the
+        # script's answers, which the control rows above prove are still read).  The program sleeps 3 s, then asks; "stale" is typed
+        # while it sleeps and "real" + Return after the prompt shows.  A pass for the hidden prompt is HID[real]; the plain INPUT is the
+        # control and KEEPS what was typed ahead (PLAIN[stalereal]), so the rows cannot pass by the program reading nothing.
+        say("\n--- type-ahead before a prompt (pseudo-terminal) ----------------------------------")
+        for pname, body, tag in ((PROG + "h", "   sleep 3\n   input y hidden\n   crt 'HID[':y:']'\nend\n", "HID"),
+                                 (PROG + "p", "   sleep 3\n   input y\n   crt 'PLAIN[':y:']'\nend\n", "PLAIN")):
+            with open(os.path.join(sysd, "bp", pname), "wb") as f:
+                f.write(body.encode("ascii"))
+        out = session(box, "BASIC bp " + PROG + "h", "BASIC bp " + PROG + "p")
+        row("setup: both type-ahead probes compiled with no errors",
+            len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", out)) == 2, "no success wording")
+        for pname, tag, want in ((PROG + "h", "HID", "real"), (PROG + "p", "PLAIN", "stalereal")):
+            env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
+            s = PtySession([os.path.join(sysd, "bin", "sd"), "-internal"], sysd, env, 140, 43)
+            try:
+                s.settle(2.0)
+                s.type("RUN bp %s\r" % pname, settle=False)
+                time.sleep(1.0)
+                s.type("stale", settle=False)            # typed while the program is still sleeping
+                time.sleep(3.0)                          # the prompt is now up
+                s.settle(1.0)
+                s.type("real\r", idle=1.0)
+                text = "\n".join(l.rstrip() for l in s.screen.lines())
+                m = re.search(r"%s\[(.*)\]" % tag, text)
+                row("type-ahead: %s got %r%s" % ("INPUT HIDDEN" if tag == "HID" else "plain INPUT (control: type-ahead KEPT)", want,
+                                                 "" if tag == "HID" else ""),
+                    m is not None and m.group(1) == want, "got %r" % (m.group(1) if m else None))
+                s.type("OFF\r")
+            finally:
+                s.finish()
     finally:
         for d in ("bp", "bp.out"):
-            p = os.path.join(sysd, d, PROG)
-            if os.path.exists(p):
-                os.remove(p)
+            for pname in (PROG, PROG + "h", PROG + "p"):
+                p = os.path.join(sysd, d, pname)
+                if os.path.exists(p):
+                    os.remove(p)
 
     say("\nsandbox-input: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:

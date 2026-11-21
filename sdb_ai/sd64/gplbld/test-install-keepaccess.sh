@@ -45,7 +45,7 @@ if [ "${1:-}" = "--selftest" ]; then
   bash "$THIS" > "$T/real.out" 2>&1 || { echo "  [FAIL] the real scripts do not pass:"; tail -8 "$T/real.out"; exit 1; }
   echo "  [ok] the real scripts pass"
   A='/^# ACCESS-ASK-BEGIN/,/^# ACCESS-ASK-END/'; K='/^# API-KEEP-BEGIN/,/^# API-KEEP-END/'; S='/^# API-SAVE-BEGIN/,/^# API-SAVE-END/'
-  mut asked-on-upgrade     inst "$A s/^if \[ -f \/home\/sd\/sd.conf \]; then$/if false; then/"
+  mut asked-on-upgrade     inst "$A s/^if \[ -f \/home\/sd\/sd.conf \] || \[ \"\${upgrade_over:-0}\" -eq 1 \]; then/if false; then/"   # S.295: the line has had the upgrade_over test since S.282
   mut upgrade-opens-ssh    inst "$A s/^    keep_access=y$/    keep_access=y; allow_ssh=y/"
   mut any-answer-opens     inst "$A s/case \$yn_api in \[yY\]|\[yY\]\[eE\]\[sS\] )/case \$yn_api in *)/"
   mut note-without-keep    inst "$K s/^if \[ \"\$keep_access\" = y \] \&\& /if /"

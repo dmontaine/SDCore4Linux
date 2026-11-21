@@ -1067,10 +1067,13 @@ sudo apt-get -y --ignore-missing install libcrypt-dev || true
 #   running, not by distribution; without it REMOTE.SSH / REMOTE.API would say
 #   "no firewall" on a Debian machine that runs firewalld, and add no rule.
 fwd_up() { systemctl is-active --quiet firewalld 2>/dev/null; }
+# 22 Nov 26  S.294: or /usr/sbin/ufw - an ordinary user's PATH on Debian has no /usr/sbin, so `command -v ufw` found nothing, an ACTIVE ufw got no API rule and
+#            the summary said "no ufw or firewalld found" (seen on the VM).  sudo finds ufw through its own secure_path.  Solo's fix of the same day is S.288.
+have_ufw() { command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; }
 fw_tool=none
-if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -q '^Status: active'; then fw_tool=ufw
+if have_ufw && sudo ufw status 2>/dev/null | grep -q '^Status: active'; then fw_tool=ufw
 elif command -v firewall-cmd >/dev/null 2>&1 && fwd_up; then fw_tool=firewalld
-elif command -v ufw >/dev/null 2>&1; then fw_tool=ufw
+elif have_ufw; then fw_tool=ufw
 elif command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then fw_tool=firewalld
 fi
 fw_allow() {   # fw_allow PORT/PROTO - an allow rule in whichever firewall fw_tool names

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 22 Nov 26 dm  op_clrinput() asks discard_typeahead(), which leaves a piped input alone (it never ended on a pipe); Windows row 372.
  * 14 Nov 26 dm  como_string(): the COMO write is tested (a failure loses only the copy; said why nothing more is done).
  * 27 Oct 26 dm  S.87 batch 14: case inversion is removed (PTERM key 2, getkey()'s invert argument); KEYINC and KEYINCT now do what KEYIN and KEYINT do.
  * 27 Oct 26 dm  S.87 batch 7: OPTION RUN.NO.PAGE and PAGINATE.ON.HEADING are gone; hf_paginate() keeps the RUN ... NO.PAGE test only.
@@ -559,8 +560,7 @@ void op_breakct() {
    op_clrinput()  -  CLRINPUT opcode  -  Clear terminal input queue       */
 
 void op_clrinput() {
-  while (keyready())
-    keyin(0);
+  discard_typeahead();   /* 22 Nov 26: a piped input is not type-ahead and never ends; see linuxio.c */
 }
 
 /* ======================================================================

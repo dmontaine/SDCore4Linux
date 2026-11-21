@@ -156,6 +156,9 @@ def main():
     SDXF = os.path.join(sysd, "zzsdx" + RUN)                      # the same, but its owner (SDSYS) leaves the account no access
     OUTF_REAL, SDSF_REAL = os.path.realpath(OUTF), os.path.realpath(SDSF)   # what FL$PATH prints (links resolved)
     SDXF_REAL = os.path.realpath(SDXF)
+    SDNC = os.path.join(sysd, "zzsdn" + RUN)                      # a case INSENSITIVE file under SDSYS, named by the VOC (Windows row 377)
+    ONC = os.path.join(OUTD, "zzonc")                             # the same, outside the account
+    SDNC_REAL, ONC_REAL = os.path.realpath(SDNC), os.path.realpath(ONC)
     SYSCOMD = os.path.join(sysd, "syscom")                        # a DIRECTORY file under SDSYS: never converted, never reported
     SYSCOMD_REAL, ACCT_REAL = os.path.realpath(SYSCOMD), os.path.realpath(acct)
     BADF = os.path.join(acct, "zzbad")                            # the account's OWN file, but one that cannot be opened
@@ -267,6 +270,12 @@ def main():
             "   write 'x' to fx, 'SdxRec'",
             "   close fx",
             "   write 'F':@fm:'%s' to v, 'ZZSDX'" % SDXF,
+            # 22 Nov 26 (Windows row 377, mail T1230): files that are ALREADY case insensitive, one under SDSYS and one outside the
+            # account, named by the VOC.  A read only open of the flag must keep them out of the 11036 report.
+            "   create.file '%s' dynamic on error crt 'FIX create failed sdn' ; stop" % SDNC,
+            "   create.file '%s' dynamic on error crt 'FIX create failed onc' ; stop" % ONC,
+            "   write 'F':@fm:'%s' to v, 'ZZSDN'" % SDNC,
+            "   write 'F':@fm:'%s' to v, 'ZZONC'" % ONC,
             # and one of the account's own that cannot be opened (a damaged or foreign-owned file): the walk must
             # report it, count it, and go on - not die on it
             "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed bad' ; stop" % BADF,
@@ -413,6 +422,8 @@ def main():
             row("1: the two files under SDSYS and the file outside the account are counted and named (3 files, all real paths)",
                 "3 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out
                 and SDSF_REAL in out and OUTF_REAL in out and SDXF_REAL in out, "no 11036 report naming all three")
+        row("1: a case INSENSITIVE file under SDSYS and one outside the account, both named by the VOC, are NOT counted or named (Windows row 377)",
+            SDNC_REAL not in out and ONC_REAL not in out and "ZZSDN" not in out, "an already-nocase file was reported")
         row("1: a directory file and the account's own directory, named by the VOC, are not listed",
             re.search(r"(?m)^\s*File: (%s|%s)\s*$" % (re.escape(SYSCOMD_REAL), re.escape(ACCT_REAL)), out) is None,
             "a directory was listed as a file to convert")
@@ -449,9 +460,9 @@ def main():
             after.get("zzd1", {}).get("ids") == ["Alpha", "GAMMA", "beta"], repr(after.get("zzd1")))
         row("2: a record is now found under another case (ALPHA reads 'one')", fold2 == "one", repr(fold2))
         row("2: the dictionary part zzd1.dic converted too", after.get("zzd1.dic", {}).get("nocase") == "1", repr(after.get("zzd1.dic")))
-        row("2: the VOC converted and kept all eleven of its records",
+        row("2: the VOC converted and kept all thirteen of its records",
             after.get("voc", {}).get("nocase") == "1"
-            and after["voc"]["ids"] == ["ZZBAD", "ZZD1", "ZZD2", "ZZDIRA", "ZZDIRS", "ZZDUP", "ZZOUT", "ZZSDS", "ZZSDS2", "ZZSDX", "ZZVOC"],
+            and after["voc"]["ids"] == ["ZZBAD", "ZZD1", "ZZD2", "ZZDIRA", "ZZDIRS", "ZZDUP", "ZZONC", "ZZOUT", "ZZSDN", "ZZSDS", "ZZSDS2", "ZZSDX", "ZZVOC"],
             repr(after.get("voc")))
         row("2: a directory file and the account's own directory, named by the VOC, are not listed",
             re.search(r"(?m)^\s*File: (%s|%s)\s*$" % (re.escape(SYSCOMD_REAL), re.escape(ACCT_REAL)), out) is None,

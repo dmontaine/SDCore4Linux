@@ -467,7 +467,8 @@ echo "Removed /usr/share/nano/sdbasic.nanorc."
 #            Our own rule goes.  A 4243 rule is only REPORTED: SD Core used 4243
 #            until 2 Oct 2026, but it is also OpenQM's and ScarletDME's port,
 #            so this script cannot know the rule is SD's and does not touch it.
-if command -v ufw >/dev/null 2>&1; then
+# 22 Nov 26  S.294: or /usr/sbin/ufw - on Debian an ordinary user's PATH has no /usr/sbin, so this step was skipped and the API rule stayed (seen on the VM).
+if command -v ufw >/dev/null 2>&1 || [ -x /usr/sbin/ufw ]; then
     if sudo ufw show added 2>/dev/null | grep -q -E '^ufw allow 4247/tcp$'; then
         sudo ufw delete allow 4247/tcp >/dev/null && echo "Removed the firewall rule for the SD API (ufw allow 4247/tcp)."
     fi

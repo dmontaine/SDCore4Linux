@@ -378,6 +378,20 @@ convert.one:
    in.sds = (one.real[1, len(sds.real) + 1] = sds.real : @ds) or (one.real[1, len(@sdsys) + 1] = @sdsys : @ds)
    in.acct = (one.real[1, len(acct.real) + 1] = acct.real : @ds)
    if in.sds or not(in.acct) then
+* 22 Nov 26 - WINDOWS ROW 377 (mail T1230): a file that is ALREADY case insensitive has nothing left to convert, and SDSYS's own files are, from
+*   creation, in a tree this release made.  Naming them made the closing warning "Some files were not converted" appear on every Keep reinstall.
+*   The flag is read through a READ ONLY open, which rebuilds and changes nothing, so the rule above stands (the file is still never converted from
+*   here); an open that fails leaves the file counted and named, as before (the account's owner may not be allowed to open it, 7 Oct 26).
+      is.nc = 0
+      openpath one.path readonly to chk.fu on error
+         is.nc = 0
+      end then
+         is.nc = bitand(fileinfo(chk.fu, FL$FLAGS), FL$FLAGS.NOCASE)
+         close chk.fu
+      end else
+         is.nc = 0
+      end
+      if is.nc then return
       locate one.real in outside.files<1> setting out.at else
          outside.count += 1
          if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = one.real
