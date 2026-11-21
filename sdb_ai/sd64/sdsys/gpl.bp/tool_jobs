@@ -607,13 +607,13 @@ wrap.lines:
 
 draw.help:
    if view = 2 then
-      screen text 'Up and Down move, PgUp and PgDn a page.  N makes a job, C (or Enter) changes it, D deletes it, R runs it now.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
+      screen text 'Up, Down, PgUp, PgDn move.  N makes a job, C or Enter changes it, D deletes it, R runs it now.' at h.x + 2,h.y + 1 width h.tw
       screen text 'Each change is shown as its command; you answer Run or Cancel.  A delete asks for the job' : "'s name." at h.x + 2,h.y + 2 width h.tw
-      screen text 'F5 reads the jobs again.  A goes back to the account commands.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+      screen text 'F1 or ? explains the box.  F5 reads the jobs again.  A goes back to the account commands.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
       return
    end
-   screen text 'Up and Down move, PgUp and PgDn a page.  F6 changes box.  Enter in Commands allows or stops allowing.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
-   screen text 'Each change is shown as its command; you answer Run or Cancel.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'Up, Down, PgUp, PgDn move.  F6 changes box.  Enter in Commands allows or stops allowing.' at h.x + 2,h.y + 1 width h.tw
+   screen text 'Each change is shown as its command; you answer Run or Cancel.  F1 or ? explains the box.' at h.x + 2,h.y + 2 width h.tw
    screen text 'F5 reads the lists again.  J shows the administrator' : "'s scheduled jobs.  Ctrl-Q leaves." at h.x + 2,h.y + 3 width h.tw
    return
 
