@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  THE INSTALLER UPGRADES AN INSTALLED SD IN PLACE, AND THE SCHEDULED JOBS SURVIVE IT.
+
+             What        - installsdcore.sh no longer stops with "Uninstall it before running this script" when SD is
+                           installed.  It runs the new release's deletesdcore.sh itself, keeping the accounts and the
+                           configuration, and then installs, so an upgrade is one command, as on Windows.
+                         - The administrator's scheduled jobs are kept with the configuration: deletesdcore.sh saves
+                           their definitions in /home/sd/jobs.saved, and the next install schedules each one again and
+                           says how many.  Before, every uninstall, and so every upgrade, lost them.
+             Why         - The owner: "the windows installers just install over and existing installation updating what
+                           needs to be updated there is no delete required", and "settings do not get changes after
+                           delete and install if the user chooses keep data".
+             Does NOT    - Ask anything new, or change what an uninstall that deletes the accounts or the configuration
+                           removes: jobs go with a deleted configuration.  A job the helper refuses is named, not kept.
+
 20 Nov 26  TOOL.JOBS' HELP LINES FIT THE BOX.
 
              What        - The three help lines at the foot of tool.jobs are shorter, so none is cut at the edge of the

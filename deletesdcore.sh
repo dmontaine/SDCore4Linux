@@ -548,6 +548,21 @@ for jt in /etc/systemd/system/sdcore-job-*.timer; do
 done
 sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service
 sudo systemctl daemon-reload >/dev/null 2>&1 || true
+# 22 Nov 26 dm - S.284 (the outcome audit with Windows; owner, 21 Nov 2026: "settings do not get changes after delete and install if the user chooses
+#            keep data"): when the configuration is kept, the definitions are copied to /home/sd/jobs.saved (root's, as /etc/sdcore/jobs.d is) before
+#            they go, and the next install schedules each one again (installsdcore.sh JOBS-RESTORE).  The timers still go first: a timer left behind would
+#            start a program that is gone.  Before this every uninstall lost the administrator's jobs, and so did the install over an installed SD (S.282),
+#            which runs this script.  test-install-jobskeep.sh runs this block.
+# JOBS-SAVE-BEGIN
+sudo rm -rf "$acct_path/jobs.saved"
+if [ "$conf_deleted" = no ] && sudo test -d /etc/sdcore/jobs.d && ! sudo test -L /etc/sdcore/jobs.d; then
+    if sudo cp -a /etc/sdcore/jobs.d "$acct_path/jobs.saved" && sudo chmod 700 "$acct_path/jobs.saved"; then
+        echo "Saved the scheduled jobs' definitions ($acct_path/jobs.saved): the next install schedules them again."
+    else
+        echo "WARNING: the scheduled jobs' definitions could not be saved; after the next install make them again with sd-elevate job-set."
+    fi
+fi
+# JOBS-SAVE-END
 sudo rm -rf /etc/sdcore/jobs.d
 # 16 Nov 26 dm - S.256: the administrator's remote-API setting (remote.sdsys api) goes with the configuration and is kept with it, as the sdsys ssh
 #            door's state is kept by an upgrade (14 Nov 26): an upgrade must not shut or open a door the administrator set.
