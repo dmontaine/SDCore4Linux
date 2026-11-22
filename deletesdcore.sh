@@ -100,18 +100,49 @@ restore_warn_import() {   # restore_warn_import FILE: collect the records anothe
         case "$line" in *$'\t'*) restore_warns+=("$line") ;; *) restore_warns+=("$line"$'\t') ;; esac
     done < "$1"
 }
-restore_warn_block() {   # restore_warn_block HEADING: print every record as a boxed bold red block; print nothing when there are none
-    local n=0 rec rule='################################################################################'
+# 22 Nov 26  S.299 (owner: "use the same wording and format that windows is using"): the layout and words are SD Core for Windows' (its sd.iss
+#            KeptMsg, the owner's approved layout).  WHAT is the item's heading in capitals and COMMAND is ONE line a person types at the colon
+#            prompt, which that verb accepts from that person; the records of one heading are one item, its commands in the order collected.
+restore_warn_block() {   # restore_warn_block HOW: print every item in bold red, HOW under its heading; print nothing when there are none
+    local n=0 rec other title shown seen=$'\n'
     [ "${#restore_warns[@]}" -gt 0 ] || return 0
-    printf '\n\033[1;31m%s\n# %s\n%s\n' "$rule" "$1" "$rule"
+    printf '\n\033[1;31mWARNING: SOME SETTINGS NEED TO BE FIXED.\n\n'
     for rec in "${restore_warns[@]}"; do
+        title="${rec%%$'\t'*}"
+        case "$seen" in *$'\n'"$title"$'\n'*) continue ;; esac
+        seen+="$title"$'\n'
         n=$((n + 1))
-        printf '%s. %s\n' "$n" "${rec%%$'\t'*}"
-        if [ -n "${rec#*$'\t'}" ]; then printf '       Type:  %s\n' "${rec#*$'\t'}"; fi
+        printf '%s. %s\n%s\nAt the colon prompt type:\n' "$n" "$title" "$1"
+        shown=$'\n'
+        for other in "${restore_warns[@]}"; do
+            [ "${other%%$'\t'*}" = "$title" ] || continue
+            case "$shown" in *$'\n'"$other"$'\n'*) continue ;; esac   # collected twice (both scripts of an install-over): typed once
+            shown+="$other"$'\n'
+            printf '     %s\n' "${other#*$'\t'}"
+        done
+        printf '\n'
     done
-    printf '%s\033[0m\n\n' "$rule"
+    printf '\033[0m'
 }
 # RESTORE-WARN-END
+# JOB-STEP-BEGIN
+# 22 Nov 26  S.299: THE LINE TO TYPE FOR ONE SCHEDULED JOB.  sd-elevate job-set refuses every caller but sdsys, so the step is SD's own set.job, typed
+#            as sdsys.  set.job change refuses a job that does not exist and set.job add one that does, so the caller says which.  Only words that
+#            set.job accepts are printed from a saved file; otherwise <job> <schedule> is left to fill in, as SD Core for Windows does.  This
+#            block is the same text in installsdcore.sh and deletesdcore.sh.
+job_step() {   # job_step add|change NAME JOB SCHEDULE: one line to type at the colon prompt
+    local LC_ALL=C
+    local t='([01][0-9]|2[0-3]):[0-5][0-9]' name_re='^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$' sched_re
+    sched_re="^(every (5|10|15|20|30) minutes|hourly|daily $t|weekly (mon|tue|wed|thu|fri|sat|sun) $t|monthly ([1-9]|1[0-9]|2[0-8]) $t)\$"
+    if ! [[ "$2" =~ $name_re ]]; then
+        printf '%s\n' "(a definition whose name is not plain: it was not used)"
+    elif [[ "$3" = backup-all || "$3" = update-accounts ]] && [[ "$4" =~ $sched_re ]]; then
+        printf 'set.job %s %s %s %s\n' "$1" "$2" "$3" "$4"
+    else
+        printf 'set.job %s %s <job> <schedule>\n' "$1" "$2"
+    fi
+}
+# JOB-STEP-END
 
 sdsysdir="/usr/local/sdsys"
 systemd_dir="/usr/lib/systemd/system"
@@ -247,7 +278,7 @@ if [ "$conf_deleted" = no ]; then
             if echo open | sudo tee "$acct_path/api-access.saved" > /dev/null && sudo chmod 600 "$acct_path/api-access.saved"; then
                 echo "Saved: API access from other computers is open, and the next install keeps it open."
             else
-                restore_warn "API access from other computers is open, but the note that makes the next install open it again could not be saved, so the next install will leave it LOCAL ONLY.  After the next install, sign in as sdsys and type at the SD prompt" "remote.api on"
+                restore_warn "THE API IS LOCAL ONLY." "remote.api on"
                 echo "WARNING: could not note that API access is open; after the next install open it with:  remote.api on"
             fi ;;
     esac
@@ -554,7 +585,7 @@ if [ "$conf_deleted" = no ] && [ -x /usr/local/sbin/ssh-forcecommand ]; then
             if echo open | sudo tee "$acct_path/sdsys-ssh.saved" > /dev/null && sudo chmod 600 "$acct_path/sdsys-ssh.saved"; then
                 echo "Saved: sdsys over ssh is open, and the next install opens it again."
             else
-                restore_warn "SDSYS over ssh is open, but the note that makes the next install open it again could not be saved, so it will stay SHUT.  After the next install open it" "sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
+                restore_warn "REMOTE ADMINISTRATION IS OFF." "remote.sdsys on"
                 echo "WARNING: could not note that sdsys over ssh is open; after the next install open it with:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
             fi ;;
     esac
@@ -596,18 +627,12 @@ if [ "$conf_deleted" = no ] && sudo test -d /etc/sdcore/jobs.d && ! sudo test -L
     if sudo cp -a /etc/sdcore/jobs.d "$acct_path/jobs.saved" && sudo chmod 700 "$acct_path/jobs.saved"; then
         echo "Saved the scheduled jobs' definitions ($acct_path/jobs.saved): the next install schedules them again."
     else
-        echo "WARNING: the scheduled jobs' definitions could not be saved; after the next install make them again with sd-elevate job-set."
-        # S.292: one exact command per live definition (they are still in /etc/sdcore/jobs.d here), each value quoted with %q
+        echo "WARNING: the scheduled jobs' definitions could not be saved; the steps to make them again are at the end."
+        # S.299: one line to type per live definition (they are still in /etc/sdcore/jobs.d here).  They are removed below, so after the next install it is set.job add.
         for jf in $(sudo find /etc/sdcore/jobs.d -mindepth 1 -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | LC_ALL=C sort); do
             jb=$(sudo sed -n 's/^job=//p' "/etc/sdcore/jobs.d/$jf" | head -1)
             js=$(sudo sed -n 's/^schedule=//p' "/etc/sdcore/jobs.d/$jf" | head -1)
-            IFS=' ' read -r -a jw <<< "$js"
-            if [ -n "$jb" ] && [ "${#jw[@]}" -gt 0 ]; then
-                printf -v jc 'sudo /usr/local/sbin/sd-elevate job-set %q %q %s' "$jf" "$jb" "$(printf '%q ' "${jw[@]}")"
-                restore_warn "Scheduled job $jf: its definition could not be saved, so the next install will not schedule it again.  After the next install make it again" "${jc% }"
-            else
-                restore_warn "Scheduled job $jf: its definition could not be saved or read.  After the next install make it again with the job and the schedule you gave it" "sudo /usr/local/sbin/sd-elevate job-set <name> <job> <schedule words>"
-            fi
+            restore_warn "SCHEDULED JOBS COULD NOT BE SCHEDULED AGAIN." "$(job_step add "$jf" "$jb" "$js")"
         done
     fi
 fi
@@ -795,8 +820,8 @@ if [ "$keep_accts" = "DELETE" ] && [ "$conf_deleted" = yes ] && [ -d "$acct_path
 fi
 # HOMESD-TIDY-END
 
-# 22 Nov 26  S.292: what the next install will not put back because it could not be saved, boxed and bold red, each with its exact command (nothing prints when none).
-restore_warn_block "THE UNINSTALL COULD NOT SAVE EVERYTHING FOR THE NEXT INSTALL.  DO THESE STEPS AFTER THE NEXT INSTALL."
+# 22 Nov 26  S.292, S.299: what the next install will not put back because it could not be saved, in bold red, each with the line to type (nothing prints when none).
+restore_warn_block "To correct, after the next install sign into Linux as sdsys, and start SD Core."
 
 printf "%b\n" "$GREEN"
 echo "----------------------------------------------------------------------"

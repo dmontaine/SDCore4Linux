@@ -38,8 +38,12 @@ Next release - in progress
                            configuration, cannot put something back - a scheduled job the helper refuses, the API door
                            or the sdsys ssh door that was open and could not be opened again, a firewall rule that could
                            not be added - the closing summary now starts, right under "The SD server is installed.",
-                           with a boxed bold red block that names each one and the exact command to type. A job's
-                           command is printed from its saved definition, quoted, so copying it cannot run anything else.
+                           in bold red, "WARNING: SOME SETTINGS NEED TO BE FIXED.": a numbered item for each, how to
+                           correct it (sign into Linux as sdsys, and start SD Core) and the lines to type at the colon
+                           prompt, in the words SD Core for Windows uses. A job is made again with set.job add, or with
+                           set.job change when its definition is there. Only words that set.job accepts are printed
+                           from a saved definition; a damaged one leaves the job and the schedule to fill in. A firewall
+                           rule that failed has a warning of its own, with remote.api on.
                          - The uninstaller does the same for what it could not save for the next install: the note
                            that reopens the API door or the sdsys ssh door, or a job's definition. It shows the block
                            at its end, and an install over an installed SD carries it into its own block.

@@ -162,16 +162,16 @@ for case in other-owner link other-word empty; do
   esac
   : > "$T/u2"; out=$(NOTE_OWNER=$own runblock "$STATE" "$T/u2" "sdsys-arm=closed" 0); rc=$?
   { [ "$(tr '\n' '|' < "$T/u2")" = "fc --sdsys-state|" ] && [ ! -e "$NOTE" ] && [ ! -L "$NOTE" ] && [[ "$out" == *REACHED-END* ]] && [ $rc = 0 ]; } || ubad="$ubad $case"
-  [[ "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] || ubad="$ubad $case-silent"
+  [[ "$out" == *"RESTORE-WARN: REMOTE ADMINISTRATION IS OFF. | remote.sdsys on"* ]] || ubad="$ubad $case-silent"
 done
-row "U2 a note not root's, a link, another word or empty opens nothing, is removed, and is COLLECTED for the red block with the sd-elevate command (S.292: it was silent)" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad"
+row "U2 a note not root's, a link, another word or empty opens nothing, is removed, and is COLLECTED for the red block with 'remote.sdsys on', typed as sdsys (S.299)" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad"
 rm -f "$NOTE"; : > "$T/u2n"; out=$(runblock "$STATE" "$T/u2n" "sdsys-arm=closed" 0)
 row "U2b no note at all: nothing collected" "$([[ "$out" != *RESTORE-WARN* && "$out" == *REACHED-END* ]] && echo 0 || echo 1)" "$out"
 ubad=""
 echo open > "$NOTE"; : > "$T/u3"; out=$(BOK=0 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
-{ ! grep -q -- --open-sdsys "$T/u3" && [[ "$out" == *"could not be opened again"* && "$out" == *"sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && [ $rc = 0 ]; } || ubad="$ubad no-boundary"
+{ ! grep -q -- --open-sdsys "$T/u3" && [[ "$out" == *"could not be opened again"* && "$out" == *"sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: REMOTE ADMINISTRATION IS OFF. | remote.sdsys on"* ]] && [ $rc = 0 ]; } || ubad="$ubad no-boundary"
 echo open > "$NOTE"; : > "$T/u3"; out=$(ORC=1 runblock "$STATE" "$T/u3" "sdsys-arm=closed" 0); rc=$?
-{ [[ "$out" == *"could not be opened again"* && "$out" != *"open again."* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && [ $rc = 0 ] && [ ! -e "$NOTE" ]; } || ubad="$ubad open-fails"
+{ [[ "$out" == *"could not be opened again"* && "$out" != *"open again."* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: REMOTE ADMINISTRATION IS OFF. | remote.sdsys on"* ]] && [ $rc = 0 ] && [ ! -e "$NOTE" ]; } || ubad="$ubad open-fails"
 row "U3 a note saying open without the boundary, or with --open-sdsys failing, warns with the sudo command and goes on with status 0" "$([ -z "$ubad" ] && echo 0 || echo 1)" "wrong for:$ubad out: $out"
 
 # S1-S4: the summary line

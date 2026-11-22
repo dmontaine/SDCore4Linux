@@ -102,7 +102,7 @@ for args in "no sdsys-arm=closed 1" "yes sdsys-arm=open 1" "no sdsys-arm=open 0"
 done
 row "K4 a stale note is removed (closed, configuration deleted, no helper)" "$([ -z "$bad" ] && echo 0 || echo 1)" "left for:$bad"
 rm -f "$N"; out=$(run no "sdsys-arm=open" 1 0); rc=$?
-row "K5 a note that cannot be written warns with the sudo command, COLLECTS it for the closing red block (S.292), and goes on" "$([ $rc = 0 ] && [ ! -e "$N" ] && [[ "$out" == *"could not note that"* && "$out" == *"sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: "*"| sudo /usr/local/sbin/sd-elevate sdsys-ssh on"* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
+row "K5 a note that cannot be written warns with the sudo command, COLLECTS it for the closing red block (S.292), and goes on" "$([ $rc = 0 ] && [ ! -e "$N" ] && [[ "$out" == *"could not note that"* && "$out" == *"sd-elevate sdsys-ssh on"* && "$out" == *REACHED-END* && "$out" == *"RESTORE-WARN: REMOTE ADMINISTRATION IS OFF. | remote.sdsys on"* ]] && echo 0 || echo 1)" "rc=$rc out: $out"
 
 lq=$(grep -n -m1 '^read -r -p "Keep your existing configuration' "$DEL" | cut -d: -f1)
 lb=$(grep -n -m1 '^# SDSYS-SSH-SAVE-BEGIN$' "$DEL" | cut -d: -f1)
