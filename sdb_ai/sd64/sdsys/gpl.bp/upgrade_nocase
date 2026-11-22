@@ -90,6 +90,9 @@
 *           phase 2 set it; and SDSYS's live VOC was queued through its own
 *           'voc' F-record.  verify-nocaseupgrade.ps1 is the witness.
 * 14 Sep 26 Windows port - RELEASE_1.1 5 D2, new program.
+* 22 Nov 26 dm  S.296, from the VM witness: the flag of a file outside the account is read under the walk's own identity (euid_restore, the read only
+*           open, euid_set again), because the owner's read-write open of SDSYS's files failed and every one of them was still counted; an owner's
+*           identity that cannot be taken back stops that account's walk (owner.lost).
 * END-HISTORY
 
 program UPGRADE_NOCASE
@@ -119,7 +122,8 @@ $include err.h
    ak.skipped = 0                  ;* AK files left for manual CONFIGURE.FILE
    err.count = 0                   ;* files that could not be read or rebuilt
    acct.skipped = 0                ;* accounts not converted (no owner to act as)
-   outside.count = 0               ;* files a VOC names outside its account, or under SDSYS: left
+   switched = @false ; owner = '' ; owner.lost = @false ; rc.again = 0     ;* 22 Nov 26 - S.296: assigned before any walk (convert.one reads them)
+   outside.count = 0              ;* files a VOC names outside its account, or under SDSYS: left
    outside.files = ''              ;* @fm: their real paths (capped like the twin list)
    sds.real = ospath(@sdsys, OS$FULLPATH)
    if sds.real = '' then sds.real = @sdsys
@@ -214,6 +218,7 @@ do.account.as.owner:
          return
    end case
    switched = @false
+   owner.lost = @false
    if not(check.only) then
       call !euid_set(owner, rc)
       if rc # 0 then
@@ -226,6 +231,15 @@ do.account.as.owner:
    this.acct = acc.path
    this.is.sdsys = @false
    gosub do.account.at
+   if owner.lost then
+*     22 Nov 26 - S.296: convert.one gave the owner's identity back for one read only open and could not take it again; the rest of the
+*        account was left as it is (convert.one returned at once), and its catalogue is not renamed as the walk's own user either
+      crt sysmsg(11029, reg.name, owner, rc.again)  ;* Account %1 was skipped: this session cannot act as its owner %2 (error %3)
+      acct.skipped += 1
+      owner.lost = @false
+      if switched then call !euid_restore(rc)
+      return
+   end
    gosub fix.cat.names
    if switched then call !euid_restore(rc)
    return
@@ -360,6 +374,7 @@ convert.one:
 *   a file that is not this account's is never touched.  The sandbox could not show it:
 *   there the user owns SDSYS's files too.  And an open that still fails is reported with
 *   its error number and the walk goes on.
+   if owner.lost then return          ;* 22 Nov 26 - S.296: the owner's identity could not be taken back; nothing more of this account is touched
    one.real = ospath(one.path, OS$FULLPATH)
    if one.real = '' then one.real = one.path
 * 07 Oct 26 - THE OWNER'S FIRST COMPLETE RUN (the install of 40d0378) READ "Converted 2 of 3" and
@@ -382,7 +397,14 @@ convert.one:
 *   creation, in a tree this release made.  Naming them made the closing warning "Some files were not converted" appear on every Keep reinstall.
 *   The flag is read through a READ ONLY open, which rebuilds and changes nothing, so the rule above stands (the file is still never converted from
 *   here); an open that fails leaves the file counted and named, as before (the account's owner may not be allowed to open it, 7 Oct 26).
+* 22 Nov 26 - S.296, SEEN ON A REAL INSTALL (the VM witness): the four SDSYS files every account's VOC names ($map, $map.dic, dict.dic, voc.dic) were
+*   still counted and named, though each is case insensitive.  The walk has switched to the account's OWNER here (do.account.as.owner), and dh_open
+*   asks access() whether a file may be written, which answers for the REAL user (root, the installer), then opens it read-write as the EFFECTIVE
+*   user, the owner, who cannot write SDSYS's files (sdsys:sdusers 0755): the open fails and the file was counted.  The sandbox could not show it:
+*   there the real and the effective user are the same.  So the flag is read under the walk's OWN identity, for this one read only open, and the
+*   owner's identity is taken again at once; if it cannot be, nothing more of this account is touched (owner.lost, below).
       is.nc = 0
+      if switched then call !euid_restore(rc.back)
       openpath one.path readonly to chk.fu on error
          is.nc = 0
       end then
@@ -390,6 +412,10 @@ convert.one:
          close chk.fu
       end else
          is.nc = 0
+      end
+      if switched then
+         call !euid_set(owner, rc.again)
+         if rc.again # 0 then owner.lost = @true      ;* this account's walk stops here: convert.one returns at once from now on
       end
       if is.nc then return
       locate one.real in outside.files<1> setting out.at else
