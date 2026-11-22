@@ -1012,8 +1012,8 @@ def ownedby_rows(helper=None):
         rows.append(("TEXT: every python3 the helper runs from a string is run with -I (sudo keeps the caller's current directory, and `python3 -c` would import a planted grp.py from it as root); "
                      "none without; and the worker refuses, rather than skips the link check, when /proc cannot be read",
                      # 8 since 2 Nov 26: job_run_state (S.102 stage 4) reads the jobs list; 9 since 16 Nov 26: sdsys_api (S.256) checks the addresses;
-                     # 10 since 18 Nov 26: sdsys_local_loopback (S.267) reads an IPv6 loopback literal
-                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 10 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
+                     # 10 since 18 Nov 26: sdsys_local_loopback (S.267) reads an IPv6 loopback literal; 11 since 22 Nov 26: cred_audit (S.298) sends the audit line
+                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 11 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
                      f"python3 -c: {src.count('python3 -c')}, python3 -I -c: {src.count('python3 -I -c')}"))
         root_case = src[src.find("    root)\n      [[ $group == sdusers ]]"):src.find("    sdsys)\n      require_sd_chown_path")]
         sdsys_case = src[src.find("    sdsys)\n      require_sd_chown_path"):src.find("    *)\n      require_sd_user \"$user\"")]

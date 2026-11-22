@@ -3,6 +3,10 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 22 Nov 26 dm - S.298 (Windows row 379; the owner, 22 Nov 2026: "Linux adds them"): cred-own writes "cred-own set account=<a>" and "cred-own refused account=<a>
+#                mode=<m> reason=<why>" into SD's audit trail itself, through the audit daemon's socket, so the daemon stamps them user=root from the kernel's
+#                credentials and no session can forge one; a refusal is audited once the caller is proven to be the account (sudo's uid matches).  The two
+#                functions are between "# BEGIN cred_audit_functions" and its END for gplbld/test-credaudit-units.py.
 # 18 Nov 26 dm - S.267 (owner, 17-18 Nov 2026: SDSYS reached from this computer by listed users, ssh and API, both lists empty as delivered): sdsys-local
 #                ssh|api add|remove|clear|status, the administrator's two lists /etc/sdcore/sdsys-local-ssh and -api (root, 0644, one rename); and sdsys-session,
 #                the one new form %sdusers may run: a listed user's ssh login from this computer (login uid, sudo's caller, the logind session scope and record:
@@ -206,6 +210,8 @@ uid_min() {
 
 die() {
   printf '%s: REFUSED - %s\n' "$PROG" "$1" >&2
+  # S.298: a refusal of cred-own, once the caller is known to be the account, goes into SD's audit trail (cred_audit never calls die)
+  [[ -z ${CRED_AUDIT_ACCT:-} ]] || cred_audit "cred-own refused account=$CRED_AUDIT_ACCT mode=$CRED_AUDIT_MODE reason=$(cred_reason "$1")"
   exit 2
 }
 
@@ -1672,6 +1678,8 @@ restore_place() {
 # never trusts it: where sudo passes the environment through (!env_reset), a
 # caller could otherwise point the helper at a register of its own making.
 SD_SYS_ROOT_REAL=/usr/local/sdsys
+# S.298: the audit daemon's socket, gplsrc/sddefs.h SD_AUDIT_SOCK; fixed here for the reason it is fixed there
+SD_AUDIT_SOCK_REAL=/run/sd/audit.sock
 
 # 19 Sep 26 dm - SD'S PASSWORD RULE (owner's ruling, 19 Sep 2026: SD requires
 # a complex password whatever the OS allows).  The same rule as
@@ -1722,6 +1730,52 @@ cred_b64() {   # $1 value, $2 min bytes, $3 max bytes; true if base64 of that si
   [[ $n -ge $2 && $n -le $3 ]]
 }
 
+# BEGIN cred_audit_functions
+# 22 Nov 26 dm - S.298.  A person's own password change is in SD's audit trail, written by this root helper and not by the session, so the line cannot be forged:
+# the audit daemon stamps user= from the kernel's credentials of the sender (root here, with sudo=<the person> from the login uid), and a session can only ever
+# send a line stamped with its own user.  One datagram AUDIT_MAGIC "? " text, as audit_message() sends; when the daemon is not there the line is appended to
+# the trail as the daemon would write it, only if the file exists and is not a link (the daemon never creates it either).  Nothing here calls die.
+cred_reason() {   # $1 a refusal's message -> one word: lower case, letters and digits, joined by '-', at most 60 characters
+  local r=${1,,}
+  r=${r//[^a-z0-9]/-}
+  while [[ $r == *--* ]]; do r=${r//--/-}; done
+  r=${r#-}; r=${r%-}
+  printf '%s' "${r:0:60}"
+}
+
+cred_audit() {   # $1 the record's text: fixed lower-case words, a checked account name and cred_reason's word
+  if [[ $DRY -eq 1 ]]; then
+    printf '%s: audit: %s\n' "$PROG" "$1"
+    return 0
+  fi
+  python3 -I -c 'import os, pwd, socket, sys, time
+sock, sysdir, text = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    s.sendto(("SDAUDIT1 ? " + text).encode(), sock)
+    sys.exit(0)
+except OSError:
+    pass
+login = ""
+try:
+    with open("/proc/self/loginuid") as f:
+        lu = int(f.read().strip())
+    if lu not in (0, 4294967295):
+        login = " sudo=" + pwd.getpwuid(lu).pw_name
+except Exception:
+    pass
+line = time.strftime("%Y-%m-%d %H:%M:%S") + " user=root" + login + " uid=? pid=" + str(os.getpid()) + " " + text + chr(10)
+try:
+    fd = os.open(os.path.join(sysdir, "audit"), os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW)
+except OSError:
+    sys.exit(1)
+os.write(fd, line.encode())
+os.close(fd)' "$SD_AUDIT_SOCK_REAL" "$SD_SYS_ROOT" "$1" 2>/dev/null \
+    || logger -t sd-elevate "cred-own: the audit line was not written: $1" 2>/dev/null || true
+  return 0
+}
+# END cred_audit_functions
+
 cred_own() {
   local mode=$1 user=${SUDO_USER:-} suid=${SUDO_UID:-} acct reg cdir cfile
   local cur ver mech salt iter sk svk extra line old_ver old_sk tmp v SD_SYS_ROOT
@@ -1734,6 +1788,9 @@ cred_own() {
   [[ $acct != root && $suid -ne 0 ]] || die "root has no SD password of its own"
   [[ $acct != sdsys ]] || die "sdsys sets passwords as the administrator (MODIFY.PASSWORD), not here"
   [[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "SUDO_USER '$user' does not match SUDO_UID $suid"
+  # S.298: the caller is now known to be this account; from here every refusal is audited (die)
+  CRED_AUDIT_ACCT=$acct
+  case $mode in query|verify|set) CRED_AUDIT_MODE=$mode ;; *) CRED_AUDIT_MODE=other ;; esac
   reg="$SD_SYS_ROOT/accounts/$acct"
   [[ -f $reg ]] || die "'$acct' is not in the SD account register"
   [[ $(sed -n '3p' "$reg") == "sdu_$acct" ]] || die "'$acct' is not a user's own account (register group is not sdu_$acct)"
@@ -1798,7 +1855,7 @@ cred_own() {
   fi
 
   printf '%s: write %s (6 fields, sdsys:sdusers 0600)\n' "$PROG" "$cfile"
-  [[ $DRY -eq 1 ]] && exit 0
+  [[ $DRY -eq 1 ]] && { cred_audit "cred-own set account=$acct"; exit 0; }
   need_root
 
   tmp=$(mktemp "$cdir/.cred-own.XXXXXX") || die "cannot create a temp file in $cdir"
@@ -1808,6 +1865,8 @@ cred_own() {
   [[ $(sed -n '5p' "$cfile") == "$sk" && $(sed -n '6p' "$cfile") == "$svk" ]] \
     || die "the record did not read back as written"
   logger -t sd-elevate "cred-own: SD password set for $acct" 2>/dev/null || true
+  CRED_AUDIT_ACCT=''                                   # S.298: written; nothing after this is a refusal
+  cred_audit "cred-own set account=$acct"
   printf '%s: SD password set for %s\n' "$PROG" "$acct"
   exit 0
 }

@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  A PERSON'S OWN PASSWORD CHANGE IS IN THE AUDIT TRAIL.
+
+             What        - When an account holder changes their own SD password, the audit trail gets
+                           "cred-own set account=<name>"; a change that is refused once SD knows who is asking (the
+                           current password wrong, the account suspended, a malformed record) gets "cred-own refused
+                           account=<name> mode=<verify|set|other> reason=<one word>". The root helper that changes
+                           the password writes these lines, so they read user=root sudo=<the person>.
+             Why         - A change of a password left nothing in SD's audit trail, only a line in the system log
+                           on success; a refusal left nothing at all. SD Core for Windows writes the same two lines.
+             Does NOT    - Change what the administrator's MODIFY.PASSWORD of another account writes, or audit a
+                           request refused before SD knows who is asking (one not made through sudo).
+
+22 Nov 26  A PAGE'S KEYS WORK WHILE THE CURSOR IS IN THE AI LINE.
+
+             What        - With the cursor in the AI line, a key the line does not use - Ctrl-Q, Ctrl-T, F1, F5, F10,
+                           Alt and a letter - moves the focus back to the page and does what it does there, as a mouse
+                           click on the page already did. The keys that edit the line still edit it.
+             Why         - Those keys did nothing while the cursor was in the line, though the key bar listed them:
+                           Ctrl-Q could not leave the page until Esc was pressed first.
+             Does NOT    - Keep a request typed in the line when Ctrl-Q leaves the page.
+
 22 Nov 26  A RULE SEPARATES THE AI LINE FROM THE STATUS LINE.
 
              What        - On the home screen and on each tool page with an AI line, a horizontal rule, like the one
