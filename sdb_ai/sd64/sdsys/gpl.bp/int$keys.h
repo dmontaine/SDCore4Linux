@@ -168,6 +168,7 @@
 *   port's K$OS.ELEVATED is 65.  See gplsrc/keys.h.  The binary and GPL.BP are
 *   one unit: a binary that still says 65 refuses this program's KERNEL call.
       $define K$LOGIN.UID      91       ;* Session's loginuid belongs to user?
+* 22 Nov 26 dm - 86 is RESERVED for SD Core for Windows' K$CRED.OWN (its row 379); not implemented on Linux and not given to anything else.
 * 171 was K$LOGIN.MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106); do not reuse.  Must match gplsrc/keys.h.
 * 02 Nov 26 dm - S.102 stage 3.  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process is (systemd's
 *   cgroup, a root-owned definition whose command is this session's own command line), or ''.  Must match gplsrc/keys.h.

@@ -245,6 +245,9 @@
    number is compiled into every BASIC program that calls KERNEL, so the binary
    and GPL.BP are one unit: install the commit, do not mix.                   */
 #define K_LOGIN_UID          91
+/* 22 Nov 26 dm - 86 is RESERVED for SD Core for Windows' K$CRED.OWN (its row 379: the session's own SD password through the SD service).
+   Linux does not implement it - set_acc_password reaches sd-elevate cred-own through sudo - and does not give the number to anything
+   else.  It is inside the 58-89 range that is Windows' by PAL-7 (above).                                                          */
 /* 171 was K_LOGIN_MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106) with it; do not reuse */
 /* 02 Nov 26 dm - S.102 stage 3 (Linux Core only).  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process IS
    (systemd's cgroup sdcore-job-<name>.service, a root-owned /etc/sdcore/jobs.d/<name> whose command= is this session's own command line), or ''
