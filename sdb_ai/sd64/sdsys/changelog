@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  A PAGE'S STATUS LINE SHOWS THE WHOLE MESSAGE OF THE COMMAND IT RAN.
+
+             What        - tool.accounts, tool.backups, tool.config, tool.gates, tool.jobs and tool.remote show the
+                           command's last message, and tool.catalog, tool.files, tool.sessions and tool.voc its first,
+                           with the lines of that message joined by a space.
+             Why         - A message written on two lines showed only one of them: a refusal could read "or the word
+                           any, alone." with nothing to say what was refused.
+             Does NOT    - Join separate messages, or change the lines shown in the log of commands. A message longer
+                           than the status line is still cut at its end.
+
+22 Nov 26  THE 32-BIT WINDOWS CLIENT IS NOT IN THE RELEASE.
+
+             What        - The release package no longer carries clients/Windows32 (qmclilib.dll and qmclient.dll); the
+                           package builder refuses them. The 64-bit Windows and Linux clients are unchanged.
+             Why         - The owner: "pull the 32 bit dlls from the release. We will keep them in case someone wants
+                           them, but the old programs written for qm will not work out of the box with sd because of
+                           the changes we have made."
+             Does NOT    - Destroy the 32-bit files, which are kept outside the release. A 32-bit application must be
+                           built again as a 64-bit one.
+
 22 Nov 26  A PASSWORD PROMPT NEVER STARTS WITH WHAT WAS TYPED BEFORE IT.
 
              What        - Every hidden prompt (INPUT ... HIDDEN, and an entry with no echo) now throws away what was

@@ -111,7 +111,7 @@ def checks(raw):
     ck("TG12", "SDSYS is not a row (modify.account refuses it), and an account whose gates could not be read is not shown", "if id # 'sdsys' then" in pg and "call $tk_gates(names<i>, g, ainfo, gerr)\n      if gerr = '' then" in pg)
     rq = block(pg, "run.queue")
     ck("TG13", "after a command the queue of that account is cleared, the machine is read again and the page is drawn again, and what it shows is the verb's own words",
-       re.search(r"call \$tk_run\(allow, sent, out, stat, err\)[\s\S]*?said = trim\(out<oi>\)[\s\S]*?aq<av, k> = ''[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", rq) is not None)
+       re.search(r"call \$tk_run\(allow, sent, out, stat, err\)[\s\S]*?call \$tk_capt\('last', out, '', said\)[\s\S]*?aq<av, k> = ''[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", rq) is not None)
     ck("TG14", "a cell takes its state from $tk_gates (administrator check inside), a queued cell shows the state it would have with a star, and nothing else decides whether a gate is on",
        "d = (if aq<av, k> # '' then aq<av, k> else s0)" in pg and "ct = (if d = 1 then 'ON' else 'off') : (if aq<av, k> # '' then '*' else '')" in pg and "s0 = ast<av, k>" in pg and "if gids<k> = g<j, 1> then ast<an, k> = g<j, 2>" in pg)
     heads = {}
@@ -177,7 +177,7 @@ MUTANTS = [
     ("a word comes from somewhere else", "TG4", sub("page", "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)", "words<-1> = (if aq<av, k> = 1 then gon<k> else gall<k>)")),
     ("the sentence names another account", "TG4", sub("page", "sent = 'modify.account ' : anm<av> : ' '", "sent = 'modify.account ' : anm<1> : ' '")),
     ("a key queues every cell on, past the test", "TG5", sub("page", "      case nm = 'u'\n         gosub drop.queue\n", "      case nm = 'u'\n         gosub drop.queue\n      case nm = 'k'\n         for ai.k = 1 to NG\n            aq<view<ci>, ai.k> = 1\n         next ai.k\n")),
-    ("all on skips the test of a cell", "TG5", sub("page", "      gosub cell.why\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", "      why = ''\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv")),
+    ("all on skips the test of a cell", "TG5", sub("page", "      gosub cell.why\n      if gids<k> = 'home' then why =", "      why = ''\n      if gids<k> = 'home' then why =")),
     ("all on runs the queue at once", "TG5", sub("page", "   gosub redraw\n   w.st = ", "   gosub run.queue\n   w.st = ")),
     ("all off queues on", "TG5", sub("page", "      case nm = 'n'\n         tv = 0", "      case nm = 'n'\n         tv = 1")),
     ("cell.why lets sh through for a group account", "TG5", sub("page", "      case (gids<k> = 'sh' or gids<k> = 'os' or gids<k> = 'xfer') and aty<av> # 'USER'\n         why =", "      case 0\n         why =")),

@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 23 Oct 26 dm  New.  tool.ai passes set.ai an https address, a model name that may have capitals and a certificate file: words that $tk_run refuses.
 * 9 Nov 26 dm  S.186: a refused word says which character is wrong (14040 with $tk_badch), as $tk_run does.
+* 22 Nov 26 dm  S.300: out has no CR, as $tk_run.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -74,6 +75,8 @@ $include tk.h
    next i
    execute s trapping aborts capturing out
    status = @system.return.code
+   call $tk_capt('clean', out, '', cap)               ;* 22 Nov 26 (S.300), as $tk_run
+   out = cap
 * 9 Nov 26 (S.186): into the page's log of commands, as $tk_run
 run.done:
    lg.kind = (if err # '' then 'refuse' else 'ok')

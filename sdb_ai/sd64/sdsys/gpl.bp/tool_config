@@ -25,6 +25,7 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the view to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
+* 22 Nov 26 dm  S.300: the status line shows the verb's last message whole ($tk_capt), not only the last of its lines.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -848,10 +849,7 @@ change.param:
    next j
    now.f = (if rj > 0 and pinfile<rj> then pfile<rj> else '(nothing)')
    now.r = (if rj > 0 then pforce<rj> else '')
-   lastl = ''
-   for j = 1 to dcount(out, @fm)
-      if trim(out<j>) # '' then lastl = trim(out<j>)
-   next j
+   call $tk_capt('last', out, '', lastl)               ;* S.300: the whole last message
    if stat = 0 and ('S' : trim(now.f)) = ('S' : nv) then
       msg = k : ' in sd.conf: ' : old.f : ' -> ' : now.f : '; SD is running with ' : now.r : (if k.eff = 'restart' then ' until it is restarted' else ' (sessions started now use ' : now.f : ')')
    end else

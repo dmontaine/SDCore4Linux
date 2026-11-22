@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.2).
 * 9 Nov 26 dm  S.186: a refused word says which character is wrong (14040 with $tk_badch: a capital letter, a space, the character &), not only the word.
+* 22 Nov 26 dm  S.300: out has no CR; a status line takes a whole message from $tk_capt ('first' or 'last').
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -81,6 +82,8 @@ $include tk.h
 
    execute s trapping aborts capturing out
    status = @system.return.code
+   call $tk_capt('clean', out, '', cap)               ;* 22 Nov 26 (S.300): every line kept, the CR of a message's own break dropped ($tk_capt has the rule)
+   out = cap
 
 * 9 Nov 26 (S.186): every command run or refused here goes into the page's log of commands, which Ctrl-O shows on a page that has no output pane of its own ($tk_std)
 run.done:

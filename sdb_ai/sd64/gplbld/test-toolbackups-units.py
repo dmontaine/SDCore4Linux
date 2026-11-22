@@ -111,8 +111,8 @@ def checks(raw):
     ck("TB8", "D sends 'set.backup.directory ' + a path that is absolute, has no space and is at most 200 characters, tested BEFORE the sentence",
        ds.count("sent = ") == 1 and "sent = 'set.backup.directory ' : nd" in ds and "nd[1, 1] # '/'" in ds and "len(nd) > 200" in ds and "index(nd, ' ', 1) > 0" in ds and 0 < ds.find("nd[1, 1] # '/'") < ds.find("sent = "), ds[:200])
     cr = block(pg, "confirm.and.run")
-    ck("TB9", "after a command the directory, the archives and the sessions are read again, the screen is drawn again, and the status line carries the verb's own last line (or the routine's refusal)",
-       re.search(r"call \$tk_runx\(allow, sent, out, stat, err\)\s*\n\s*gosub read\.all\s*\n\s*gosub draw\.all", cr) is not None and "lastl = trim(out<k>)" in cr and "msg = err" in cr and "msg = cmsg" in cr, cr[:200])
+    ck("TB9", "after a command the directory, the archives and the sessions are read again, the screen is drawn again, and the status line carries the verb's own last message, whole (S.300; or the routine's refusal)",
+       re.search(r"call \$tk_runx\(allow, sent, out, stat, err\)\s*\n\s*gosub read\.all\s*\n\s*gosub draw\.all", cr) is not None and "call $tk_capt('last', out, '', lastl)" in cr and "msg = err" in cr and "msg = cmsg" in cr, cr[:200])
     ra = block(pg, "read.archives")
     ck("TB10", "the archives are the files whose names begin SD- and end .zip, newest first by the time in the name (the 15 characters before .zip, sorted descending), each with its size and its manifest facts; a manifest that cannot be read is shown as ?",
        "nm[1, 3] = 'SD-' and nm[len(nm) - 3, 4] = '.zip'" in ra and "st = nm[len(nm) - 18, 15]" in ra and "locate st in stamps<1> by 'DL' setting p else null" in ra and "ospath(bdir : @ds : nm, OS$INFO)" in ra

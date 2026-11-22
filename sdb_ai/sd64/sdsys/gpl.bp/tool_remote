@@ -28,6 +28,7 @@
 * 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
 * 15 Nov 26 dm  S.244, the owner's page rules: A and S choose from a list, not a typed word (1); N's entries open empty, its defaults beside them, and Files is a choice
 *              (1, 2); the word the boxes want is shown as open and taken in either case (5).
+* 22 Nov 26 dm  S.300: the status line shows the verb's last message whole ($tk_capt), not only the last of its lines.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -744,13 +745,8 @@ confirm.and.run:
          msg = err
       end else
          msg = sent[1, 60] : ' ran (status ' : stat : ')'
-         lastl = ''
-         for k = 1 to dcount(out, @fm)
-            ol = trim(out<k>)
-            if ol # '' then
-               if field(sent, ' ', 1) # 'local.sdsys' or ol[1, 12] # 'local.sdsys ' then lastl = ol     ;* S.267: local.sdsys ends a refusal with 14183; the helper's own line is before it
-            end
-         next k
+         cskip = (if field(sent, ' ', 1) = 'local.sdsys' then 'local.sdsys ' else '')    ;* S.267: local.sdsys ends a refusal with 14183; the helper's own line is before it
+         call $tk_capt('last', out, cskip, lastl)      ;* S.300: the whole last message
          if lastl # '' then msg = msg : ': ' : lastl
       end
    end else

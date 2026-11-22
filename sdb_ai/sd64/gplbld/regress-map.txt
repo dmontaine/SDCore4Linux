@@ -439,7 +439,9 @@ sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resiz
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-public tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
+# 22 Nov 26 (S.300): what a captured message is - every page that shows a command's first or last message on its status line
+sdsys/gpl.bp/tk_capt         : tk-base tool-ai tool-backups tool-config tool-gates tool-jobs tool-sessions tool-accounts tool-remote tool-files tool-voc tool-catalog
+sdsys/gpl.bp/tk_run          :tk-base tool-ai tool-gates tool-sessions tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
