@@ -3,7 +3,8 @@
 # sandbox-ai-pages.py - the AI line on a PAGE of the toolkit ($tk_aipage; S.97 stage 1), pilot pages tool.voc and tool.files, driven on a pseudo-terminal as an ORDINARY session on a private
 # SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-pages.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-pages.py <dir> [--build] [--mutant=NAME | --only=off,on,more,admin]
+#   --only (22 Nov 26, testing rule 7): off is P0 and P7, on is P1 to P6 (one chain), more is P8, admin is P9; the build and the fixtures always run.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of a program and exit 0 means the rows that had to fail failed and no others (MUTANTS below).
@@ -402,7 +403,12 @@ def sec_admin_pages():
         kr = h.line(42).rstrip()
         arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 38, AI in the menu bar, and F6 box on the key row, S.176 (or the row is full to the edge)" % verb,
              h.line(AIY).lstrip().startswith("AI>") and ("F6 box" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
-             repr((h.line(0)[:80], h.line(39)[:50], kr[:110], len(kr))))
+             repr((h.line(0)[:80], h.line(AIY)[:50], kr[-30:], len(kr))))
+        # 22 Nov 26: the page draws itself again (F5 reads and draws).  Fourteen pages cleared a fixed H - 5 rows, which since S.305 reached the AI row: the line was wiped by the
+        # page's own clear and $tk_frame, which writes it only when it changed, did not put it back.  tool.remote showed it on its first screen (it draws the frame before it reads).
+        h.key("f5", idle=3.5)
+        arow("P9" + L + "1b", "%s: after F5 (the page reads and draws itself again) the AI row is still on row 38, with the rule under it" % verb,
+             h.line(AIY).lstrip().startswith("AI>") and ruled(h), repr((h.line(AIY)[:40], h.line(AIY + 1)[:30])))
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
         T = h.text()
@@ -421,16 +427,51 @@ def sec_admin_pages():
         h.end()
 
 
+SECTIONS = ("off", "on", "more", "admin")      # 22 Nov 26, testing rule 7 (the suite takes 14 minutes): --only=NAME[,NAME]; the build and the fixtures always run
+
+
+def ai_on():
+    """The state sec_on leaves, for a section run by itself: a provider, a model, a key, and the runner with the gate's own group."""
+    al.configure()
+    al.start_runner()
+
+
+def run_section(name):
+    """off: P0 and P7 (they follow each other: P7 runs in the state P0 made).  on: P1 to P6 (one chain: each uses what the one before left).  more: P8.  admin: P9."""
+    if name == "off":
+        sec_off()
+        sec_more_off()
+    elif name == "on":
+        sec_on()
+        sec_focus()
+        sec_preview()
+        sec_send()
+        sec_files()
+    elif name == "more":
+        ai_on()
+        sec_more_on()
+    elif name == "admin":
+        ai_on()
+        sec_admin_pages()
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
-    if mutant is not None and mutant not in MUTANTS:
-        bail("usage: sandbox-ai-pages.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if (mutant is not None and mutant not in MUTANTS) or (only is not None and (mutant is not None or not set(only) <= set(SECTIONS))):
+        bail("usage: sandbox-ai-pages.py <dir> [--build] [--mutant=%s | --only=%s]" % ("|".join(MUTANTS), ",".join(SECTIONS)))
     try:
         sh.setup("sandbox-ai-pages.py")
         al.setup_ai(None)
         sync_and_compile(mutant)
-        sec_off()
-        if mutant is None:
+        if only is not None:
+            for name in only:
+                run_section(name)
+        else:
+            sec_off()
+        if only is not None:
+            pass
+        elif mutant is None:
             sec_more_off()
             sec_on()
             sec_focus()

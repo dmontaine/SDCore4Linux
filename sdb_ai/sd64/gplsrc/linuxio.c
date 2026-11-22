@@ -58,6 +58,7 @@
  * 10 Nov 26 dm  S.196: signal_handler() no longer logs (it took ERRLOG_SEM inside the handler and deadlocked a session hung up
  *               while it held it); it records the signal, and log_termination_signal() writes the line from process_events().
  * 10 Nov 26 dm  S.178: keyin() waits on a pipe with poll and sees the events, so a session idle on a pipe leaves on SIGTERM.
+ * 22 Nov 26 dm  S.301: log_termination_signal() writes the error log only (log_message), no longer the user's screen too.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1161,14 +1162,19 @@ void signal_handler(signum) int signum;
 /* ======================================================================
    log_termination_signal()  -  The line signal_handler() may not write itself (S.196): called by process_events() when it
    handles EVT_TERMINATE, in normal context.  Logs once per signal received; nothing when the event came from elsewhere
-   (LOGOUT, sd -stop's raise_event).                                                                                       */
+   (LOGOUT, sd -stop's raise_event).
+   22 Nov 26 dm - S.301 (Windows row 382; the owner, of a restart asked for from a page: the line flashed over the full-screen
+   page, "sloppy"): written to the error log only, not to the user's screen.  log_printf() also displays to a logged-in
+   user; log_message() is its log half.                                                                                    */
 
 void log_termination_signal() {
   int signum = term_signal_seen;
+  char s[64];
 
   if (signum != 0) {
     term_signal_seen = 0;
-    log_printf("Received termination signal %d\n", signum);
+    sprintf(s, "Received termination signal %d", signum);
+    log_message(s);
   }
 }
 

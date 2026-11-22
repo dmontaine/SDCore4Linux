@@ -257,8 +257,8 @@ def checks(raw):
     ck("CF9", "the page opens the toolkit's base for the ADMINISTRATOR first (a refusal is shown and the program stops), before it reads anything; its one audit line says it started",
        0 < i_open < i_audit < i_first and re.search(r"call \$tk_open\('tool\.config', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*stop\s*\n\s*end", pg) is not None and pg.count("K$AUDIT") == 1,
        "open %s audit %s first read %s" % (i_open, i_audit, i_first))
-    ck("CF10", "THE PAGE'S ONE WAY OF CHANGING ANYTHING IS set.config: one $tk_run behind one $tk_confirm, one allow list that is exactly 'set.config', and no $tk_runx, execute, os.execute, perform or chain; no write of any kind (write, writeseq, delete, matwrite, ospath with OS$DELETE or OS$CHOWN), and nothing opened but the table and sd.conf, each 'readonly'",
-       pg.count("call $tk_run(") == 1 and pg.count("call $tk_confirm(") == 1 and pg.count("allow = ") == 1 and "allow = 'set.config'" in pg
+    ck("CF10", "THE PAGE'S ONE WAY OF CHANGING ANYTHING IS set.config: one $tk_run behind one $tk_confirm, one allow list that is exactly 'set.config', and no $tk_runx, execute, os.execute, perform or chain; no write of any kind (write, writeseq, delete, matwrite, ospath with OS$DELETE or OS$CHOWN), and nothing opened but the table and sd.conf, each 'readonly'; its one other act is ONE $tk_restart, the restart box (S.301; test-tkrestart-units.py holds where it stands)",
+       pg.count("call $tk_run(") == 1 and pg.count("call $tk_confirm(") == 1 and pg.count("$tk_restart(") == 1 and pg.count("allow = ") == 1 and "allow = 'set.config'" in pg
        and not re.search(r"\$tk_runx|\b(execute|os\.execute|perform|chain|write|writeseq|writeseqf|writev|writeu|delete|deleteseq|matwrite|matwriteu|overwrite|append)\b", pg)
        and not re.search(r"OS\$(DELETE|CHOWN|MKDIR|MKPATH|UNIQUE|CD)", pg) and pg.count("openseq") == 2 and "openseq @sdsys : @ds : 'config.table' readonly to tf then" in pg and "openseq conf.path readonly to cf then" in pg, "")
     ck("CF11", "the backup directory is READ: !acc_os_bakdir is called with 'GET' and never 'SET', and !settings_os is the only other helper (it reports, it changes nothing)",
@@ -286,8 +286,8 @@ def checks(raw):
     ck("CF16", "the key table has exactly: help, parameters, backups, report, differ, setonly, edit, refresh, quit - and the Esc row that opens the menu bar (S.88 U3; it runs nothing); the dispatch has P, B, R, D, S, E, F1/?, F5 and Ctrl-Q, and E is a key of the parameters pane only",
        acts == sorted(["help", "parameters", "backups", "report", "differ", "setonly", "edit", "refresh", "quit", "menu"]) and all(("case nm = '%s'" % k) in pg for k in ("p", "b", "r", "d", "s", "e", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg
        and "call $tk_keys('add', keys, 'e', 'change', 'edit', 'Parameters', 1)" in pg, " ".join(acts))
-    ck("CF17", "the page waits for a key with no timeout (nothing here changes by itself) and reads the file, the table and the report again only when it opens, on F5, when a view that needs them is opened and after a command it ran",
-       "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 3 and pg.count("gosub read.report") == 2 and pg.count("gosub read.backup") == 2, "read.all x%d" % pg.count("gosub read.all"))
+    ck("CF17", "the page waits for a key with no timeout (nothing here changes by itself) and reads the file, the table and the report again only when it opens, on F5, when a view that needs them is opened, after a command it ran, and when it takes the screen again after a restart that did not happen (take.screen, S.301)",
+       "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4 and "gosub read.all" in block(pg, "take.screen") and pg.count("gosub read.report") == 2 and pg.count("gosub read.backup") == 2, "read.all x%d" % pg.count("gosub read.all"))
     ck("CF18", "the page has a [?] and F1, ? and a click show tool.config.page, whose record exists with a title, the configuration page of the administrator guide (which has a section on tool.config) and a body",
        pg.count("'tool.config.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "administrator-07-sd-admin-configuration"
        and raw["help"].split("\n")[2].strip() != "" and "## The parameters on one screen: `tool.config`" in raw["doc"], "")
@@ -398,7 +398,7 @@ MUTANTS = [
     ("a session parameter says restart", "CF6", sub("table", "MAXCALL|int|10000|10|1000000|session|", "MAXCALL|int|10000|10|1000000|restart|")),
     ("the guide names another unreadable parameter", "CF7", sub("doc", "`SDSYS`, `BACKUPDIR` and `NETDIRS` cannot be read", "`SDSYS` cannot be read")),
     ("the table forgets to say a parameter is unreadable", "CF7", sub("table", "Not readable with the CONFIG function.", "")),
-    ("the table says SCREENTHEME is not readable again", "CF7", sub("table", "terminal with no colour shows mono whatever this says.", "terminal with no colour shows mono whatever this says. Not readable with the CONFIG function.")),
+    ("the table says SCREENTHEME is not readable again", "CF7", sub("table", "terminal with no color shows mono whatever this says.", "terminal with no color shows mono whatever this says. Not readable with the CONFIG function.")),   # 22 Nov 26: the table says "color" (it said "colour", and the mutant could not be made)
     ("CONFIG()'s name buffer is eight again", "CF7", sub("opconfig", "char param[16 + 1];", "char param[8 + 1];")),
     ("CONFIG()'s name limit is eight again", "CF7", sub("opconfig", "k_get_c_string(descr, param, 16) < 1", "k_get_c_string(descr, param, 8) < 1")),
     ("a parameter is marked inert again", "CF3", sub("table", "CLEANUP|int|300|30|3600|restart|live|", "CLEANUP|int|300|30|3600|restart|inert|")),

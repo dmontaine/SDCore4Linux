@@ -26,6 +26,8 @@
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
 * 22 Nov 26 dm  S.300: the status line shows the verb's last message whole ($tk_capt), not only the last of its lines.
+* 22 Nov 26 dm  S.301 (owner; Windows row 382): after a change to a parameter that takes effect at a restart, $tk_restart's box asks whether to restart SD
+*               now (why, everyone signed out, Restart or Not now); take.screen takes the page again when Restart was chosen and SD did not restart.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -35,6 +37,8 @@
 *   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least).  Everything it does by itself is LOOKING; its one way of changing anything is the command set.config,
 *   which it runs only after the person has typed a value, the page has checked the value against the table's range, and the confirm box has shown the exact sentence and answered Run.
 *   set.config calls the root helper (sd-elevate conf-set), which changes one of 14 tuning parameters and refuses everything else; the page never writes a file and never runs anything else.
+*   After a change to one of the four parameters SD reads only when it starts (CLEANUP, LGNWAIT, NUMLOCKS, USPLIT) a second box asks whether to restart SD now ($tk_restart, S.301):
+*   Restart or Not now, Not now the default; Restart asks the root helper (sd-elevate sd-restart), which takes no argument.  That is the page's only other act.
 *   The other 37 parameters are not changed from here (the doors, paths and commands, logs and diagnostics, sizes config.c does not check, ...): E shows the reason, from the table, and the
 *   line to add by hand.
 *
@@ -378,6 +382,23 @@ read.report:
    next i
    return
 
+* 22 Nov 26 - S.301: the page takes the screen again after $tk_restart closed it and SD did not restart: opened for the administrator again, the new
+* context given its AI line and panes, everything read and drawn.  A refusal at $tk_open ends the page (done = 1).
+take.screen:
+   call $tk_open('tool.config', 'admin', ctx, err)
+   if err # '' then
+      display err
+      done = 1
+      return
+   end
+   call $tk_aipage('again', ctx, keys, '', '', aout)
+   gosub lay.declare
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub read.all
+   gosub draw.all
+   return
+
 * ------------------------------------------------------------------------------------------------- the layout (S.88 L2)
 
 * The page's three boxes as panes of $tk_layout: each size is the box drawn at 140 by 43 (the body is 138 by 39), so at that size nothing moves; in a larger window the list stretches
@@ -423,7 +444,7 @@ lay.rect:
 
 draw.all:
    cw2 = ctx<TK.C.W>
-   chh = ctx<TK.C.H> - 5
+   chh = (if ctx<TK.C.AIROW> then ctx<TK.C.BODYH> else ctx<TK.C.H> - 5)        ;* 22 Nov 26: with the AI line the clear stops above it (S.305 moved the line up a row and H - 5 wiped it)
    screen clear at 0,body.y size cw2,chh
    screen box at top.x,top.y size top.w,top.h title 'Configuration'
    ttl = 'Parameters'
@@ -852,6 +873,17 @@ change.param:
    call $tk_capt('last', out, '', lastl)               ;* S.300: the whole last message
    if stat = 0 and ('S' : trim(now.f)) = ('S' : nv) then
       msg = k : ' in sd.conf: ' : old.f : ' -> ' : now.f : '; SD is running with ' : now.r : (if k.eff = 'restart' then ' until it is restarted' else ' (sessions started now use ' : now.f : ')')
+*     22 Nov 26 - S.301 (owner): a change that takes effect only at a restart asks, in a box, whether to restart SD now.  Only when the file and the
+*     running SD now differ (the row's own * mark): a value set back to what SD is running with needs no restart, and none is offered.
+      differs = 0
+      if rj > 0 then differs = pdiff<rj>
+      if k.eff = 'restart' and differs then
+         why = k : ' is now ' : now.f : ' in sd.conf, but SD reads it only when it starts: until SD restarts, it keeps running with ' : now.r : '.'
+         call $tk_frame(ctx, keys, panes<view>, msg)             ;* the status line under the box says what was done
+         call $tk_restart(ctx, why, rres, rmsg)
+         if rres = 'failed' then gosub take.screen               ;* Restart closed the page and SD did not end this session
+         msg = k : ' in sd.conf: ' : old.f : ' -> ' : now.f : '; ' : rmsg
+      end
    end else
       msg = 'sd.conf was not changed' : (if lastl = '' then '' else ': ' : lastl)
    end

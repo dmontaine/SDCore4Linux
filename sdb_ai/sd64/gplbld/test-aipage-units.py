@@ -219,6 +219,13 @@ def checks(raw):
     miss = [k for k in CURSOR_PAGES
             if not ordered(strip_bas(raw[k]), "call $tk_aipage('cursor', ctx, '', '', '', '')", "screen key") or PARK.search(strip_bas(raw[k])) or len(raw[k]) < 200]
     ck("AP16a", "every page with the AI line (%d) asks $tk_aipage 'cursor' before its SCREEN KEY and none parks the cursor on the status line there" % len(CURSOR_PAGES), not miss, repr(miss))
+    # 22 Nov 26: fourteen pages cleared their body with a height counted from the window (H - 5), which since S.305 reached the AI row; $tk_frame writes the line only when it
+    # changed, so the line stayed wiped (sandbox-ai-pages.py P9f1, and P9x1b for the others).  A height counted from the window is allowed only as the no-AI half of the one form.
+    OK_CLEAR = re.compile(r"\(if ctx<TK\.C\.AIROW> then ctx<TK\.C\.BODYH> else ctx<TK\.C\.H> - \d\)")
+    wipes = [k for k in CURSOR_PAGES if re.search(r"ctx<TK\.C\.H>\s*-\s*\d", OK_CLEAR.sub("", strip_bas(raw[k])))]
+    forms = sum(len(OK_CLEAR.findall(strip_bas(raw[k]))) for k in CURSOR_PAGES)
+    ck("AP17", "NO PAGE WITH THE AI LINE CLEARS OVER IT: a height counted from the window (ctx<TK.C.H> - n) appears only as the no-AI half of "
+       "'(if ctx<TK.C.AIROW> then ctx<TK.C.BODYH> else ctx<TK.C.H> - n)' (%d places)" % forms, not wipes and forms >= 10, repr(wipes))
     return rows
 
 
@@ -293,6 +300,8 @@ MUTANTS = [
     ("the cursor op never puts the cursor in the line", "AP16", sub("page", "         if foc then\n            call $tk_ai('draw', ctx, 1, '')\n", "         if 0 then\n            null\n")),
     ("tool.files parks the cursor on the status line again", "AP16a", sub("files", "      call $tk_aipage('cursor', ctx, '', '', '', '')", "      call $sl_curat(0, ctx<TK.C.YSTAT>)")),
     ("tool.entries does not ask the cursor op", "AP16a", sub("entries", "      call $tk_aipage('cursor', ctx, '', '', '', '')", "      null")),
+    ("tool.remote clears over the AI line again", "AP17", sub("remote", "(if ctx<TK.C.AIROW> then ctx<TK.C.BODYH> else ctx<TK.C.H> - 5)", "ctx<TK.C.H> - 5")),
+    ("tool.config clears a fixed height with the AI on", "AP17", sub("config", "(if ctx<TK.C.AIROW> then ctx<TK.C.BODYH> else ctx<TK.C.H> - 5)", "(if ctx<TK.C.AIROW> then ctx<TK.C.H> - 5 else ctx<TK.C.BODYH>)")),
 ]
 
 

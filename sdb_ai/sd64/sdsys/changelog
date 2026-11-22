@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+22 Nov 26  TOOL.CONFIG OFFERS TO RESTART SD AFTER A CHANGE THAT NEEDS IT.
+
+             What        - After E changes CLEANUP, LGNWAIT, NUMLOCKS or USPLIT (the parameters SD reads only when it
+                           starts), a box titled "Restart SD?" says why, that a restart stops and starts SD and signs
+                           out everyone, this session too, and offers Restart or Not now. Not now is what Enter
+                           chooses. Restart closes the page, clears the screen, says SD is restarting and asks the
+                           root helper (sd-elevate sd-restart) to have systemd restart sd.service. The audit trail
+                           gets "sd restart app=tool.config status=asked", or status=refused.
+                           A session that is ended by a stop or a restart no longer has "Received termination
+                           signal" written over its screen; the error log still gets the line.
+                           tool.bulk and tool.entries show the whole message of their own select and of the undo
+                           file's creation, not only the first line of it.
+             Why         - Until now only the status line said the change waited for a restart, which is easily
+                           missed, and the administrator had to leave SD and restart it as root. SD Core for Windows
+                           has the same box.
+             Does NOT    - Restart anything from the verb set.config, when Not now is chosen, or when the value is
+                           the one SD is already running with (no box is offered then). The helper's
+                           sd-restart takes no argument, only the sdsys user can ask it, and it refuses when
+                           sd.service is not active (an SD started by hand with sd -start).
+
 22 Nov 26  A PERSON'S OWN PASSWORD CHANGE IS IN THE AUDIT TRAIL.
 
              What        - When an account holder changes their own SD password, the audit trail gets

@@ -39,7 +39,10 @@
 #        reaches a box, the helper, the file or the audit trail
 #   C11  the flow: the box shows the exact command and when it takes effect; Esc runs nothing; Run on a restart parameter (CLEANUP: the line is added inside [sd], the .bak is the file as it was,
 #        the helper got exactly conf-set CLEANUP 600, one audit line, the page shows the file's new value and that SD keeps running with the old one) and on a session parameter (GRPSIZE: the line
-#        is replaced where it was, a NEW session really sees 6, this one keeps 4); the same value again changes nothing and leaves the .bak alone
+#        is replaced where it was, a NEW session really sees 6, this one keeps 4); the same value again changes nothing and leaves the .bak alone.  S.301 (22 Nov 26), rows C11m to C11t: after
+#        a restart parameter's change the 'Restart SD?' box (why, everyone signed out, Restart / Not now); Enter is Not now and asks nothing of the helper; Restart closes the page and asks the
+#        helper once ('sd-restart'), whose refusal (the sandbox has no sd.service) is shown, audited, and the page taken again; no box for a session parameter or when nothing differs.
+#        NOT HELD: a restart that works (the session ended by the stop) - the VM witness's row.
 #   C12  the real verb: the helper's own refusals (a door, an unknown name, out of range) reach the person in the helper's words and write a refused audit line; a wrong number of words, a bad
 #        character in the name or the value never reach the helper; an ordinary account has no verb and one given a VOC entry is refused as not the administrator
 #   C13  every line of sd.conf the suite did not ask to change is as it was, and the audit lines of the verb are lower case with key, value and status and nothing else
@@ -108,6 +111,8 @@ CONF=%(conf)s
 LOG=%(log)s
 printf '%%s\n' "$*" >> "$LOG"
 if ! out=$(bash "$REAL" --dry-run "$@" 2>&1); then printf '%%s\n' "$out"; exit 2; fi
+# 22 Nov 26 (S.301): sd-restart.  A sandbox has no sd.service, so the helper's own answer here is its refusal for a unit that is not active - the words the real verb dies with.
+if [ "${1:-}" = sd-restart ]; then echo "sd-elevate: REFUSED - sd.service is not active: SD was not started by systemd on this machine, so it is stopped and started the way it was started (sd -stop, then sd -start). Nothing was done." >&2; exit 2; fi
 [ "${1:-}" = conf-set ] || { echo "sd-elevate (sandbox): checked, pretended: $*"; exit 0; }
 set -uo pipefail
 eval "$(sed -n '/^# BEGIN confset_functions/,/^# END confset_functions/p' "$REAL")"
@@ -128,7 +133,8 @@ MUTANTS = {
     "fixed-edited": ("   if pwrite<i> = 'yes' then\n      gosub change.param", "   if pwrite<i> # 'zz' then\n      gosub change.param", ["C9a", "C9b", "C9c"], "C9"),
     "box-skipped": ("   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res # 'run' then", "   res = 'run' ; cmsg = ''\n   if res # 'run' then", ["C11a", "C11b"], "C11"),
 }
-WRITE_MUTANTS = ("fixed-edited", "box-skipped")
+MUTANTS["restart-always"] = ("      if k.eff = 'restart' and differs then\n", "      if k.eff = 'restart' then\n", ["C11s"], "C13")    # 22 Nov 26 (S.301): the box offered when nothing differs
+WRITE_MUTANTS = ("fixed-edited", "box-skipped", "restart-always")
 
 # ------------------------------------------------------------------------------------------------------------------------------- the table and the file, read by Python
 
@@ -240,7 +246,7 @@ def sq(t):
     return re.sub(r"[|\s]+", "", t)
 
 
-def box_text(p):
+def box_text(p, button=None):
     """26 Oct 26: the text of the dialog box on the screen and nothing else.  norm(p.text()) reads the screen row by row across its whole width, so the parameter names of the list to the left of
     the box land INSIDE a sentence the box wraps onto a second row (a sandbox directory under /tmp/sdregress.<run>/ is long enough for the path to wrap; /tmp/sx0 was not).  The box is found from
     the row with its buttons ( [ Close ] or [ Run ] ): on the confirm box that row is the bottom border (+-- [ Run ] [ Cancel ] --+), on the information box it is a row between two side borders
@@ -248,7 +254,7 @@ def box_text(p):
     L = p.h.lines()
     for r in range(len(L) - 1, -1, -1):
         ln = L[r]
-        b = max(ln.find("[ Close ]"), ln.find("[ Run ]"))
+        b = ln.find(button) if button else max(ln.find("[ Close ]"), ln.find("[ Run ]"))   # 22 Nov 26 (S.301): or the box with the button named ([ Restart ])
         if b < 0:
             continue
         e = ln.find("]", b)
@@ -311,7 +317,7 @@ def patch_elevate():
 
 def setup_pages():
     patch_elevate()
-    for prog in ("tool_config", "setconfig"):
+    for prog in ("tk_restart", "tool_config", "setconfig"):          # 22 Nov 26 (S.301): tk_restart names the helper too (accos.h is read at compile time)
         shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", prog), os.path.join(sh.SYS, "gpl.bp", prog))
         out = g.adm(["BASIC gpl.bp " + prog], internal=True)
         if not has(out, r"^Compiled 1 program\(s\) with no errors"):
@@ -642,6 +648,21 @@ def verb_audit(a0):
     return [ln for ln in audit_lines()[a0:] if " set.config " in ln or ln.endswith("set.config")]
 
 
+def restart_audit(a0):
+    """The audit lines $tk_restart wrote since the file had a0 lines (S.301)."""
+    return [ln for ln in audit_lines()[a0:] if " sd restart " in ln]
+
+
+def restart_open(p):
+    """True while the 'Restart SD?' box is on the screen (S.301)."""
+    T = norm(p.text())
+    return "Restart SD?" in T and "[ Restart ]" in T and "[ Not now ]" in T
+
+
+def restart_box(p):
+    return box_text(p, "[ Restart ]")
+
+
 def box_open(p):
     T = norm(p.text())
     return "Cancel" in T and "Run" in T and "this will run" in T
@@ -781,10 +802,21 @@ def section_c11(p, by, names, orig, forced, mutant):
     mine = verb_audit(a0)
     arow("C11e", "the helper was asked exactly once, with the name in capitals and the digits as typed: 'conf-set CLEANUP 600'; and exactly ONE audit line was written, 'set.config key=cleanup value=600 status=ok'",
          calls == ["conf-set CLEANUP 600"] and len(mine) == 1 and mine[0].endswith("set.config key=cleanup value=600 status=ok"), repr((calls, mine)))
+    run_c = forced.get("CLEANUP")
+    # ---- 22 Nov 26 (S.301): the restart box is open now, over the page (s_run above is the status line under it); no key goes to the page until it is answered.  Enter is Not now.
+    T = restart_box(p)
+    arow("C11m", "after the change a box titled 'Restart SD?' is open: it says why (CLEANUP is now 600 in sd.conf, SD reads it only when it starts and keeps running with %s), that a restart signs out everyone, "
+         "this session too, what Not now means, and offers Restart and Not now" % run_c,
+         "Restart SD?" in norm(p.text()) and sq("CLEANUP is now 600 in sd.conf, but SD reads it only when it starts: until SD restarts, it keeps running with %s." % run_c) in sq(T)
+         and "A restart stops and starts SD and signs out everyone, this session too." in T and "Not now: nothing restarts" in T and "[ Restart ]" in T and "[ Not now ]" in T, T[:700])
+    p.h.typed("\r", idle=2.0)
+    s_not = st(p).strip()
+    arow("C11n", "Enter chooses Not now: the box is gone, the helper was not asked again, no 'sd restart' audit line was written, and the status line says SD was not restarted and when the change takes effect",
+         not restart_open(p) and helper_calls()[c0:] == ["conf-set CLEANUP 600"] and restart_audit(a0) == []
+         and "CLEANUP in sd.conf: (nothing) -> 600; SD was not restarted: the change takes effect when SD is next started" in s_not, repr((s_not[:130], helper_calls()[c0:], restart_audit(a0))))
     goto(p, names, "CLEANUP")
     row_ = p.visible().get("CLEANUP", {})
     top = p.top()
-    run_c = forced.get("CLEANUP")
     arow("C11f", "the page read the file and SD again: the status line says CLEANUP in sd.conf went from (nothing) to 600 and SD runs with %s until it is restarted; the row shows 600 in the file, %s running and a *; "
          "the top counts one difference that needs a restart" % (run_c, run_c),
          ("CLEANUP in sd.conf: (nothing) -> 600; SD is running with %s until it is restarted" % run_c) in s_run and row_.get("file") == "600" and row_.get("force") == run_c and row_.get("mark") == "*"
@@ -827,6 +859,49 @@ def section_c11(p, by, names, orig, forced, mutant):
     calls = helper_calls()[c2:]
     arow("C11l", "the same value again: the helper is asked and finds nothing to change, so sd.conf and sd.conf.bak are byte for byte as before (the .bak is not overwritten by an identical file), "
          "and one more audit line says ok", sha() == h3 and bak3 is not None and read_bak() == bak3 and calls == ["conf-set GRPSIZE 6"] and len(verb_audit(a2)) == 1, repr((calls, verb_audit(a2))))
+    arow("C11l2", "a session parameter asks for no restart: no 'Restart SD?' box after either GRPSIZE change", not restart_open(p), norm(p.text())[:200])
+    # ---- 22 Nov 26 (S.301): Restart.  CLEANUP 600 again: the file already says 600 and SD still runs with another value, so the box comes again; R is Restart.  The sandbox has no sd.service, so
+    #      the helper's stand-in answers as the real verb does for a unit that is not active: the page is closed, the refusal shown, and the page taken again.
+    c3, a3, h4 = len(helper_calls()), len(audit_lines()), sha()
+    goto(p, names, "CLEANUP")
+    p.key("e", 1.3)
+    p.h.typed("600\r", idle=1.8)
+    p.h.typed("r", idle=5.0)
+    again = restart_open(p)
+    p.h.typed("r", idle=5.0)
+    T = norm(p.text())
+    arow("C11o", "CLEANUP 600 again brings the box again (the file and SD still differ); Restart closes the page, clears the screen, says SD is restarting, and - the helper having refused - says SD was not "
+         "restarted, why (the helper's own words), and Press Enter to return",
+         again and "The parameter under the cursor" not in T and "SD is restarting. Everyone using SD is signed out, and this session ends." in T and "SD was not restarted." in T
+         and "sd.service is not active" in T and "Press Enter to return" in T, repr((again, T[:500])))
+    calls = helper_calls()[c3:]
+    ra = restart_audit(a3)
+    arow("C11p", "the helper was asked for the restart exactly once, with no argument ('sd-restart'), after the one conf-set; one audit line says 'sd restart app=tool.config status=refused'; sd.conf is unchanged",
+         calls == ["conf-set CLEANUP 600", "sd-restart"] and len(ra) == 1 and ra[0].endswith("sd restart app=tool.config status=refused") and sha() == h4, repr((calls, ra)))
+    p.h.typed("\r", idle=5.0)
+    s_back = st(p).strip()
+    arow("C11q", "Enter takes the page again: it is drawn whole, the status line says SD was not restarted and why, and no second start line of the page is in the audit trail",
+         "The parameter under the cursor" in norm(p.text()) and not restart_open(p) and "SD was not restarted: sd.service is not active" in s_back
+         and len([ln for ln in audit_lines()[a3:] if "tool start app=tool.config" in ln]) == 0, repr(s_back[:160]))
+    # ---- no box when nothing differs: CLEANUP set to the value SD is running with, then back to 600 (Not now) so that the file ends as the rows after this expect
+    c4 = len(helper_calls())
+    goto(p, names, "CLEANUP")
+    p.key("e", 1.3)
+    p.h.typed("%s\r" % run_c, idle=1.8)
+    p.h.typed("r", idle=5.0)
+    opened = restart_open(p)
+    arow("C11s", "CLEANUP set to %s, the value SD is running with: the file is changed and NO restart box is offered (nothing differs, so a restart would change nothing)" % run_c,
+         not opened and ("CLEANUP=%s\n" % run_c) in read_conf() and helper_calls()[c4:] == ["conf-set CLEANUP %s" % run_c], repr((opened, helper_calls()[c4:])))
+    if opened:
+        p.h.typed("\r", idle=2.0)                  # a mutant's box: Not now, so that the rest of the run is not typed into it
+    goto(p, names, "CLEANUP")
+    p.key("e", 1.3)
+    p.h.typed("600\r", idle=1.8)
+    p.h.typed("r", idle=5.0)
+    back = restart_open(p)
+    p.h.typed("\r", idle=2.0)
+    arow("C11t", "and back to 600: the box comes again, Not now leaves SD alone, and the helper was asked for no restart", back and not restart_open(p) and "CLEANUP=600\n" in read_conf()
+         and helper_calls()[c4:] == ["conf-set CLEANUP %s" % run_c, "conf-set CLEANUP 600"], repr((back, helper_calls()[c4:])))
 
 
 def section_c12(orig):
@@ -879,7 +954,8 @@ def section_c13(orig, audit_base):
     ok_lines = [x for x in lines if x.endswith("status=ok")]
     ref_lines = [x for x in lines if x.endswith("status=refused")]
     shape = all(re.fullmatch(r"key=[a-z0-9]+ value=[0-9]+ status=(ok|refused)", x) for x in lines)
-    arow("C13b", "the audit trail holds 8 lines of the verb (3 ok: CLEANUP, GRPSIZE, GRPSIZE again; 5 refused), each exactly 'key=<name> value=<number> status=ok|refused' in lower case, and the words and the name are lower case", len(lines) == 8 and len(ok_lines) == 3 and len(ref_lines) == 5 and shape
+    arow("C13b", "the audit trail holds 11 lines of the verb (6 ok: CLEANUP, GRPSIZE, GRPSIZE again, and since S.301 CLEANUP 600 again, CLEANUP to the running value and back to 600; 5 refused), each exactly "
+         "'key=<name> value=<number> status=ok|refused' in lower case, and the words and the name are lower case", len(lines) == 11 and len(ok_lines) == 6 and len(ref_lines) == 5 and shape
          and all(x == x.lower() for x in lines), repr(lines))
 
 

@@ -3,7 +3,11 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
-# 22 Nov 26 dm - S.298 (Windows row 379; the owner, 22 Nov 2026: "Linux adds them"): cred-own writes "cred-own set account=<a>" and "cred-own refused account=<a>
+# 22 Nov 26 dm - S.301 (Windows row 382; the owner, 22 Nov 2026, warned that it is a wider permission than delivered: "Working Restart button"): sd-restart, no
+#                argument.  It hands systemd the restart of sd.service (systemctl restart --no-block) and returns: the session that asked is ended by the stop
+#                like every other, so the helper cannot wait for it.  The administrator's only (sudo's caller is sdsys, or a root run with no sudo); refused
+#                when sd.service is not active, because SD was then not started by systemd and a restart of the unit would not stop it.
+# 22 Nov 26 dm - S.298(Windows row 379; the owner, 22 Nov 2026: "Linux adds them"): cred-own writes "cred-own set account=<a>" and "cred-own refused account=<a>
 #                mode=<m> reason=<why>" into SD's audit trail itself, through the audit daemon's socket, so the daemon stamps them user=root from the kernel's
 #                credentials and no session can forge one; a refusal is audited once the caller is proven to be the account (sudo's uid matches).  The two
 #                functions are between "# BEGIN cred_audit_functions" and its END for gplbld/test-credaudit-units.py.
@@ -198,6 +202,7 @@ SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d                     # 2 Nov 26 dm - S.102 st
 SD_JOBS_DIR=${SD_JOBS_DIR:-$SD_JOBS_DIR_REAL}
 SD_UNIT_DIR_REAL=/etc/systemd/system                    # 2 Nov 26 dm - S.102 stage 3: where a job's timer and service units go; a test knob like SD_JOBS_DIR
 SD_UNIT_DIR=${SD_UNIT_DIR:-$SD_UNIT_DIR_REAL}
+SD_SERVICE_UNIT=sd.service                              # 22 Nov 26 dm - S.301: the unit sd-restart restarts.  Fixed here; not read from the environment or from a caller
 
 # Below this, an account is a system account and out of reach.  Read from
 # /etc/login.defs when it is there rather than assumed, because distributions
@@ -268,6 +273,9 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] conf-set <PARAMETER> <whole number>
                                   (changes one tuning parameter of /etc/sd.conf, such as CLEANUP 600: only the parameters on
                                   the helper's list, only inside the range SD itself enforces; the old file is kept as sd.conf.bak)
+  sd-elevate [--dry-run] sd-restart
+                                  (stops and starts SD: asks systemd to restart sd.service and returns at once; everyone using SD is
+                                  signed out, the caller's own session too.  No argument; refused when sd.service is not active)
   sd-elevate [--dry-run] job-set <name> <job> <schedule words>
                                   (defines or replaces a scheduled administrator job in /etc/sdcore/jobs.d: <job> is backup-all or
                                   update-accounts; the schedule is every 5|10|15|20|30 minutes, hourly, daily HH:MM, weekly mon..sun HH:MM or monthly 1..28 HH:MM.
@@ -3012,6 +3020,27 @@ case $verb in
     [[ $CS_CHANGED -eq 1 ]] || cs_note=' (it already was; nothing was written)'
     logger -t sd-elevate "conf-set: $1 is now $2 in $SD_CONF$cs_note" 2>/dev/null || true
     printf '%s: %s is now %s in %s%s; takes effect: %s\n' "$PROG" "$1" "$2" "$SD_CONF" "$cs_note" "$CS_EFFECT"
+    exit 0
+    ;;
+
+  # 22 Nov 26 dm - S.301 (the owner, 22 Nov 2026: "Working Restart button", after being warned once that a restart of SD asked for from inside SD is a new root-level act).
+  # NO ARGUMENT: the unit's name is this file's, so nothing a caller passes chooses what is restarted.  --no-block: systemd takes the job and the helper returns, because the
+  # session that asked is one of those the stop ends - a helper that waited for the restart would be waited for by the stop.  THE CALLER as conf-set: only sdsys (sudo's
+  # SUDO_USER) or a root run with no sudo.  REFUSED WHEN sd.service IS NOT ACTIVE: SD started by hand (sd -start) is not the unit's, and restarting the unit would start a
+  # second SD over the first without stopping it.  The success line the page anchors on is "restart of sd.service asked of systemd"; every refusal is a die.
+  sd-restart)
+    [[ $# -eq 0 ]] || die "sd-restart takes no argument"
+    printf '%s: sd-restart: systemctl restart --no-block %s, only when it is active\n' "$PROG" "$SD_SERVICE_UNIT"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    [[ -z ${SUDO_USER:-} || ${SUDO_USER:-} == sdsys ]] || die "sd-restart is the administrator's (the user sdsys); sudo says it was asked for by another user"
+    systemctl is-active --quiet "$SD_SERVICE_UNIT" || die "$SD_SERVICE_UNIT is not active: SD was not started by systemd on this machine, so it is stopped and started the way it was started (sd -stop, then sd -start). Nothing was done."
+    if ! systemctl restart --no-block "$SD_SERVICE_UNIT"; then
+      printf '%s: systemd did not take the restart of %s\n' "$PROG" "$SD_SERVICE_UNIT" >&2
+      exit 3
+    fi
+    logger -t sd-elevate "sd-restart: restart of $SD_SERVICE_UNIT asked of systemd by ${SUDO_USER:-root}" 2>/dev/null || true
+    printf '%s: restart of %s asked of systemd\n' "$PROG" "$SD_SERVICE_UNIT"
     exit 0
     ;;
 

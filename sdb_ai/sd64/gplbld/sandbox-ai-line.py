@@ -129,6 +129,12 @@ def line_row(h):
     return h.line(38)
 
 
+def hint_row(h):
+    """The hint's row when the AI is OFF: the row above the status line (row 39), where it was before S.305.  With no AI line there is no rule and nothing moved; the
+    S.305 edit pointed the AI-off rows at row 38, which is then empty, and the batch regression of 22 Nov 26 failed L0a to L0e on it."""
+    return h.line(39)
+
+
 def start_runner(gate_group=None):
     b = box()
     stop_runner()
@@ -232,7 +238,7 @@ def sec_off():
         start_runner()
         h = home()
         T = h.text()
-        arow(rid, "%s: no AI row, the old hint is on the row above the status line" % label, "AI>" not in line_row(h) and "arrows move" in line_row(h) and h.home(), repr(line_row(h)[:80]))
+        arow(rid, "%s: no AI row, the old hint is on the row above the status line" % label, "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h) and h.home(), repr((line_row(h)[:40], hint_row(h)[:80])))
         h.key("btab", idle=0.6)
         arow(rid + "t", "...and Back-tab from the first tile goes to the last tile (Sign out), not to a line that is not there", "Sign out" in h.focus(), repr(h.focus()))
         h.key("ctrl-q", idle=1.5)
@@ -246,12 +252,12 @@ def sec_off():
     configure()
     start_runner("zz-no-such-gate-group")
     h = home()
-    arow("L0d", "the gate is off for the account: no AI row, the hint is there", "AI>" not in line_row(h) and "arrows move" in line_row(h), repr(line_row(h)[:80]))
+    arow("L0d", "the gate is off for the account: no AI row, the hint is there", "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h), repr((line_row(h)[:40], hint_row(h)[:80])))
     h.key("ctrl-q", idle=1.5)
     h.end()
     stop_runner()
     h = home()
-    arow("L0e", "the helper is not running: no AI row, the hint is there, the screen is whole", "AI>" not in line_row(h) and "arrows move" in line_row(h) and h.home(), repr(line_row(h)[:80]))
+    arow("L0e", "the helper is not running: no AI row, the hint is there, the screen is whole", "AI>" not in line_row(h) + hint_row(h) and "arrows move" in hint_row(h) and h.home(), repr((line_row(h)[:40], hint_row(h)[:80])))
     h.key("ctrl-q", idle=1.5)
     h.end()
     configure()

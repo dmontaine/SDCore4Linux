@@ -1,0 +1,107 @@
+* TK_RESTART
+* The full-screen toolkit, shared base: the box that asks whether to restart SD now, after a page made a change that needs a restart.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 22 Nov 26 dm  New (S.301; SD Core for Windows' row 382, its tk_restart of 73bd669a).  The owner, in the Windows chat: "A dialog specifying why a restart
+*               might be needed, warning that everyone will be logged out and giving a Restart|Not now option would be the best", "That should be true for
+*               any other full screen action where a restart is needed to implement it", and "it would be better if the screen disappeared and then the
+*               message briefly displayed and then turned off".  Here, 22 Nov 2026, warned once that a restart asked for from inside SD is a new root-level
+*               act: "Working Restart button".  The box's words are Windows'; the restart is Linux's (the root helper asks systemd).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $tk_restart(ctx, why, res, msg)
+*
+*     ctx   the page's context ($tk_open's): Restart closes the page with it
+*     why   why this change needs a restart, one line to a field (the page's own words: which setting, and that SD reads it only when it starts)
+*     res   returned: 'later' when Not now was chosen (or Esc, or no terminal); 'failed' when Restart was chosen and SD did not restart.
+*           After 'failed' THE PAGE IS CLOSED: the caller opens it again ($tk_open) and draws it.  When the restart works this session is
+*           ended with every other, so nothing comes back.
+*     msg   returned: the line for the page's status bar
+*
+*   The box: its title says "Restart SD?", then the command, then why, then that a restart signs out everyone using SD and ends this session too, then
+*   what Not now means.  Two buttons, Restart and Not now; NOT NOW IS THE DEFAULT ($tk_confirm's last button is), so Enter alone never restarts SD.
+*
+*   Restart: the page is closed and the screen cleared, one line says SD is restarting, and the root helper is asked (sd-elevate sd-restart, no argument:
+*   it hands systemd the restart of sd.service and returns at once, because this session is one of those the stop ends).  SUCCESS IS THE HELPER'S OWN LINE
+*   "restart of sd.service asked of systemd" with status 0, nothing else.  Then this waits up to a minute for SD to end the session; if SD has not, or the
+*   helper refused (sd.service is not active: SD was started by hand), it shows the helper's words, waits for Enter and returns 'failed'.
+*
+*   ONE AUDIT LINE each time the helper is asked:  sd restart app=<the page> status=asked  or  status=refused.  Only an administrator's page calls this,
+*   and the helper refuses every caller but the sdsys user.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine tk_restart(ctx, why, res, msg)
+$catalog $tk_restart
+
+$include keys.h
+$include int$keys.h
+$include accos.h
+$include tk.h
+
+   res = 'later'
+   msg = ''
+
+   lines = why
+   lines<-1> = 'A restart stops and starts SD and signs out everyone, this session too.'   ;* one line in the box (Windows row 382, the owner: "a dangling word")
+   lines<-1> = 'Not now: nothing restarts, and the change takes effect when SD is next started.'
+   call $tk_confirm('systemctl restart sd.service', lines, '', cres, cmsg, 'Restart SD?', '&Restart,&Not now')
+   if cres # 'run' then
+      msg = 'SD was not restarted: the change takes effect when SD is next started'
+      return
+   end
+
+   app = ctx<TK.C.APP>
+   call $tk_close(ctx)
+   display @(-1) :
+   display 'SD is restarting.  Everyone using SD is signed out, and this session ends.'
+
+*  The one root step.  The helper takes no argument, so nothing here reaches its command line.
+   out = ''
+   os.execute ACCOS$ELEVATE : ' sd-restart 2>&1' capturing out
+   stat = os.error()
+
+*  Success is the helper's own line and nothing else; a refusal's reason is what follows its 'REFUSED - '
+   anchor = 'sd-elevate: restart of sd.service asked of systemd'
+   asked = @false
+   why.not = ''
+   last = ''
+   for i = 1 to dcount(out, @fm)
+      ln = trim(out<i>)
+      if ln # '' then last = ln
+      if ln = anchor then asked = @true
+      p = index(ln, 'REFUSED - ', 1)
+      if p > 0 then why.not = trim(ln[p + 10, 400])
+   next i
+   if stat # 0 then asked = @false
+   void kernel(K$AUDIT, 'sd restart app=' : downcase(app) : ' status=' : (if asked then 'asked' else 'refused'))
+
+   if asked then
+*     systemd is stopping SD: this session is ended with the rest.  It is not drawn again meanwhile.
+      for w = 1 to 60
+         sleep 1
+      next w
+      why.not = 'SD did not end this session within a minute.'
+   end
+
+   res = 'failed'
+   if why.not = '' then why.not = last
+   if why.not = '' then why.not = 'the helper gave no answer (status ' : stat : ')'
+   display ''
+   display 'SD was not restarted.'
+   display why.not
+   display sysmsg(11865) :                                      ;* Press Enter to return
+   input junk
+   if junk = char(1) then null                                  ;* any answer goes back; the answer itself is not used
+   msg = 'SD was not restarted: ' : why.not
+   return
+end
+
+* END-CODE
