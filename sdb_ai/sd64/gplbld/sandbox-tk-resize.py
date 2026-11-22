@@ -399,19 +399,19 @@ def sec_ai_line():
     h = al.home(admin=False)
     w = Win("R5-ai", h.s, 140, 43)
     say("   home started for %s: pty 140x43, TERM=xterm, LC_ALL=C (sandbox-home.H); home drawn: %s" % (al.ACCT, h.home()))
-    c = R.row("R5c the ordinary home screen is up and row 40 holds the AI line (AI> ...)", h.home() and "AI>" in h.line(39), repr(h.line(39)[:90]), phase=None)
+    c = R.row("R5c the ordinary home screen is up and row 39 holds the AI line (AI> ...; S.305: the rule is under it)", h.home() and "AI>" in h.line(38), repr(h.line(38)[:90]), phase=None)
     h.key("f6", idle=0.8)                            # S.176: F6, not Back-tab, takes the focus from the tiles to the AI line
     h.typed(TEXT, idle=0.8)
-    c2 = R.row("R5c2 F6 focuses the line and the request is typed there (not sent): row 40 reads 'AI> %s'" % TEXT, "AI>" in h.line(39) and TEXT in h.line(39), repr(h.line(39)[:90]), phase=None)
+    c2 = R.row("R5c2 F6 focuses the line and the request is typed there (not sent): row 39 reads 'AI> %s'" % TEXT, "AI>" in h.line(38) and TEXT in h.line(38), repr(h.line(38)[:90]), phase=None)
     off = w.resize(180, 55, 2.0)
     fr = w.fresh(off)
-    ai_row = fr.lines()[51].rstrip() if len(fr.lines()) > 51 else ""
-    screen_row = w.lines()[51] if len(w.lines()) > 51 else ""
-    row("R5a", "after 140x43 -> 180x55 the program writes the AI row (row 52) WITH the typed text", TEXT in ai_row and "AI>" in ai_row, "written: %r ; on the screen: %r" % (ai_row[:90], screen_row[:90]),
+    ai_row = fr.lines()[50].rstrip() if len(fr.lines()) > 50 else ""
+    screen_row = w.lines()[50] if len(w.lines()) > 50 else ""
+    row("R5a", "after 140x43 -> 180x55 the program writes the AI row (row 51) WITH the typed text", TEXT in ai_row and "AI>" in ai_row, "written: %r ; on the screen: %r" % (ai_row[:90], screen_row[:90]),
         phase=3, ctrl=c and c2)
     h.typed("X", idle=0.8)
-    sr = w.lines()[51] if len(w.lines()) > 51 else ""
-    row("R5b", "...and the focus is still on the line: X typed next is appended to the text", (TEXT + "X") in sr, "row 52 after X: %r" % sr[:90], phase=3, ctrl=c and c2)
+    sr = w.lines()[50] if len(w.lines()) > 50 else ""
+    row("R5b", "...and the focus is still on the line: X typed next is appended to the text", (TEXT + "X") in sr, "row 51 after X: %r" % sr[:90], phase=3, ctrl=c and c2)
     reqs = al.requests()
     R.row("R5c3 nothing was sent: the fake provider's request log is empty", len(reqs) == 0, "%d request(s)" % len(reqs), phase=None)
     h.key("esc", idle=0.8)

@@ -125,8 +125,8 @@ def msg(n, *args):
 
 
 def line_row(h):
-    """The AI row: the row above the status line (row 39 at 140 by 43)."""
-    return h.line(39)
+    """The AI row: two above the status line (row 38 at 140 by 43; S.305: a rule is between them)."""
+    return h.line(38)
 
 
 def start_runner(gate_group=None):
@@ -286,8 +286,15 @@ def sec_ring():
     h.key("f6", idle=0.8)
     arow("L4e2", "S.176: F6 in the line gives the focus back to the tile it came from (the first), and is not typed into the line", h.focus() == first and "abc" in line_row(h)
          and "abc\x1b" not in line_row(h), repr((h.focus(), first, line_row(h)[:60])))
-    h.click(40, 39, idle=1.0)                                    # (an Esc here would open the top page's menu bar since S.88 U9, and the click would only close it)
+    h.click(40, 38, idle=1.0)                                    # (an Esc here would open the top page's menu bar since S.88 U9, and the click would only close it)
     arow("L4f", "a click on the AI row gives it the focus", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
+    arow("L4g", "S.305, the owner's look: between the AI line and the status line is a rule, the same as the line below the status line",
+         len(h.line(41).strip()) >= 139 and h.line(39) == h.line(41), repr((h.line(39)[:30], h.line(41)[:30])))
+    h.typed("zq", idle=0.5)
+    arow("L4h", "S.305: typing in the line keeps the status line's message", "zq" in line_row(h) and msg(11638) in h.line(40), repr((line_row(h)[:60], h.line(40)[:80])))
+    h.typed("\x15", idle=0.8)
+    arow("L4i", "S.305: Ctrl-U empties the line and only the line: the status line's message and the rule stay (the owner saw it 'wipe out the status line')",
+         line_row(h).strip() == "AI>" and msg(11638) in h.line(40) and h.line(39) == h.line(41), repr((line_row(h)[:60], h.line(39)[:20], h.line(40)[:80])))
     h.key("ctrl-q", idle=1.5)
     h.end()
 

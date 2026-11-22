@@ -90,10 +90,14 @@ def checks(raw):
     ck("AP1", "tk.h: slot 28 is TK.C.AIROW (after the menu bar's 27, nothing before it moved) and value 10 of a key row is TK.K.AI",
        re.search(r"\$define TK\.C\.BAR\s+27\b", tkh) is not None and re.search(r"\$define TK\.C\.AIROW\s+28\b", tkh) is not None and re.search(r"\$define TK\.K\.ROW\s+9\b", tkh) is not None
        and re.search(r"\$define TK\.K\.AI\s+10\b", tkh) is not None, "")
-    ck("AP2", "THE ROW IS TAKEN ONLY WHEN A PAGE ASKED: the body is one row shorter through ctx<TK.C.AIROW> and nowhere else, and the layout's 'full' test makes the same allowance (a page with no AI line is laid out as it always was)",
-       lay.count("ctx<TK.C.BODYH> = ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then 1 else 0)") == 1 and lay.count("TK.C.AIROW") == 3
-       and "if bw >= rbw and bh >= rbh - (if ctx<TK.C.AIROW> then 1 else 0) then" in lay
-       and "if ctx<TK.C.AIROW> and pvs<i> > 0 and v > 1 then v -= 1" in lay, repr(lay.count("TK.C.AIROW")))     # (the third: a pane that stretches may give the row up though its page declared no least height)
+    ck("AP2", "THE ROWS ARE TAKEN ONLY WHEN A PAGE ASKED: the body is TK.AIROWS shorter through ctx<TK.C.AIROW> and nowhere else, and the layout's 'full' test makes the same allowance (a page with no AI line is laid out as it always was)",
+       lay.count("ctx<TK.C.BODYH> = ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then TK.AIROWS else 0)") == 1 and lay.count("TK.C.AIROW") == 3
+       and "if bw >= rbw and bh >= rbh - (if ctx<TK.C.AIROW> then TK.AIROWS else 0) then" in lay
+       and "if ctx<TK.C.AIROW> and pvs<i> > 0 then v = (if v > TK.AIROWS then v - TK.AIROWS else 1)" in lay, repr(lay.count("TK.C.AIROW")))     # (the third: a pane that stretches may give the rows up though its page declared no least height)
+    ck("AP2r", "S.305 (the owner: 'blank line with a horizontal line rule like the line below the status line'): two rows, the line on YSTAT - TK.AIROWS (drawn, placed, clicked, waited on) and under it on YSTAT - 1 a rule of the border's own character",
+       re.search(r"\$define TK\.AIROWS\s+2\b", tkh) is not None and "ai.w{'ay'} = ctx<TK.C.YSTAT> - TK.AIROWS" in ai
+       and ordered(ai, "y = ctx<TK.C.YSTAT> - TK.AIROWS", "call $sl_line('h', 0, hc)", "screen text str(hc, lw) at 0,ctx<TK.C.YSTAT> - 1", "screen text '' at 0,y width lw")
+       and "a<4> = ctx<TK.C.YSTAT> - TK.AIROWS then b = 'focus'" in ai and "y = ctx<TK.C.YSTAT> - (if ai.line then TK.AIROWS else 1)" in ai, "")
     ck("AP3", "$tk_frame draws the line last, only for a page that has a row AND an AI that is on, through $tk_ai 'show'; it draws nothing of its own",
        frm.count("$tk_ai('show'") == 1 and "if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')" in frm and ordered(frm, "last.top = a", "$tk_ai('show'", "return"), "")
     ck("AP4", "$tk_ai 'show' writes the line only when something it shows has changed (the window, the frame's generation and epoch, the focus, the text, the cursor, the pan) and 'focused' says whether it has the focus",
@@ -229,9 +233,12 @@ def sub(key, old, new):
 
 
 MUTANTS = [
-    ("the row is taken by every page", "AP2", sub("layout", "ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then 1 else 0)", "ctx<TK.C.YSTAT> - TK.YBODY - 1")),
-    ("the 'full' test forgets the row", "AP2", sub("layout", "bh >= rbh - (if ctx<TK.C.AIROW> then 1 else 0) then", "bh >= rbh then")),
-    ("the row comes out of the pane that does not stretch", "AP2", sub("layout", "if ctx<TK.C.AIROW> and pvs<i> > 0 and v > 1 then v -= 1", "if 0 then v -= 1")),
+    ("the row is taken by every page", "AP2", sub("layout", "ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then TK.AIROWS else 0)", "ctx<TK.C.YSTAT> - TK.YBODY - TK.AIROWS")),
+    ("the 'full' test forgets the row", "AP2", sub("layout", "bh >= rbh - (if ctx<TK.C.AIROW> then TK.AIROWS else 0) then", "bh >= rbh then")),
+    ("the row comes out of the pane that does not stretch", "AP2", sub("layout", "if ctx<TK.C.AIROW> and pvs<i> > 0 then v = (if v > TK.AIROWS then v - TK.AIROWS else 1)", "if 0 then v -= 1")),
+    ("no rule under the line", "AP2r", sub("ai", "   screen text str(hc, lw) at 0,ctx<TK.C.YSTAT> - 1\n", "")),
+    ("a click on the rule is the line's", "AP2r", sub("ai", "a<4> = ctx<TK.C.YSTAT> - TK.AIROWS then", "a<4> = ctx<TK.C.YSTAT> - 1 then")),
+    ("the entry stays on the rule's row", "AP2r", sub("ai", "ai.w{'ay'} = ctx<TK.C.YSTAT> - TK.AIROWS", "ai.w{'ay'} = ctx<TK.C.YSTAT> - 1")),
     ("the frame draws the line for a page with no row", "AP3", sub("frame", "if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')", "if ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')")),
     ("the line is written on every call", "AP4", sub("ai", "            if sg # ai.sig then", "            if 1 then")),
     ("a page's hint is the home screen's", "AP5", sub("ai", "sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))", "sysmsg(11637)")),

@@ -17,8 +17,8 @@
 #
 #   P0a-P0e  the AI is OFF for the account (the gate off): the page is what it always was - the detail box's border is on row 39, the list has 16 rows and its foot is on row 19, no key
 #            F6 on the key row, no AI title in the menu bar, F6 does nothing; tool.files the same
-#   P1a-P1e  the AI is ON: the line is on row 39 with the dim hint that says F6, the key row has F6, the menu bar has AI between View and Help, the list is ONE row shorter (15 entries, foot
-#            on row 18) and the detail box starts on row 22 and ends on row 38; the page's own keys still work; tool.files the same
+#   P1a-P1e  the AI is ON: the line is on row 38 with the dim hint that says F6 and a rule like the border's under it (S.305), the key row has F6, the menu bar has AI between View and Help,
+#            the list is TWO rows shorter (foot on row 17) and the detail box starts on row 21 and ends on row 37; the page's own keys still work; tool.files the same
 #   P2a-P2d  F6 gives the line the focus (the status line says how to use it), what is typed is in the line, Esc gives the focus back and keeps the text, a click on the line gives it the focus
 #   P3a-P3c  Enter shows everything that will leave the machine, the actions the page OFFERS (type, state, filter, refresh) and NOT the ones it does not (edit, delete, quit, help); Cancel is the
 #            default and nothing is sent
@@ -79,7 +79,7 @@ FILES = ("gpl.bp/tk.h",) + tuple("gpl.bp/" + n for n in PROGS) + ("messages/1194
 MUTANTS = {
     # name: (program of the sandbox, old text, new text, the row ids that must fail and no others)
     # the row is taken whether or not a page asked: a page with the AI off is one row shorter
-    "row-always": ("tk_layout", "ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then 1 else 0)", "ctx<TK.C.YSTAT> - TK.YBODY - 1", ["P0a", "P0b", "P0d"]),
+    "row-always": ("tk_layout", "ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then TK.AIROWS else 0)", "ctx<TK.C.YSTAT> - TK.YBODY - TK.AIROWS", ["P0a", "P0b", "P0d"]),
     # every action of the table is offered to the model, not only the ones the page opted in
     "offers-all": ("tk_keys", "            if keys<i, TK.K.AI> = 1 and fa # '' and index(seen,", "            if fa # '' and index(seen,", ["P3a"]),
 }
@@ -131,6 +131,14 @@ def corner(h, r):
     return h.line(r)[1:2] in ("└", "+")
 
 
+AIY = 38            # S.305: the AI line's row at 140 by 43, the rule under it on 39, the status line on 40
+
+
+def ruled(h):
+    """S.305: the row under the AI line is the very rule drawn under the status line (row 41), edge to edge."""
+    return len(h.line(41).strip()) >= 139 and h.line(39) == h.line(41)
+
+
 def whole(h, title):
     return title in h.text() and "File" in h.line(0)
 
@@ -177,19 +185,20 @@ def sec_on():
     al.configure()
     al.start_runner()
     h = page("tool.voc")
-    arow("P1a", "tool.voc, AI on: the AI row is on row 39 with the dim hint that says F6", h.line(39).lstrip().startswith("AI>") and msg(11943) in h.line(39), repr(h.line(39)[:90]))
+    arow("P1a", "tool.voc, AI on: the AI row is on row 38 with the dim hint that says F6", h.line(AIY).lstrip().startswith("AI>") and msg(11943) in h.line(AIY), repr(h.line(AIY)[:90]))
+    arow("P1a2", "S.305, the owner's look: between the AI line and the status line is a rule, the same as the line below the status line", ruled(h), repr((h.line(39)[:30], h.line(41)[:30])))
     arow("P1b", "...the key row has F6 and the menu bar has AI between View and Help", "F6 box" in h.line(42) and re.search(r"File\s+Entry\s+View\s+AI\s+Help", h.line(0)) is not None,
          repr((h.line(42)[:110], h.line(0)[:50])))
-    arow("P1c", "...the list pane is ONE row shorter (its foot on row 18) and the detail box is on rows 22 to 38, the AI row under it",
-         "entries," in h.line(18) and "The entry under the cursor" in h.line(22) and corner(h, 21) and corner(h, 38), repr((h.line(18)[:40], h.line(21)[:6], h.line(22)[:40], h.line(38)[:6])))
+    arow("P1c", "...the list pane is TWO rows shorter (its foot on row 17) and the detail box is on rows 21 to 37, the AI row under it",
+         "entries," in h.line(17) and "The entry under the cursor" in h.line(21) and corner(h, 20) and corner(h, 37), repr((h.line(17)[:40], h.line(20)[:6], h.line(21)[:40], h.line(37)[:6])))
     h.typed("t", idle=1.0)
     arow("P1d", "...the page's own keys work with the line there: T changes the type shown and the page says so", "verbs" in h.line(40), repr(h.line(40)[:90]))
     h.key("esc", idle=1.0)
     h.key("ctrl-q", idle=1.5)
     h.end()
     h = page("tool.files")
-    arow("P1e", "tool.files, AI on: the AI row on row 39, F6 on the key row, AI in the menu bar, the detail box ends on row 38 and the list is above it",
-         h.line(39).lstrip().startswith("AI>") and "F6 box" in h.line(42) and re.search(r"File\s+\S+\s+View\s+AI\s+Help|AI\s+Help", h.line(0)) is not None and corner(h, 38), repr((h.line(39)[:50], h.line(42)[:110], h.line(0)[:60])))
+    arow("P1e", "tool.files, AI on: the AI row on row 38 and the rule under it, F6 on the key row, AI in the menu bar, the detail box ends on row 37 and the list is above it",
+         h.line(AIY).lstrip().startswith("AI>") and ruled(h) and "F6 box" in h.line(42) and re.search(r"File\s+\S+\s+View\s+AI\s+Help|AI\s+Help", h.line(0)) is not None and corner(h, 37), repr((h.line(AIY)[:50], h.line(42)[:110], h.line(0)[:60])))
     h.key("ctrl-q", idle=1.5)
     h.end()
 
@@ -200,10 +209,10 @@ def sec_focus():
     h.key("f6", idle=0.8)
     arow("P2a", "F6 gives the line the focus: the status line says how to use it and the label is bold", msg(11638) in h.line(40), repr(h.line(40)[:90]))
     h.typed("abc", idle=0.6)
-    arow("P2b", "what is typed is in the line and the page's keys did not take it (the type shown did not change)", "abc" in h.line(39) and "verbs" not in h.line(40), repr((h.line(39)[:40], h.line(40)[:60])))
+    arow("P2b", "what is typed is in the line and the page's keys did not take it (the type shown did not change)", "abc" in h.line(AIY) and "verbs" not in h.line(40), repr((h.line(AIY)[:40], h.line(40)[:60])))
     h.key("esc", idle=0.8)
-    arow("P2c", "Esc gives the focus back to the page and keeps the text; the status line no longer says how to use the line", "abc" in h.line(39) and msg(11638) not in h.line(40) and "File" in h.line(0), repr((h.line(39)[:40], h.line(40)[:60])))
-    h.click(40, 39, idle=1.0)
+    arow("P2c", "Esc gives the focus back to the page and keeps the text; the status line no longer says how to use the line", "abc" in h.line(AIY) and msg(11638) not in h.line(40) and "File" in h.line(0), repr((h.line(AIY)[:40], h.line(40)[:60])))
+    h.click(40, AIY, idle=1.0)
     arow("P2d", "a click on the line gives it the focus", msg(11638) in h.line(40), repr(h.line(40)[:90]))
     h.key("esc", idle=0.8)
     h.key("ctrl-q", idle=1.5)
@@ -254,7 +263,7 @@ def sec_send():
          and "Reject" in T and "read the VOC again" not in h.line(40), T[-800:])
     h.key("enter", idle=3.0)
     arow("P5b", "Enter alone accepts (it only navigates): the page's own F5 ran - its status line says it read the VOC again - and the page is whole, the AI row under it",
-         "read the VOC again" in h.line(40) and whole(h, "The entry under the cursor") and h.line(39).lstrip().startswith("AI>") and "entries," in h.line(18), repr((h.line(40)[:80], h.line(39)[:50])))
+         "read the VOC again" in h.line(40) and whole(h, "The entry under the cursor") and h.line(AIY).lstrip().startswith("AI>") and ruled(h) and "entries," in h.line(17), repr((h.line(40)[:80], h.line(AIY)[:50], h.line(39)[:20])))
     ask(h, "show only the verbs [[act_type]]")
     h.typed("s", idle=4.0)
     h.key("enter", idle=2.5)
@@ -313,7 +322,7 @@ def sec_more_off():
         h = page(verb)
         drawn = "File" in h.line(0) and "Help" in h.line(0)
         arow("P7" + "abcdef"[i], "%s, AI off: the page is drawn, no AI row on row 39, no F6 on the key row, no AI title in the menu bar" % verb,
-             drawn and not h.line(39).lstrip().startswith("AI>") and "F6 ask ai" not in h.line(42) and re.search(r"\bAI\b", h.line(0)) is None,
+             drawn and not h.line(AIY).lstrip().startswith("AI>") and "F6 ask ai" not in h.line(42) and re.search(r"\bAI\b", h.line(0)) is None,
              repr((h.line(0)[:70], h.line(39)[:40], h.line(42)[:100])))
         h.key("ctrl-q", idle=1.5)
         h.end()
@@ -327,8 +336,8 @@ def sec_more_on():
     for i, (verb, offers, notoff) in enumerate(MORE):
         L = "abcdef"[i]
         h = page(verb)
-        arow("P8" + L + "1", "%s, AI on: the AI row on row 39, F6 box on the key row (S.176) and AI in the menu bar" % verb,
-             h.line(39).lstrip().startswith("AI>") and "F6 box" in h.line(42) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+        arow("P8" + L + "1", "%s, AI on: the AI row on row 38, F6 box on the key row (S.176) and AI in the menu bar" % verb,
+             h.line(AIY).lstrip().startswith("AI>") and "F6 box" in h.line(42) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
              repr((h.line(0)[:80], h.line(39)[:50], h.line(42)[:110])))
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
@@ -391,8 +400,8 @@ def sec_admin_pages():
         h.typed(verb + "\r", idle=3.5)
         # (tool.ai's key row was full before the line came - it is cut at "F5 r" - so F6 cannot show there; a FULL row is accepted, said in the row's name)
         kr = h.line(42).rstrip()
-        arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 39, AI in the menu bar, and F6 box on the key row, S.176 (or the row is full to the edge)" % verb,
-             h.line(39).lstrip().startswith("AI>") and ("F6 box" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+        arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 38, AI in the menu bar, and F6 box on the key row, S.176 (or the row is full to the edge)" % verb,
+             h.line(AIY).lstrip().startswith("AI>") and ("F6 box" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
              repr((h.line(0)[:80], h.line(39)[:50], kr[:110], len(kr))))
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
