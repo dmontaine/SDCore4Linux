@@ -473,8 +473,9 @@ def main():
             "WARNING: 1 file(s) hold 1 record id(s) that differ only by case" in out and re.search(r"jack / JACK|JACK / jack", out) is not None,
             "no WARNING for zzd2")
         if SOLO:
-            row("2 (Solo): the summary says 5 of 6 files converted (voc, zzd1, zzd1.dic, zzd2.dic, and the one outside the account, which is the user's own)",
-                "Converted 5 of 6 file(s)" in out, "summary differs")
+            # 22 Nov 26 (S.296): seven, not six: Solo has no outside-the-account rule, so it opens and scans zzonc too (already case insensitive, not converted)
+            row("2 (Solo): the summary says 5 of 7 files converted (voc, zzd1, zzd1.dic, zzd2.dic, and the one outside the account, which is the user's own)",
+                "Converted 5 of 7 file(s)" in out, "summary differs")
             row("2 (Solo): the file outside the account WAS converted (flag 1) and kept its record",
                 after.get("out", {}).get("nocase") == "1" and after["out"]["ids"] == ["OutRec"], repr(after.get("out")))
         else:
@@ -534,8 +535,8 @@ def main():
         say("\n--- leg 3: a second real run has nothing left to convert -------------------------")
         out = isess(box, "RUN gpl.bp upgrade_nocase")
         row("3: it ran to the end (COMPLETE)", re.search(r"(?m)^COMPLETE\s*$", out) is not None, "no COMPLETE")
-        row("3: nothing more was converted (Converted 0 of %s)" % ("6" if SOLO else "5"),
-            ("Converted 0 of %s file(s)" % ("6" if SOLO else "5")) in out, "summary differs")
+        row("3: nothing more was converted (Converted 0 of %s)" % ("7" if SOLO else "5"),
+            ("Converted 0 of %s file(s)" % ("7" if SOLO else "5")) in out, "summary differs")
         row("3: the twin is still reported, and still left whole", "WARNING: 1 file(s) hold 1 record id(s)" in out, "no WARNING")
         again, _, _ = readback(box, acct)
         row("3: the files read back as after leg 2", again == after, repr(again))
