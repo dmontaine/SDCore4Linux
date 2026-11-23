@@ -133,7 +133,7 @@ row "C2 none beside: said so, exit 0"             "$(ok "$(printf '%s' "$out" | 
 # ---- C3, C4 -------------------------------------------------------------------------------------------------------------
 rm -rf "$T/odd"; mkdir "$T/odd"; echo target > "$T/odd/real.txt"
 ln -s real.txt "$T/odd/sd-core-for-linux-l9-changes.pdf"
-echo x > "$T/odd/sd-core-for-linux-L2.0-0-changes.pdf"
+echo x > "$T/odd/sd-core-for-linux-LC2.0-0-changes.pdf"
 echo x > "$T/odd/sd-core-for-linux-l1 2-changes.html"
 echo x > "$T/odd/readme.pdf"
 echo x > "$T/odd/other-changes.pdf"

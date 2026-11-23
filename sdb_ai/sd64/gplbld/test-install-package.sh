@@ -86,7 +86,7 @@ mkpkg() {   # mkpkg DIR [BRANCH]  - a good package; prints nothing
   rm -rf "$d"; mkdir -p "$d/source/sdb_ai/sd64/gplsrc" "$d/source/docs/User/markdown"
   printf 'int main(void){return 0;}\n' > "$d/source/sdb_ai/sd64/gplsrc/main.c"
   printf '# a page\n' > "$d/source/docs/User/markdown/01.md"
-  printf 'commit=%s\nbranch=%s\nversion=L2.0-0\n' "$COMMIT" "$br" > "$d/source/SDCORE-RELEASE"
+  printf 'commit=%s\nbranch=%s\nversion=LC2.0-0\n' "$COMMIT" "$br" > "$d/source/SDCORE-RELEASE"
   ( cd "$d" && find source -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS )
 }
 

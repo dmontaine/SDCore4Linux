@@ -8,7 +8,8 @@
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysappend.py --selftest
 #
 #   A1  the installer's one command that sets the sdsys user's groups is `sudo usermod -g sdusers -a -G sdusers sdsys`, once
-#   A2  no `usermod` of the installer names sdsys with -G and without -a (nor `gpasswd -M`, `usermod -G` in any shape that replaces the list)
+#   A2  no `usermod` of the installer names sdsys with -G and without -a (nor a `gpasswd -M` that names members, `usermod -G` in any shape that
+#       replaces the list); `gpasswd -M ""`, which only empties a group (S.310, 23 Nov 26), is allowed
 #   A3  that line comes before the ruling's call and after the user is created or found
 import os
 import re
@@ -30,8 +31,11 @@ def checks(text):
     good = [i for i, l in code if l.strip() == "sudo usermod -g sdusers -a -G sdusers sdsys"]
     rows.append(("A1 the sdsys user's groups are set once, by appending (line %s)" % (good and good[0] + 1), len(good) == 1, "found at %s" % good))
     replacing = [i + 1 for i, l in code if re.search(r"\busermod\b", l) and re.search(r"\bsdsys\b", l) and re.search(r"(^|\s)-G\b", l) and not re.search(r"(^|\s)-a\b|(^|\s)-aG\b", l)]
-    gp = [i + 1 for i, l in code if re.search(r"\bgpasswd\s+-M\b", l)]
-    rows.append(("A2 no usermod of the installer replaces the sdsys user's supplementary groups, and no gpasswd -M (%s, %s)" % (replacing, gp), not replacing and not gp, ""))
+    # 23 Nov 26 (S.310): a gpasswd -M "" sets an EMPTY member list (the route groups on an install that kept nothing) - it can put no one in a group,
+    #   so it cannot replace the sdsys user's list with another; a gpasswd -M that names members is still refused.
+    gp = [i + 1 for i, l in code if re.search(r"\bgpasswd\s+-M\b", l) and not re.search(r'\bgpasswd\s+-M\s+""\s', l)]
+    rows.append(("A2 no usermod of the installer replaces the sdsys user's supplementary groups, and no gpasswd -M that names members (%s, %s)" % (replacing, gp),
+                 not replacing and not gp, ""))
     made = [i for i, l in code if "useradd -g sdusers -G sdusers" in l and l.strip().endswith("sdsys; then") or "useradd -g sdusers -G sdusers" in l]
     ruling = [i for i, l in code if re.match(r"\s*sdsys_groups_default\b", l) and "()" not in l]       # S.103, 1 Nov 26: the F6 ruling's call is the default's
     rows.append(("A3 the line is after the user is created (%s) and before the ruling is called (%s)" % (made and made[0] + 1, ruling and ruling[0] + 1),

@@ -116,7 +116,7 @@
   },
   "voc.entry": {
    "chunks": 21,
-   "sha256": "6eb7596a019862f9107c90339609000bd7070d5f6648d26e4c601bb8ab7b95e8"
+   "sha256": "0c4e387cc28977e9d511ccc711e16f72f402b8f4c32bb85c4b2788b33bde600e"
   },
   "voc.layer": {
    "chunks": 2,
@@ -124,7 +124,7 @@
   },
   "voc.type": {
    "chunks": 9,
-   "sha256": "5c24217da5b38854e6e26b2a539d1a2ec65636ae5f36c28c403e1013f68bf226"
+   "sha256": "6dec70cef6110d4240c24ec4246af961db6900ebc6b553246831356071f96849"
   },
   "voc.types": {
    "chunks": 1,
@@ -146,7 +146,7 @@
   },
   "examples/voc-entries.md": {
    "chunks": 21,
-   "sha256": "ae9c7fd7000d087bb68767eac0e0e8e9c8831871eaef951671589ce5cd77c718",
+   "sha256": "ef549cf64cdd040f0aca3b019166a3089a1a1fc6f6c5ef453c9fb7b0dd4d4975",
    "words": 569
   },
   "index.json": {
@@ -199,13 +199,13 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "58e1e9a8132706128141f3c192ef4b6a417ae264e915b9c7d3d34ab5abbc37b4",
+   "sha256": "9e8b78cea3000ab990dc71940325630d5ac76c669656ca5f6dbcef519db67f3d",
    "words": 1887
   }
  },
  "product": "SD Core for Linux",
  "regenerate": "python3 agent-pack/mkpack.py --write",
- "release_record": "L2.0-0",
- "rev_stamp": "L2.0-0",
+ "release_record": "LC2.0-0",
+ "rev_stamp": "LC2.0-0",
  "since_rule": "the oldest changelog section whose entry titles name the item; only names that cannot be plain English count; '-' = not found"
 }

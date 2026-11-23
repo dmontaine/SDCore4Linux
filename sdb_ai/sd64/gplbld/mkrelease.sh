@@ -9,12 +9,13 @@
 # 12 Nov 26 dm - S.151: --clients-openssl4 DIR, the Linux client libraries built against OpenSSL 4 (Ubuntu 26.10), to clients/Linux64-openssl4; --clients
 #            is the OpenSSL 3 build (Debian 13, Ubuntu 26.04).  Owner: "Both, one per OpenSSL".
 # 12 Nov 26 dm - S.151: --clients-bindings DIR (clients/bindings: the header and the language bindings).
+# 23 Nov 26 dm - the owner, 22 Nov (T1900): the release is LC2.0-0, so VERSION is LC...; lcver lowers every letter (tr 'L' 'l' would make lC2.0-0).
 # 22 Nov 26 dm - S.302, owner: "pull the 32 bit dlls from the release" (they are kept, in the private store): no clients/Windows32, and a clients folder that holds one is refused.
 #
-#   bash sdb_ai/sd64/gplbld/mkrelease.sh L2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-openssl4 DIR] [--clients-windows DIR]
+#   bash sdb_ai/sd64/gplbld/mkrelease.sh LC2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-openssl4 DIR] [--clients-windows DIR]
 #            [--clients-bindings DIR] [--force]
 #
-#   VERSION        the release, as named in the Changes document: L2.0-0
+#   VERSION        the release, as named in the Changes document: LC2.0-0 (the owner, 22 Nov 2026: WC / WS / LC / LS)
 #   --ref REF      main or a v* tag of THIS repository (default: main).  Only what is committed
 #                  there goes in; the working tree is not read.  Nothing is fetched, pushed, merged or tagged.
 #   --docs-ref REF the same for the documentation repository (default: the same name as REF, which must exist there)
@@ -28,7 +29,7 @@
 #   --books DIR   the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
 #   --force        replace an existing staging folder and zip of this version
 #   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
-#   --label LABEL  names a release candidate: SDCore-L2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
+#   --label LABEL  names a release candidate: SDCore-LC2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
 #
 # MAKES, beside the repositories:  Project_Staging/SDCore-VERSION/  and  Project_Zips/SDCore-VERSION.zip
 #
@@ -94,10 +95,10 @@ while [ $# -gt 0 ]; do
         *)          [ -z "$version" ] || die "one VERSION only"; version="$1"; shift ;;
     esac
 done
-[[ "$version" =~ ^L[0-9]+\.[0-9]+-[0-9]+$ ]] || die "VERSION looks like L2.0-0"
-lcver=$(printf '%s' "$version" | tr 'L' 'l')      # lower case, as the installer's name pattern needs it
+[[ "$version" =~ ^LC[0-9]+\.[0-9]+-[0-9]+$ ]] || die "VERSION looks like LC2.0-0"
+lcver=$(printf '%s' "$version" | tr 'A-Z' 'a-z')  # lower case, as the installer's name pattern needs it (lc2.0-0)
 [[ -z "$label" || "$label" =~ ^[a-z0-9]{1,12}$ ]] || die "--label is lower case letters and digits, up to 12 (rc1)"
-pkgname="SDCore-$version${label:+-$label}"        # SDCore-L2.0-0-rc1: a release candidate is not mistaken for the release (the version stamp inside is the same)
+pkgname="SDCore-$version${label:+-$label}"        # SDCore-LC2.0-0-rc1: a release candidate is not mistaken for the release (the version stamp inside is the same)
 
 git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git repository"
 git -C "$DOCS" rev-parse --git-dir >/dev/null 2>&1 || die "no documentation repository at $DOCS (DOCS_REPO=...)"

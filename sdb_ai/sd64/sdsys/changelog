@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+23 Nov 26  THE VERSION IS LC2.0-0.
+
+             What        - SD Core for Linux reports its version as LC2.0-0 wherever it shows one: the sign-on banner,
+                           the home screen's date line, the $release VOC record and SYSTEM(1012). The release package
+                           and its Changes document are named with it (SDCore-LC2.0-0, sd-core-for-linux-lc2.0-0-changes).
+             Why         - the owner (22 Nov 2026): the four products are told apart by their version as well as their
+                           name - WC2.0-0 SD Core for Windows, WS2.0-0 SD Core Solo for Windows, LC2.0-0 SD Core for
+                           Linux, LS2.0-0 SD Core Solo for Linux.
+             Does NOT    - Change what the release contains; the git tag stays v2.0-0. The client library keeps its
+                           own revision stamp, which is the library's and the same for every product.
+
 23 Nov 26  A FRESH INSTALL NO LONGER INHERITS ssh OR API ACCESS FROM AN EARLIER ONE.
 
              What        - When the installer finds no SD data kept from an earlier install (no accounts and no account
@@ -1135,10 +1146,10 @@ Next release - in progress
 
 14 Nov 26  THE SIGN-ON BANNER NAMES THE PLATFORM, AND THE HOME SCREEN SAYS WHAT IS RUNNING.
 
-             What        - the line printed at sign-on read "SD Core, the Essential Multivalue String Database, version L2.0-0";
+             What        - the line printed at sign-on read "SD Core, the Essential Multivalue String Database, version LC2.0-0";
                            it now reads "SD Core for Linux, ...".  The home screen showed only who is signed on and the date;
                            the date line now ends with the product and its version, for example
-                           "Friday 13 Nov 2026  -  21:30  -  SD Core for Linux L2.0-0".  SD Core for Windows, SD Core Solo for
+                           "Friday 13 Nov 2026  -  21:30  -  SD Core for Linux LC2.0-0".  SD Core for Windows, SD Core Solo for
                            Linux and SD Core Solo for Windows say the same with their own names.
              Why         - the owner (14 Nov 2026): the two products should say the same thing, and the home screen never said
                            which SD, or which version, was running.
