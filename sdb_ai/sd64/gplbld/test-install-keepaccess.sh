@@ -21,6 +21,9 @@
 #   D1  configuration kept, the API listening on 0.0.0.0:4247 (or [::]:4247): the note says open, mode 600
 #   D2  configuration kept, the API on 127.0.0.1 only: no note; a stale note is removed
 #   D3  configuration deleted: no note, and REMOTE.API's drop-in is removed (with its directory when empty)
+#   D4  (S.312, 23 Nov 26) configuration kept, the socket INACTIVE (remote.api off) though its drop-in names 0.0.0.0: no note
+#   D5  configuration kept: the drop-in is removed as well;  D6  kept, active and open: the note says open and the drop-in still goes
+#   K4  (S.312) the installer removes a drop-in an earlier uninstall left
 #   W   order: ACCESS-ASK before the first sudo of the installer; API-KEEP before the API bind block and before sd.conf is restored;
 #       API-SAVE after the configuration question and before the firewall rule is removed
 # ANCHORED ON THE VARIABLES the blocks set and the files on disk.
@@ -59,6 +62,9 @@ if [ "${1:-}" = "--selftest" ]; then
   mut stale-note-kept      del  "$S{/^sudo rm -f \"\$acct_path\/api-access.saved\"$/d}"
   mut dropin-kept          del  "$S{/sd-remote-api.conf$/{/rm -f/d}}"
   mut save-after-firewall  del  "/^# API-SAVE-BEGIN/,/^# API-SAVE-END/d"
+  mut save-ignores-active  del  "$S s/= active \]; then$/!= xx ]; then/"                  # S.312
+  mut dropin-only-deleted  del  "$S s/^if sudo test -e \/etc\/systemd\/system\/sdclient.socket.d\/sd-remote-api.conf ||/if [ \"\$conf_deleted\" = yes ] \&\& { sudo test -e \/etc\/systemd\/system\/sdclient.socket.d\/sd-remote-api.conf; } ||/"
+  mut install-keeps-dropin inst "$K{/sd-remote-api.conf$/{/rm -f/d}}"
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$missed" -eq 0 ]; exit $?
 fi
@@ -89,12 +95,12 @@ run_keep() {   # keep owner
       restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292: what the block collects for the closing red block
       eval "$BLK"; echo "API=$allow_api"' 2>&1
 }
-run_save() {   # conf_deleted listen
-  OPTS="$DOPTS" BLK="$(sub "$SAVE")" CD="$1" LISTEN="$2" AP="$H" bash -c '
+run_save() {   # conf_deleted listen [active]
+  OPTS="$DOPTS" BLK="$(sub "$SAVE")" CD="$1" LISTEN="$2" ACTIVE="${3:-active}" AP="$H" bash -c '
       eval "$OPTS"; conf_deleted=$CD; acct_path=$AP
       sudo() { "$@"; }
       restore_warn() { echo "RESTORE-WARN: $1 | $2"; }   # S.292 (the failure branch of the save collects a record)
-      systemctl() { printf "%s\n" "$LISTEN"; }
+      systemctl() { if [ "$1" = is-active ]; then printf "%s\n" "$ACTIVE"; else printf "%s\n" "$LISTEN"; fi; }   # S.312: is-active is asked too
       eval "$BLK"; echo REACHED-END' 2>&1
 }
 
@@ -123,6 +129,10 @@ echo open > "$N"; o=$(run_keep n 0); { [[ "$o" == *"API=n"* ]] && [ ! -e "$N" ];
 row "K2 a note not root's, a link, another word, or no upgrade: the API not opened; the note gone; and each is COLLECTED for the red block with 'remote.api on' (S.292: it used to be silent)" "$([ -z "$bad" ] && echo 0 || echo 1)" "wrong for:$bad"
 rm -f "$N"; o=$(run_keep y 0)
 row "K3 no note at all: nothing collected (a fresh install is not warned about a note that never was)" "$([[ "$o" != *RESTORE-WARN* && "$o" == *"API=n"* ]] && echo 0 || echo 1)" "$o"
+mkdir -p "$E/sdclient.socket.d"; printf '[Socket]\nListenStream=0.0.0.0:4247\n' > "$E/sdclient.socket.d/sd-remote-api.conf"; rm -f "$N"; o=$(run_keep y 0)
+row "K4 (S.312) a REMOTE.API drop-in left by an earlier install: removed with its empty directory, and said" \
+    "$([ ! -e "$E/sdclient.socket.d/sd-remote-api.conf" ] && [ ! -d "$E/sdclient.socket.d" ] && [[ "$o" == *"Removed an earlier API listener setting"* ]] && echo 0 || echo 1)" "$o"
+mkdir -p "$E/sdclient.socket.d"
 
 # D1-D3
 bad=""
@@ -135,6 +145,17 @@ row "D2 kept + local only: no note (a stale one removed)" "$([ ! -e "$N" ] && [[
 echo open > "$N"; echo '[Socket]' > "$E/sdclient.socket.d/sd-remote-api.conf"; o=$(run_save yes "0.0.0.0:4247 (Stream)")
 row "D3 configuration deleted: no note, REMOTE.API's drop-in and its empty directory removed" \
     "$([ ! -e "$N" ] && [ ! -e "$E/sdclient.socket.d/sd-remote-api.conf" ] && [ ! -d "$E/sdclient.socket.d" ] && [[ "$o" == *REACHED-END* ]] && echo 0 || echo 1)" "$o"
+mkdir -p "$E/sdclient.socket.d"; echo '[Socket]' > "$E/sdclient.socket.d/sd-remote-api.conf"; rm -f "$N"
+o=$(run_save no "/run/sd.sock (Stream)"$'\n'"0.0.0.0:4247 (Stream)" inactive)
+row "D4 (S.312) kept + remote.api off (the socket inactive, its drop-in still naming 0.0.0.0): NO note, so a reinstall does not open it" \
+    "$([ ! -e "$N" ] && [[ "$o" == *REACHED-END* ]] && echo 0 || echo 1)" "note: $(cat "$N" 2>/dev/null) | $o"
+row "D5 (S.312) kept configuration: REMOTE.API's drop-in removed too (it outlived a keep uninstall and overrode the reinstall's local unit)" \
+    "$([ ! -e "$E/sdclient.socket.d/sd-remote-api.conf" ] && [ ! -d "$E/sdclient.socket.d" ] && echo 0 || echo 1)" "$(ls -A "$E/sdclient.socket.d" 2>&1)"
+mkdir -p "$E/sdclient.socket.d"; echo '[Socket]' > "$E/sdclient.socket.d/sd-remote-api.conf"; rm -f "$N"
+o=$(run_save no "/run/sd.sock (Stream)"$'\n'"0.0.0.0:4247 (Stream)")
+row "D6 (S.312) kept + active and open: the note says open AND the drop-in is removed (the note carries it; the installer opens the unit itself)" \
+    "$([ "$(cat "$N" 2>/dev/null)" = open ] && [ ! -e "$E/sdclient.socket.d/sd-remote-api.conf" ] && echo 0 || echo 1)" "$o"
+mkdir -p "$E/sdclient.socket.d"
 
 # W
 ln_() { grep -n -m1 -E "$2" "$1" | cut -d: -f1; }

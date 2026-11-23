@@ -1953,6 +1953,13 @@ elif sudo test -e /home/sd/api-access.saved || sudo test -L /home/sd/api-access.
     restore_warn "THE API IS LOCAL ONLY." "remote.api on"
 fi
 sudo rm -f /home/sd/api-access.saved
+# 23 Nov 26  S.312: REMOTE.API's drop-in from an earlier install overrides the unit this install writes (an LC2.0-0 uninstall kept it when the
+#            configuration was kept), so a reinstall that said "local only" listened for other computers.  The answer above is the only one; the drop-in goes.
+if sudo test -e /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf || sudo test -L /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf; then
+    sudo rm -f /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf
+    sudo rmdir /etc/systemd/system/sdclient.socket.d 2>/dev/null || true
+    echo "Removed an earlier API listener setting (/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf); the API is as this install sets it."
+fi
 
 # 22 Nov 26  S.284: THE SCHEDULED JOBS ACROSS A KEPT CONFIGURATION (owner, 21 Nov 2026: "settings do not get changes after delete and install if the
 #            user chooses keep data").  deletesdcore.sh left the definitions in /home/sd/jobs.saved; each is scheduled again through the helper's own

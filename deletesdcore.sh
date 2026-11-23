@@ -270,10 +270,18 @@ printf "%b\n" "$NC"
 #            sees REMOTE.API's drop-in too) is noted in /home/sd/api-access.saved - the word open, root's, mode 600 - and the installer opens it again.
 #            When the configuration is deleted, REMOTE.API's drop-in goes as well: it outlived every uninstall before, so a fresh install that said
 #            "local" could listen for other computers.  ssh needs nothing: this script leaves sshd and port 22 alone.  test-install-keepaccess.sh runs it.
+# 23 Nov 26  S.312 (found by the LC2.0-0 install witness): Listen is what the socket is SET UP to listen on, not what it does, so after remote.api off
+#            (the socket disabled, REMOTE.API's drop-in still naming 0.0.0.0) this noted the API as open and the next install opened it to other computers.
+#            Now the socket must also be active.  And the drop-in goes on EVERY uninstall: the installer writes the unit fresh and the note carries an
+#            open API, so a kept drop-in only made a reinstall that said "local only" listen for other computers.
 # API-SAVE-BEGIN
 sudo rm -f "$acct_path/api-access.saved"
+api_listen=""
+if [ "$(systemctl is-active sdclient.socket 2>/dev/null || true)" = active ]; then
+    api_listen="$(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ' || true)"
+fi
 if [ "$conf_deleted" = no ]; then
-    case " $(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ' || true) " in
+    case " $api_listen " in
         *" 0.0.0.0:4247 "*|*" [::]:4247 "*|*" *:4247 "*)
             if echo open | sudo tee "$acct_path/api-access.saved" > /dev/null && sudo chmod 600 "$acct_path/api-access.saved"; then
                 echo "Saved: API access from other computers is open, and the next install keeps it open."
@@ -282,7 +290,8 @@ if [ "$conf_deleted" = no ]; then
                 echo "WARNING: could not note that API access is open; after the next install open it with:  remote.api on"
             fi ;;
     esac
-elif sudo test -e /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf; then
+fi
+if sudo test -e /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf || sudo test -L /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf; then
     sudo rm -f /etc/systemd/system/sdclient.socket.d/sd-remote-api.conf
     sudo rmdir /etc/systemd/system/sdclient.socket.d 2>/dev/null || true
     echo "Removed the API listener setting REMOTE.API wrote (/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf)."

@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+23 Nov 26  AN UPGRADE NO LONGER REOPENS AN API THAT WAS TURNED OFF.
+
+             What        - When the configuration is kept, the uninstaller notes the API as open to other computers
+                           only when its socket is running and listening on every address. Every uninstall now
+                           removes the listener setting remote.api writes, and the installer removes one an earlier
+                           uninstall left.
+             Why         - remote.api off stops the socket but leaves that setting naming every address. The
+                           uninstaller read the setting, not the socket, so after remote.api off an uninstall that
+                           kept the configuration noted the API as open, and the next install opened it to other
+                           computers with a firewall rule. A kept setting also overrode the reinstall's own local-only
+                           listener, so an install that said "THE API IS LOCAL ONLY." still listened on every address.
+             Does NOT    - Change an API that was open at the uninstall: it is still opened again by the reinstall.
+                           An API that was off comes back local only, as an install delivers it.
+
 23 Nov 26  THE VERSION IS LC2.0-0.
 
              What        - SD Core for Linux reports its version as LC2.0-0 wherever it shows one, with its name: the
