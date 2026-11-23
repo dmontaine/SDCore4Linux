@@ -12,6 +12,7 @@
 # START-HISTORY:
 # 25 Oct 26 dm  Two rows for an object made by CATALOG itself: not group- or other-writable under CPROC's umask 002, and the umask put back.  The real-install witness
 #               found Dev could not be installed (gpl.bp/catalog wrote the object 0664).
+# 23 Nov 26 dm  The session sets its umask to 002 before CATALOG (zzgcatv): since S.268 an SDSYS session runs at 022, CATALOG's own value, so "put back" measured nothing.
 # 24 Oct 26 dm  New.  object.c gcat_object_writable(), message 11930.
 # END-HISTORY
 #
@@ -158,13 +159,18 @@ def main():
         g.BOX, g.SYS, g.SD = box, sysd, os.path.join(sysd, "bin", "sd")
         g.put(os.path.join(sysd, "bp", "zzgcatm"), "program zzgcatm\n   crt 'ZZGCATM ran'\nend\n")
         g.put(os.path.join(sysd, "bp", "zzgcatu"), "program zzgcatu\n   crt 'ZZUMASK ':fmt(oconv(umask(-1), 'MO'), \"3'0'R\")\nend\n")
-        out = g.adm(["BASIC bp zzgcatu", "BASIC bp zzgcatm", "CATALOG bp zzgcatm GLOBAL", "RUN bp zzgcatu"])
+        # 23 Nov 26: since S.268 an SDSYS session already runs at 022, which is what CATALOG sets, so a CATALOG that never put the umask back passed.  zzgcatv sets the
+        # session's umask to 002 first: the object must still be 644, and 002 must be what CATALOG gives back.
+        g.put(os.path.join(sysd, "bp", "zzgcatv"), "program zzgcatv\n   if umask(2) then null\n   crt 'ZZUMASKSET'\nend\n")
+        out = g.adm(["BASIC bp zzgcatu", "BASIC bp zzgcatv", "BASIC bp zzgcatm", "RUN bp zzgcatv", "CATALOG bp zzgcatm GLOBAL", "RUN bp zzgcatu"])
         made = os.path.join(sysd, "gcat", "zzgcatm")
         compiled = sum(1 for ln in out if re.match(r"^Compiled 1 program\(s\) with no errors", ln))
         said = any("added to global catalog" in ln for ln in out)
-        row("CONTROL: both programs compiled, the second was catalogued globally (the verb said so) and its object is in gcat", compiled == 2 and said and os.path.isfile(made),
-            "compiled %d, said so: %s, object there: %s, output tail %r" % (compiled, said, os.path.isfile(made), out[-5:]))
-        if compiled != 2 or not said or not os.path.isfile(made):
+        set002 = any(ln.strip() == "ZZUMASKSET" for ln in out)
+        row("CONTROL: the three programs compiled, the session's umask was set to 002, the program was catalogued globally (the verb said so) and its object is in gcat",
+            compiled == 3 and set002 and said and os.path.isfile(made),
+            "compiled %d, umask set: %s, said so: %s, object there: %s, output tail %r" % (compiled, set002, said, os.path.isfile(made), out[-5:]))
+        if compiled != 3 or not set002 or not said or not os.path.isfile(made):
             bail("the test program was not catalogued: the rows below would measure nothing")
         mode = os.stat(made).st_mode & 0o7777
         row("a global object made by CATALOG is not writable by group or others, whatever the session's umask (mode %o)" % mode, mode & 0o022 == 0, "mode %o" % mode)

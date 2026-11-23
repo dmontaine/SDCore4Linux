@@ -11,6 +11,7 @@
 #
 # START-HISTORY:
 # 29 Oct 26 dm  New (S.88; the suite regress.sh and regress-map.txt have listed since the library widgets were written).
+# 23 Nov 26 dm  The T rows follow S.244 (entries open empty, Ctrl-R puts the starting value in): they expected xQ / yZ and texts kept on Esc; a Ctrl-R row added.
 # END-HISTORY
 #
 # WHAT IT MEASURES.
@@ -272,11 +273,15 @@ def main():
         t = tagged(lines, "FRT")
         row("the form opened (c null) and the first 'run' answered", any(x == "FRT open=<>" for x in t) and any(x.startswith("FRT first=") for x in t), repr(t))
         first = [x for x in t if x.startswith("FRT first=")]
-        row("Q, Tab, Z, Return: both entries started with their texts and the cursor stood after them (xQ, yZ), Return in the second entry pressed the default button ('ok'), and the focus entry is b",
-            bool(first) and first[0] == "FRT first=ok a=<xQ> b=<yZ> focus=b", repr(first))
+        # 23 Nov 26: since S.244 (the owner's "Every field" opens empty, 15 Nov) an entry opens EMPTY with its starting value shown beside it, and Ctrl-R puts it in.
+        row("Q, Tab, Z, Return: both entries opened EMPTY (S.244), so they hold what was typed (Q, Z), Return in the second entry pressed the default button ('ok'), and the focus entry is b",
+            bool(first) and first[0] == "FRT first=ok a=<Q> b=<Z> focus=b", repr(first))
+        lines = pty_run(box, PFRT, [("\x12\t\x12\r", 1.5), ("\x1b", 1.5)])
+        first = [x for x in tagged(lines, "FRT") if x.startswith("FRT first=")]
+        row("Ctrl-R, Tab, Ctrl-R, Return: Ctrl-R puts each field's starting value in (x, y)", bool(first) and first[0] == "FRT first=ok a=<x> b=<y> focus=b", repr(first))
         lines = pty_run(box, PFRT, [("\x1b", 1.5), ("\x1b", 1.5)])
         first = [x for x in tagged(lines, "FRT") if x.startswith("FRT first=")]
-        row("Esc is 'cancel' (and the texts come back as they were: x and y)", bool(first) and first[0].startswith("FRT first=cancel a=<x> b=<y>"), repr(first))
+        row("Esc is 'cancel'", bool(first) and first[0].startswith("FRT first=cancel "), repr(first))
         lines = pty_run(box, PFRT, [("\x1b", 1.5), ("\x1b", 1.5)])
         t = tagged(lines, "FRT")
         row("after 'say' the form stays: a second 'run' answers (here Esc again: cancel) and the probe goes on to close it (the refusal's words themselves are not read: they are gone with the form)",

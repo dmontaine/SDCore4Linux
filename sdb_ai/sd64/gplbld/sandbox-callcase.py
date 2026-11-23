@@ -52,7 +52,7 @@ passed = failed = 0
 PROGS = ["zzcc3ap", "zzrn3a", "zzlc3a"]
 # A selection on Linux is case sensitive (measured 7 Oct 2026: LIKE "zzcl..." printed 0 records over an id
 # stored ZZCL3A), so it names both spellings, or an upper-case twin would be invisible to every row.
-LISTV = 'LIST VOC WITH @ID LIKE "zzcl..." OR WITH @ID LIKE "ZZCL..."'
+LISTV = 'LIST VOC WITH @ID LIKE "zzcl..." OR WITH @ID LIKE "ZZCL..."'   # stale-ok: a command typed, not SD's output
 
 
 def say(s=""):

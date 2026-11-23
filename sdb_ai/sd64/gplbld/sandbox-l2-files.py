@@ -159,7 +159,7 @@ end
     out = sess("BASIC bp zzl2fx", "RUN bp zzl2fx")
     if "FIXTURE DONE" not in out:
         bail("the fixture was not made:\n" + out[-600:])
-    chk = sess("COUNT bp WITH @ID LIKE \"zzlp...\"", "COUNT zzl40")
+    chk = sess("COUNT bp WITH @ID LIKE \"zzlp...\"", "COUNT zzl40")   # stale-ok: commands typed, not SD's output
     say(chk[-300:])
 
 

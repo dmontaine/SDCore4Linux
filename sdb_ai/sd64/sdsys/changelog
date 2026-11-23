@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+23 Nov 26  A FRESH INSTALL NO LONGER INHERITS ssh OR API ACCESS FROM AN EARLIER ONE.
+
+             What        - When the installer finds no SD data kept from an earlier install (no accounts and no account
+                           register under /home/sd, and it is not upgrading an installed SD), it empties the route
+                           groups it finds - sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers - and
+                           names the members it removed from each, before it grants anything.
+             Why         - An uninstall that keeps the accounts keeps these groups with their members. If that data
+                           was then removed by hand, the next install found the groups and kept the members, so a
+                           Linux user the new install never granted could reach SD over ssh or the API. SD Core for
+                           Windows found the same on its side; one rule for both.
+             Does NOT    - Touch any membership on an upgrade, or on an install that finds the kept accounts: what
+                           the administrator opened stays. It does not delete a group or a Linux user, and it leaves
+                           sdsshnokey (the accounts refused a key sign-in) as it is: a group that only refuses is
+                           never emptied.
+
 22 Nov 26  TOOL.CONFIG OFFERS TO RESTART SD AFTER A CHANGE THAT NEEDS IT.
 
              What        - After E changes CLEANUP, LGNWAIT, NUMLOCKS or USPLIT (the parameters SD reads only when it

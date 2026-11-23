@@ -1405,7 +1405,7 @@ def memo_program(dialogue):
     """dialogue_program, run with the break key off.  Since 28 Oct 26 (the owner's D31) Ctrl-C is the memo's only copy key, and
     SD takes the break character (Ctrl-C) as a break before the program sees it unless the break key is off; the memo rows
     that copy therefore switch it off first (PTERM BREAK OFF is a plain verb, the PTERM() function is internal-only)."""
-    return "   execute 'PTERM BREAK OFF' capturing junk\n   break off\n" + dialogue_program(dialogue)
+    return "   execute 'PTERM BREAK OFF' capturing junk\n   break off\n" + dialogue_program(dialogue)   # stale-ok: a command the program runs, not SD's output
 
 
 PROGS.update({

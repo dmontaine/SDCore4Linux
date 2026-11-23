@@ -351,7 +351,7 @@ end
         row("Q below the top level is not a quit", path_of(L) == "/sub" or path_of(L) == "/tags", repr(path_of(L)))
         L = e.keys(F1)
         row("F1 shows the help in a box over the list, which names the keys and has an OK button",
-            "Ctrl-Q" in e.text() and "Ins or Ctrl-I" in e.text() and "Ctrl-C" in e.text() and "F5 or Ctrl-C" not in e.text() and "[ OK ]" in e.text(), e.text()[:300])
+            "Ctrl-Q" in e.text() and "Ins or Ctrl-I" in e.text() and "Ctrl-C" in e.text() and "F5 or Ctrl-C" not in e.text() and "[ OK ]" in e.text(), e.text()[:300])   # stale-ok: checks the removed wording is gone
         L = e.keys(RET)
         row("Return (OK) closes it: the list and its path are back", "[ OK ]" not in e.text() and "Path:" in e.text(), e.text()[-200:])
         e.keys(CTRL_Q)

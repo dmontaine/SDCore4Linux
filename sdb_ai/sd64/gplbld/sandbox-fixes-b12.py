@@ -269,7 +269,7 @@ def main():
         compile_all(box, ["zzb12q", "zzb12qr"])
         sess(box, "RUN bp zzb12q")
         out = sess(box, "SET.FILE sdsys zzb12q1 zzb12p1", "SET.FILE sdsys zzb12p1 zzb12p2", "SET.FILE sdsys zzb12p2 zzb12p3",
-                   "LIST VOC WITH @ID LIKE \"zzb12p...\" NO.PAGE", "RUN bp zzb12qr")
+                   "LIST VOC WITH @ID LIKE \"zzb12p...\" NO.PAGE", "RUN bp zzb12qr")   # stale-ok: commands typed, not SD's output
         row("CONTROL: SET.FILE of an F-pointer target makes the first link (zzb12p1)", re.search(r"(?m)^zzb12p1\s+Q\s*$", out) is not None, out[-500:])
         row("32: SET.FILE with the Q-pointer zzb12p1 as target makes zzb12p2, and zzb12p2 makes zzb12p3",
             re.search(r"(?m)^zzb12p2\s+Q\s*$", out) is not None and re.search(r"(?m)^zzb12p3\s+Q\s*$", out) is not None, out[-500:])

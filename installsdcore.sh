@@ -1315,12 +1315,30 @@ fi
 #   the in-SD helper (sd-ai).  Not a route into SD but a use of the machine's one model and key, so it is enforced where the call is made, by the helper
 #   from the caller's uid.  Empty on a fresh install; an upgrade install that lacks it creates it empty here, and nobody is added by the installer
 #   (the "open every gate" answer leaves ai-on out: it spends the administrator's money).
+# 23 Nov 26 dm - S.310 (owner 22 Nov 2026, Windows row 393, relayed T1750: "Yes, reset them, and tell linux").  deletesdcore.sh keeps these groups,
+#   members and all, whenever the accounts are kept; if that data is then removed by hand, the next install found the groups and kept their members, so
+#   a name the new install never granted had ssh or the API.  An install that finds NO kept data (no /home/sd/user_accounts, no account register
+#   /home/sd/accounts, not an upgrade over a running install) empties every route group that has members before anything is granted; sdsshnokey,
+#   which only refuses, is left alone.  An install that finds the data touches no membership: what the administrator opened stays.
+# ROUTE-GROUPS-BEGIN
+route_reset=0
+if [ ! -d /home/sd/user_accounts ] && [ ! -d /home/sd/accounts ] && [ "${upgrade_over:-0}" -eq 0 ]; then route_reset=1; fi
+route_group_found() {   # route_group_found NAME: a group that exists is emptied when nothing was kept, else left as it is
+  local g="$1" members=""
+  [ "$route_reset" -eq 1 ] && members=$(getent group "$g" | cut -d: -f4)
+  if [ -n "$members" ]; then
+    sudo gpasswd -M "" "$g" > /dev/null
+    echo "Group $g already exists; no SD data was kept, so its members from an earlier install were removed: $members"
+  else
+    echo "Group $g already exists."
+  fi
+}
 for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do
   if ! getent group "$sd_route_group" &>/dev/null; then
     echo "Creating group: $sd_route_group."
     sudo groupadd --system "$sd_route_group"
   else
-    echo "Group $sd_route_group already exists."
+    route_group_found "$sd_route_group"
   fi
 done
 # 17 Nov 26 dm - S.62 (LC3; the owner's decision of 17 Nov 2026: key sign-in over ssh is off as delivered for the accounts SD makes, and the administrator turns
@@ -1330,12 +1348,14 @@ done
 #   on a keep-accounts cycle (deletesdcore.sh removes it only with the accounts), and nothing here walks the accounts to fill it.  The installing user is
 #   attached, not made by SD, and is never in it.  A DENY group, unlike the route groups above: one that is missing matches nobody, which is why sd-elevate
 #   never deletes it.
+#   S.310: it is NOT emptied on a fresh install - a group that only refuses is left as it is (Windows' rule too, T1820).
 if ! getent group sdsshnokey &>/dev/null; then
   echo "Creating group: sdsshnokey."
   sudo groupadd --system sdsshnokey
 else
   echo "Group sdsshnokey already exists."
 fi
+# ROUTE-GROUPS-END
 # 21 Oct 26 dm - AI integration slice 1 (S.69, the owner's D6): the OS user sdai, for the in-SD model call that a later slice builds.  It holds
 #   nothing but, one day, the model key: a system user with its own group, no login shell, no home directory made, in no SD group, and nothing
 #   runs as it yet.  An existing sdai is left as it is.  (The same sitting also made a group sdagent and an ssh arm for an MCP door; the owner

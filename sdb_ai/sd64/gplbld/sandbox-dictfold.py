@@ -223,7 +223,7 @@ def main():
         row("leg 5: it replaced only those two (no REPLACED line for the control)",
             ctl not in out and len(re.findall(r"(?m)^REPLACED OLD ID:", out)) == 2,
             "REPLACED lines: %d" % len(re.findall(r"(?m)^REPLACED OLD ID:", out)))
-        out = sess(box, "COUNT DICT VOC", "LIST DICT VOC WITH @ID LIKE \"%s...\" @ID" % ctl)
+        out = sess(box, "COUNT DICT VOC", "LIST DICT VOC WITH @ID LIKE \"%s...\" @ID" % ctl)   # stale-ok: a command typed, not SD's output
         m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
         n2 = int(m.group(1)) if m else -1
         row("leg 5: the dictionary is back to its size plus the control (%d)" % (n0 + 1), n2 == n0 + 1, "count %d" % n2)
