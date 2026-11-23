@@ -3,8 +3,8 @@
 # test-install-changesdoc.sh - the installer's block that copies the changes document into the shared account (owner, 24 Oct 2026: "included with the
 # installer as an additional document and upon installation also copied into the 'shared' directory").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-changesdoc.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-changesdoc.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-changesdoc.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-changesdoc.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-changesdoc.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row failed,

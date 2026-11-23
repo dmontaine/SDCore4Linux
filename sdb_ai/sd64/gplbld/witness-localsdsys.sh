@@ -3,7 +3,7 @@
 # witness-localsdsys.sh - S.267 on a REAL install (the Debian 13 VM): SDSYS reached from this computer by the Linux users the administrator lists.
 # A sandbox cannot show any of it: it is not root, has no sdsys user, no sudo, no logind ssh session and no setpriv.
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-localsdsys.sh --listed USER --unlisted USER --lan ADDRESS \
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-localsdsys.sh --listed USER --unlisted USER --lan ADDRESS \
 #        --sdsys-password-file FILE [--commit]
 #
 # ***NEEDS sudo (root) AND A PERSON AT THE TERMINAL.***  Without --commit it prints every command it would run and runs none.  With --commit it

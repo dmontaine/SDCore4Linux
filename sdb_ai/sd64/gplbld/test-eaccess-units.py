@@ -2,7 +2,7 @@
 # test-eaccess-units.py - the kernel decides whether a file may be written for the EFFECTIVE user, the one the open is made as (S.308, found by
 # S.296's VM witness of 22 Nov 2026), read off gplsrc as text.  Free: no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-eaccess-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-eaccess-units.py [--selftest]
 #
 #   E1  no write test with access() is left in gplsrc (access(p, 2) or access(p, W_OK)): access() answers for the REAL user, and after an
 #       identity switch (root running SD, !euid_set to an account's owner) a file the owner may only read was opened read-write and failed

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-help-units.py - the context help and the [?] button (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.5), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-help-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-help-units.py
   python3 .../test-help-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.
@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 HELP = os.path.join(SDSYS, "helptext")
-DOCS = "/home/don/Projects/SDCore4LinuxDocs"                    # the documentation checkout: an absolute path, as test-pack-units.py has it
+DOCS = "/home/don/SDCoreProject/SDCore4LinuxDocs"                    # the documentation checkout: an absolute path, as test-pack-units.py has it
 PROGS = ("tk_help", "loadhelp", "tool_menus", "tk_wrap", "tk_confirm")
 MSGS = tuple(str(n) for n in list(range(11830, 11833)) + list(range(11835, 11842)))       # 11833, 11834 and 11842 are free
 

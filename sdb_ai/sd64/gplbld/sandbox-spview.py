@@ -2,7 +2,7 @@
 #
 # sandbox-spview.py - SP.VIEW's record view in the full-screen pages' look (S.99), on a pseudo-terminal.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-spview.py <dir> [--build] [--only=look,keys,theme,resize,small,nocolour,gate]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-spview.py <dir> [--build] [--only=look,keys,theme,resize,small,nocolour,gate]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0
 # every row passed, 1 a row failed, 2 it could not run.  Stop the sandbox afterwards with sandbox-fromtree.py <dir> stop.  About a minute.

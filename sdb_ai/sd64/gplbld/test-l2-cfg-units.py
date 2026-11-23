@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-l2-cfg-units.py - the layout of five toolkit pages, TOOL.CONFIG, TOOL.REMOTE, TOOL.BACKUPS, TOOL.AI and TOOL.MENUS, on the layout service (S.88 stage L2).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-cfg-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-cfg-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  ***IT RUNS NO SD, SO IT CANNOT SAY THAT A BOX IS DRAWN WHERE THE RECTANGLE SAYS***: that is `sandbox-l2-cfg.py` (a private SD, a pseudo-terminal, the
 screen read back).  What it holds is the geometry the pages DECLARE, worked out by the MODEL of `$tk_layout` that `test-tklayout-units.py` keeps (imported, not copied):

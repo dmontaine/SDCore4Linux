@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-tkgates-units.py - the toolkit's gate table (`gpl.bp/tk_gate_info`) held against what the rest of the tree says about the same gates (S.75, TK-0.2).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tkgates-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tkgates-units.py [--selftest]
 
 The table is the one place the gate screens, their help and the confirm box read.  This check is what keeps it true: every row is held against `modifya` (the on and off words, in the
 word list modify.account validates, and the conflict slot each word has there), `syscom/keys.h` (the register field), `gpl.bp/int$keys.h` (the kernel key) and the installer (the

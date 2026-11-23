@@ -3,7 +3,7 @@
 # sandbox-tk-resize.py - the toolkit pages, home and the editors across a RESIZE of the window (S.88, Phase 0: rows R1-R5, F1, P2 of
 # ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, section 4), driven on a PSEUDO-TERMINAL.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-resize.py <dir> [--build] [--strict] [--only=grow,shrink,small,dialog,newfile,undo,editors] [--ai]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-resize.py <dir> [--build] [--strict] [--only=grow,shrink,small,dialog,newfile,undo,editors] [--ai]
 #
 # --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): grow is R1, shrink R2 (started big), small R2b, R3 and the pages' R7, dialog R4,
 # newfile R8, undo R6, editors R7 (the IDE, SED and CED).  The build, the fixture and the AI helper's setup always run; no section needs another.

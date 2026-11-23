@@ -2,7 +2,7 @@
 #
 # sandbox-aigate.py - the `ai` gate and the AI settings RUN on a private SD (S.69 step 2, groups B; plan .claude/plan-ai-step2.md).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aigate.py <dir> [--build] [--mutant=NAME] [--only=part1,part2]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aigate.py <dir> [--build] [--mutant=NAME] [--only=part1,part2]
 #
 # 17 Nov 26 (S.62): --only (part1, part2); row J19c - with a key already set, a client that fails for 'key' must not be reported as having set one.
 #

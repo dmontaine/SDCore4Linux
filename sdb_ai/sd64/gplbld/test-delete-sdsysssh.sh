@@ -4,8 +4,8 @@
 # upgrade keeps it open (owner, 13 Nov 2026, Windows chat: "I don't believe an upgrade should shut something that is already open").  The installer's
 # half (the reopen) is test-install-sdsysssh.sh.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdsysssh.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdsysssh.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdsysssh.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdsysssh.sh --selftest
 #   DELETER=<a copy of deletesdcore.sh> bash .../test-delete-sdsysssh.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here), no install, no sshd.  The text between "# SDSYS-SSH-SAVE-BEGIN" and "# SDSYS-SSH-SAVE-END" is cut out of the

@@ -2,8 +2,8 @@
 """test-ipcsafe-units.py - the readers and the writers of the $IPC records S<n>, F<n> and H<n> show another session's text by ONE rule
 (S.88 phase 2, the approved item "escape in the reader and the writers"; 28 Oct 26).
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ipcsafe-units.py
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ipcsafe-units.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ipcsafe-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ipcsafe-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.
 

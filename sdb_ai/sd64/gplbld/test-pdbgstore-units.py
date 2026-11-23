@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test-pdbgstore-units.py - W.11 F10b: the phantom debugger's conversation is kept in the user's private directory, not in $ipc; read off the source as text.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdbgstore-units.py
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdbgstore-units.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdbgstore-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdbgstore-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.
 

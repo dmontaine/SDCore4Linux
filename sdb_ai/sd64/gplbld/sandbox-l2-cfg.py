@@ -3,7 +3,7 @@
 # sandbox-l2-cfg.py - TOOL.CONFIG, TOOL.REMOTE, TOOL.BACKUPS, TOOL.AI and TOOL.MENUS on the layout service ($tk_layout, S.88 stage L2), driven on a PSEUDO-TERMINAL on a private SD.
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-cfg.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-cfg.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT, under /tmp).  Exit 0 no row failed, 1 a
 # row failed, 2 it could not run.  The administrator's session is SDTEST_ADMIN=1 in the sandbox's sdsys directory (sandbox-home.py's setup; fixture accounts exist, so the menu page's

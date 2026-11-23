@@ -3,8 +3,8 @@
 # test-delete-homesd.sh - deletesdcore.sh removes an EMPTY /home/sd when the accounts and the configuration were both deleted (S.255, 16 Nov 2026:
 # the deleter makes /home/sd again before the configuration question, so a delete that kept nothing left an empty root-owned directory).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-homesd.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-homesd.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-homesd.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-homesd.sh --selftest
 #   DELETER=<a copy of deletesdcore.sh> bash .../test-delete-homesd.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here that runs the command itself), no install, no SD.  The block HOMESD-TIDY is cut out of the script and run

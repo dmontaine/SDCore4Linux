@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test-confset-elevate-units.py - sd-elevate's conf-set (S.75 A6, the write half of tool.config): the root helper that changes ONE tuning parameter of /etc/sd.conf.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-confset-elevate-units.py
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-confset-elevate-units.py --selftest
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-confset-elevate-units.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-confset-elevate-units.py --selftest
 
 No sudo, no install, no sd.  It CUTS the functions between "# BEGIN confset_functions" and "# END confset_functions" out of sd-elevate and runs them with bash on scratch files, playing root
 itself, exactly as test-bakdir-elevate-units.py does for bakdir-set; and it drives the real script with --dry-run for the verb's argument rules.  ***IT CANNOT SAY THAT ROOT WRITES

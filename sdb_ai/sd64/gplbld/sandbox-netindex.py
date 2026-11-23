@@ -3,7 +3,7 @@
 # sandbox-netindex.py - what a REAL `sd -Q` server answers to the index QUERY requests (S.73 item 3, D1, 21 Oct 2026): 35 and 36 (INDICES), 26 and 39 (SELECTINDEX of a value),
 #                       38 (SELECTINDEX, the indexed values), 42 to 45 (SETLEFT, SETRIGHT, SELECTLEFT, SELECTRIGHT).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netindex.py <dir> [--build] [--probe]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netindex.py <dir> [--build] [--probe]
 #
 # WHY.  The SDNet client refused these statements on a remote file, although the server serves them to every `sdfiles` login (apifilesok lines 26, 35, 36, 38, 39, 42-45: no new gate, the
 # owner's D1).  The client side is built from what the server REALLY answers, and the fake server (netfake.py) imitates exactly these answers: this suite measures them on a real server and

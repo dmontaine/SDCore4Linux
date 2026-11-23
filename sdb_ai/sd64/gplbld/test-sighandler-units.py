@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # test-sighandler-units.py - no signal handler of the SD kernel takes a semaphore or logs (S.196, 10 Nov 2026).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sighandler-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sighandler-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sighandler-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sighandler-units.py --selftest
 #
 # WHY.  signal_handler() (linuxio.c) answered SIGHUP and SIGTERM with log_printf(), which reaches log_message() and
 # StartExclusive(ERRLOG_SEM).  On the sdtest VPS (10 Nov 26) an ssh drop delivered SIGHUP while the session was writing

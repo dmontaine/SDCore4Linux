@@ -11,8 +11,8 @@
 # an empty line), and a diff built from them shows every character of a new text the edit applies.
 # FREE CHECK: no install, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aiwrap-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aiwrap-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-aiwrap-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-aiwrap-units.py --selftest
 import os
 import random
 import re

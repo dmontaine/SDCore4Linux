@@ -3,8 +3,8 @@
 # root daemon (sdlnxd) over a Unix datagram socket; the daemon stamps the user and the pid from the credentials the KERNEL attaches to the datagram.  FREE CHECK, text only
 # (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditwriter-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditwriter-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditwriter-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditwriter-units.py --selftest      (mutants)
 #
 #   D  sddefs.h: the socket path, the magic (ends with a space) and the datagram limit, fixed at compile time
 #   C  k_error.c, the client: audit_to_daemon() sends ONE datagram (magic, the claimed SD user number or ?, the text - no time, no user, no pid) to SD_AUDIT_SOCK, never to a

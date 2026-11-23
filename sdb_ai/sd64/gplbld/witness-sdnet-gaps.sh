@@ -2,8 +2,8 @@
 #
 # witness-sdnet-gaps.sh - the SDNet proofs that no earlier real-install run made.  (K6c, 19 Oct 2026; the S.65 finish.)
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-gaps.sh [--account NAME] [--port N]
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-gaps.sh --selftest        (no sudo, no sd: the helpers on known texts)
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-gaps.sh [--account NAME] [--port N]
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-gaps.sh --selftest        (no sudo, no sd: the helpers on known texts)
 #
 # ***NEEDS sudo.***  Run it from the owner's login (SUDO_USER must name a person, not root).  It CHANGES REAL STATE and puts it back:
 #   * MAKES an SD account NAME (default zzwgap) with its Linux user, takes its write group on and off, BACKS IT UP twice, DELETES it and RESTORES it from each backup,

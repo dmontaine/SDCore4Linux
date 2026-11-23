@@ -2,8 +2,8 @@
 # test-auditjournal-units.py - W.11 F4, option B (24 Oct 2026, the owner: "b then c"): every audit record is ALSO sent to the system journal, whose daemon
 # stamps the sender's real uid and pid, which the sender cannot choose.  FREE CHECK, text only (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditjournal-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditjournal-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditjournal-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-auditjournal-units.py --selftest      (mutants)
 #
 #   J1  k_error.c includes <syslog.h>
 #   J2  audit_message() makes exactly one syslog() call: facility LOG_AUTHPRIV, level LOG_NOTICE, the format "sd-audit %s" (the record is an ARGUMENT, never the format)

@@ -4,7 +4,7 @@
 #                     MICRO verb wired to $edit, and does find.editor's premise hold?
 #                     PORT_ADOPTION queue 22; intent from the port's gplbld/verify-editors.ps1.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/verify-editors.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/verify-editors.py
 #   python3 .../verify-editors.py --allow-stale
 #
 # START-HISTORY:

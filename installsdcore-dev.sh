@@ -8,7 +8,7 @@
 #
 #   Run it from the clone, as an ordinary user, exactly as installsdcore.sh:
 #
-#       /home/don/Projects/SDCore4Linux/installsdcore-dev.sh
+#       /home/don/SDCoreProject/SDCore4Linux/installsdcore-dev.sh
 #
 #   It asks for sudo where installsdcore.sh does, because it IS installsdcore.sh.
 #   Anything you give it is passed on.  It makes a private copy of

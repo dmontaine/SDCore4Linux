@@ -5,7 +5,7 @@
 # 32 bit dlls from the release"), that no 32-bit Windows client can go into a package.  S.151
 # (owner: "we distribute windows client information with the linux core server just as we distribute the linux clients with the windows core server").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-mkrelease-clients.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-mkrelease-clients.sh
 #
 # FREE CHECK: no sudo, no install, no sd.  It RUNS the working tree's gplbld/mkrelease.sh itself, with STAGING_DIR and ZIPS_DIR pointed at a scratch directory
 # (mktemp -d, so TMPDIR chooses the place); the real Project_Staging and Project_Zips are never named.  Nothing is fetched, tagged or committed.

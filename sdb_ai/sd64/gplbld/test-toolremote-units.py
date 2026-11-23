@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolremote-units.py - the remote access page, TOOL.REMOTE (`gpl.bp/tool_remote`), as invariants read off the source (S.75, administrator app A9).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolremote-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolremote-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A DOOR OPENS OR THAT A SERVER IS DEFINED***: opening the API's
 socket and the firewall is the root helper's, which a sandbox is not; that is `witness-release-run.sh` on a real install.  What a text check is for: the properties that make the page a FRONT END -
@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
-DOCS = "/home/don/Projects/SDCore4LinuxDocs/Administrator/markdown/05-remote-access-and-the-machine.md"
+DOCS = "/home/don/SDCoreProject/SDCore4LinuxDocs/Administrator/markdown/05-remote-access-and-the-machine.md"
 FILES = {
     "page": os.path.join(GPL, "tool_remote"),
     "voc": os.path.join(SDSYS, "voc_template", "tool.remote"),

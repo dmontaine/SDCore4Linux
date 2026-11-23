@@ -3,7 +3,7 @@
 # sandbox-l2-files.py - five toolkit pages on the layout service (S.88 L2, ~/Documents/Audits/TUI/Opus_TUI_Plan.txt section 12): tool.files, tool.catalog, tool.test, tool.bulk and
 # tool.query at 140 by 43 (the same page as before L2), at 180 by 55 and 200 by 60 (the boxes grown, the lists longer), and across a resize, on a PSEUDO-TERMINAL.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-files.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-files.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT, under /tmp).  Exit 0 no row
 # failed, 1 a row failed, 2 it could not run.

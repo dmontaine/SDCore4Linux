@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-ailine-units.py - the toolkit's AI line ($tk_ai) and its use by the home screen, as invariants read off the source (AI line stage 1, 23 Oct 2026).
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ailine-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ailine-units.py
   python3 .../test-ailine-units.py --selftest [--from=N]
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  It reads the BASIC as text, comments removed, so a rule that survives only in a comment

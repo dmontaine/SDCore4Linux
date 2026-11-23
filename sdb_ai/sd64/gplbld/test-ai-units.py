@@ -2,7 +2,7 @@
 #
 # test-ai-units.py - the AI integration read off its source as TEXT (S.69 step 2, plan .claude/plan-ai-step2.md).  Free: no sd, no sudo, no install.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ai-units.py [--selftest [--from=N]]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ai-units.py [--selftest [--from=N]]
 #
 # What a behaviour test cannot say: that a rule is still WRITTEN where it must be.  Each group of the plan adds its rows in the commit that builds it.  Exit 0 every
 # row passed, 1 a row failed.   --selftest   each MUTANT (a rule taken out of a copy of the text) must turn a row red; --from=N runs the mutants from number N on.

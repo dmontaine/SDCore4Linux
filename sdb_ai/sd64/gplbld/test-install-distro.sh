@@ -3,8 +3,8 @@
 # test-install-distro.sh - installsdcore.sh refuses every distribution but Debian and Ubuntu, BEFORE it changes
 # anything (S.105, owner 2 Nov 2026: "remove Fedora support for this release", then "Take it out").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-distro.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-distro.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-distro.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-distro.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-distro.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd, no network.  Exit 0 every row passed, 1 a row failed, 2 it could not run

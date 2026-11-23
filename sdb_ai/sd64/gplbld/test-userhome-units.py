@@ -2,8 +2,8 @@
 """test-userhome-units.py - SDEXT SD_USER_HOME (112): op_sdext.c user_home_dir(), the test the editors' recovery store makes of the person's home and the
 directories below it (28 Oct 2026, the store moved to the person's Linux home on the owner's approval of that day).
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-userhome-units.py
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-userhome-units.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-userhome-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-userhome-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run (no C compiler, the function not found, a compile error).
 

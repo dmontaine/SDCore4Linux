@@ -4,7 +4,7 @@
 # case-sensitively.  RELEASE_1.1 5 stage 3a (PAL-1), the Linux form of the Windows port's
 # verify-callcase.ps1.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-callcase.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-callcase.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a private SD built from a tree, no sudo, its own IPC
 # keys: never the live system).  With --build the sandbox is built first from THIS tree; <dir> must

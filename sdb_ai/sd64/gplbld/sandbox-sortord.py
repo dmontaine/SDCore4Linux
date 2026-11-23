@@ -3,7 +3,7 @@
 # sandbox-sortord.py - the sort gives the order it always gave, and no longer takes minutes on equal or ordered keys
 #                      (20 Oct 2026, the sort and hash visit).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-sortord.py <dir> [--build] [--record]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-sortord.py <dir> [--build] [--record]
 #
 # No install, no sudo.  <dir> is a sandbox made by sandbox-fromtree.py (needs a `make`d bin/sd).  With --build it is built first
 # from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.

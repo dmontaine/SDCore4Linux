@@ -3,7 +3,7 @@
 # sandbox-ai-line.py - the toolkit's AI line ($tk_ai) on the HOME SCREEN, driven on a pseudo-terminal on a private SD (S.69, AI line stage 1; plan .claude/plan-fullscreen-toolkit.md 2.9).
 # No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-line.py <dir> [--build] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-line.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not
 # run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of $tk_ai and exit 0 means the rows that had to fail failed and no others (MUTANTS below).

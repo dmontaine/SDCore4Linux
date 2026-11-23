@@ -3,8 +3,8 @@
 # test-delete-acctgroups.sh - deletesdcore.sh removes, on a full DELETE, the Linux group of every account the register names (S.249; the owner, in
 # the Windows chat 15 Nov 2026: "uninstall should probably remove everything if asked to remove accounts"; Windows row 322).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-acctgroups.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-acctgroups.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-acctgroups.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-acctgroups.sh --selftest
 #   DELETER=<a copy of deletesdcore.sh> bash .../test-delete-acctgroups.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here), no install, no SD.  The two blocks ACCTGROUPS-READ and ACCTGROUPS-DEL are cut out of the script and run

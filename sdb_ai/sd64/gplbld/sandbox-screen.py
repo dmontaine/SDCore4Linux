@@ -2,7 +2,7 @@
 #
 # sandbox-screen.py - the SCREEN statement of the screen library, through USER programs.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-screen.py <dir> [--build] [--only=owned,dialogs,forms]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-screen.py <dir> [--build] [--only=owned,dialogs,forms]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty
 # or absent).  --only runs just those of the three big parts (the statement basics and the compile errors always run).  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Only one private SD can exist on a

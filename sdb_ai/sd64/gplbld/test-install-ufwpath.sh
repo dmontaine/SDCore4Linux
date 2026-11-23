@@ -4,7 +4,7 @@
 # or firewalld found", and the uninstall never removed one (seen on a fresh Debian 13 clone, S.292's witness; Solo's fix of the same fault is S.288, 6e38165).  Text
 # only, no sudo, no install.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-ufwpath.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-ufwpath.sh [--selftest]
 #
 # THE ROWS.  U1 the installer defines have_ufw as both tests; U2 its two uses of ufw in the choice of firewall go through have_ufw and no bare `command -v ufw`
 # remains outside it; U3 the uninstaller's ufw step is guarded by both tests.  It cannot say a real firewall changed: that is the VM row.

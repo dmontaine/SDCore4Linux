@@ -3,7 +3,7 @@
 # test-clientheaders-units.py - the client library's language headers all declare the functions the library has, with the
 # parameters it has.  Read off the source.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientheaders-units.py [--selftest] [--lib <dir with sdclilib.so>]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientheaders-units.py [--selftest] [--lib <dir with sdclilib.so>]
 #
 # No sudo, no install, no sd.  Exit 0 every check held, 1 one did not, 2 it could not run.  --selftest plants faults in a copy
 # of the headers (a function taken out of each language, a parameter added, a function the library does not have, a library
@@ -67,7 +67,7 @@ FILES = ["sdsys/syscom/sdclilib.h", "sdsys/syscom/sdclient.bas", "sdsys/syscom/s
 # 19 Nov 26 S.262: the status values a reply can carry (the protocol's, gplsrc/sdclient.h, plus the client library's two), fixed here now
 # that the GPL client header that held all eight is gone; the clean-room library's public header is compared with it when it is here.
 SV = {"SV_OK": 0, "SV_ON_ERROR": 1, "SV_ELSE": 2, "SV_ERROR": 3, "SV_LOCKED": 4, "SV_PROMPT": 5, "SV_EMSG_PAIR": 6, "SV_ECONTXT": 7}
-CLEANROOM = os.environ.get("SD_CLIENT_LIB") or "/home/don/Projects/SDClientLib/build/sdclilib.so"
+CLEANROOM = os.environ.get("SD_CLIENT_LIB") or "/home/don/SDCoreProject/SDClientLib/build/sdclilib.so"
 CLEANROOM_H = os.path.join(os.path.dirname(os.path.dirname(CLEANROOM)), "include", "sdclilib.h")
 
 

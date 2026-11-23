@@ -4,8 +4,8 @@
 # install wrote, together with its PAM fences).  The oracle is the REAL sshd of this machine (sshd -t, and sshd -T -C user=sdsys,...) on a scratch sshd_config with a
 # throwaway host key, and scratch PAM files - no root, no running sshd.  Written 1 Nov 2026.  test-ssh-forcecommand.py (34 rows) holds the older modes.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py --selftest
 #
 # 2 Nov 26 dm S.106 (owner: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release"): the open arm is
 # password authentication alone and no PAM line is written; the rows of the code's PAM fences, its module and its login marker are gone, and the LEGACY rows take their place: an

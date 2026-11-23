@@ -3,7 +3,7 @@
 # sandbox-l2-admin.py - the four dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.AUDIT and TOOL.ACCOUNTS drawn at 140 by 43,
 # grown to 180 by 55 while they run, and started at 200 by 60, on a PSEUDO-TERMINAL.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-admin.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-admin.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run.  WRITTEN 28 Oct 26 AND NOT YET RUN (the owner's rule for the L2 sitting: no sandbox runs; the free check test-l2-admin-units.py is the evidence so far).

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolbackups-units.py - the backups page, TOOL.BACKUPS (`gpl.bp/tool_backups`), as invariants read off the source (S.75, administrator app A8).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolbackups-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolbackups-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A BACKUP IS MADE OR AN ACCOUNT RESTORED***: the packing
 and the placing are done as root (`sd-elevate backup-pack`, `restore-place`), which a sandbox is not; they are `witness-backup.sh`'s on a real install.  What a text check is for: the properties that make
@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
-DOCS = "/home/don/Projects/SDCore4LinuxDocs/Administrator/markdown/01b-backup-and-restore.md"   # 17 Nov 26 (S.62): backup and restore moved to a page of their own
+DOCS = "/home/don/SDCoreProject/SDCore4LinuxDocs/Administrator/markdown/01b-backup-and-restore.md"   # 17 Nov 26 (S.62): backup and restore moved to a page of their own
 FILES = {
     "page": os.path.join(GPL, "tool_backups"),
     "voc": os.path.join(SDSYS, "voc_template", "tool.backups"),

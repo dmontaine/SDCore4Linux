@@ -2,7 +2,7 @@
 #
 # sandbox-ide-resize.py - the IDE across a window resize (S.88 p3.3a) and the IDE's theme (S.88 p3.7b), on a pseudo-terminal on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-resize.py <dir> [--build] --only=resize,theme [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-resize.py <dir> [--build] --only=resize,theme [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run.  --only names the sections (resize, theme; both by default).  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of `ide`,

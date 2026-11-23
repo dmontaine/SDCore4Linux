@@ -2,7 +2,7 @@
 #
 # sandbox-recovery.py - the editors' recovery copy (S.88, plan 2.9, defect D2; the owner's answer to Q2 of 28 Oct 2026: "Build it, ship it off").  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-recovery.py <dir> [--build] [--strict]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-recovery.py <dir> [--build] [--strict]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row
 # that counts passed, 1 a row failed, 2 it could not run.  Every row is phase 2 of the plan (tuirows.py): PENDING until phase 2 is in LANDED, --strict counts it.

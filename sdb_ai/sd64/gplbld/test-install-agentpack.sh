@@ -3,8 +3,8 @@
 # test-install-agentpack.sh - installsdcore.sh's block that puts the AI guide and knowledge pack in /usr/local/sdsys/agent-pack
 #                             (S.69 rows 1 and 1b), run the way the installer runs it.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-agentpack.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-agentpack.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-agentpack.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-agentpack.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-agentpack.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed,

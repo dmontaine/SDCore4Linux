@@ -6,7 +6,7 @@ API server ALSO guards the file requests it serves itself (apisrvr's check.edit,
 test lets through), and the shared account's door (S.66, 11513) is the same routine.  Those are reached only by SDOpen / SDWrite / SDDelete, which
 this probe sends.  witness-release-run.sh sections 13o and 13p use it.
 
-  SD_PROBE_PASSWORD=... python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/api-fileop-probe.py \\
+  SD_PROBE_PASSWORD=... python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/api-fileop-probe.py \\
       --user <name> --account <name> --file <name> OP...
 
   OP is  read:ID   write:ID=TEXT   delete:ID     (TEXT has no field marks: one field)

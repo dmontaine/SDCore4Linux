@@ -2,7 +2,7 @@
 #
 # sandbox-tk-keys.py - tool.keys, the toolkit's first app (S.75, TK-1, plan A1): the terminal and keyboard diagnostic, on a pseudo-terminal.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-keys.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-keys.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it
 # could not run.  tool.keys is a verb of the product (sdsys/newvoc and sdsys/voc_template), so the sandbox's VOC already has it: nothing is registered here.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-l2-admin-units.py - the four dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.AUDIT, TOOL.ACCOUNTS (TOOL.MASTERS, the fifth, went with S.67's copies on 2 Nov 26, S.96 M6).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-admin-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-admin-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads each page's BASIC as text, with comments removed, takes the pane DECLARATION out of the page's own `declare.layout`, lays it out with the geometry
 model of test-tklayout-units.py (a copy of $tk_layout's equations; that file is shared and not edited here) and holds the result against what the page drew before L2.  ***IT RUNS

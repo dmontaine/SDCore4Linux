@@ -4,8 +4,8 @@
 # is installed, /etc/at.deny; an existing sdsys crontab MOVED out of the spool (Debian's cron daemon goes on running it after a deny - measured); queued
 # sdsys at jobs removed; an allow file left to decide by itself.  And the deleter's half: the "sdsys" line goes when the sdsys user goes.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-crondeny.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-crondeny.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-crondeny.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-crondeny.sh --selftest
 #   INSTALLER=<copy> DELETER=<copy> bash .../test-install-crondeny.sh                       (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo, no root.  The block is cut out between its markers, its path variables are pointed at a scratch tree, and it runs

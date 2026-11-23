@@ -15,10 +15,10 @@ S.69 rows 1 and 1b of the AI plan. Documents, a generator and free and sandbox c
 Regenerate after a change to a verb, a message, a bcomp table, a docs section the pack quotes, the shipped dictionaries, the guide or the stamp:
 
 ```
-python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/agent-pack/mkpack.py --write
-python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pack-units.py
+python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/agent-pack/mkpack.py --write
+python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pack-units.py
 ```
 
-The generator takes the tree and the docs checkout as arguments (`--tree DIR --docs DIR --out DIR --skill DIR --product NAME`) so that SD Core Solo for Linux can run it on its own tree and its own docs. It reads the docs repository by absolute path (`/home/don/Projects/SDCore4LinuxDocs`) and exits 2, saying so, when the checkout is missing.
+The generator takes the tree and the docs checkout as arguments (`--tree DIR --docs DIR --out DIR --skill DIR --product NAME`) so that SD Core Solo for Linux can run it on its own tree and its own docs. It reads the docs repository by absolute path (`/home/don/SDCoreProject/SDCore4LinuxDocs`) and exits 2, saying so, when the checkout is missing.
 
 Line numbers in `src=path:line#hash` are locators that may lag after an edit elsewhere in the same file; the hash of the cited line is the identity and is what the check holds.

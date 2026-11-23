@@ -8,7 +8,7 @@
 #   which is every stock entry: the internal programs that use @(-14) to put the colours back (QUERY styles, SED, the pick
 #   lists) keep doing so.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-terminfo-ext.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-terminfo-ext.py <dir> [--build]
 #
 # No install, no sudo.  <dir> is a sandbox made by sandbox-fromtree.py (needs a `make`d bin/sd and bin/sdtic).  With --build it
 # is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.

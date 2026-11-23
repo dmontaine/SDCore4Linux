@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-logtoname-units.py - CPROC's LOGTO takes a registered account name and nothing else.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-logtoname-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-logtoname-units.py
   python3 .../test-logtoname-units.py --selftest [--from=N]
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

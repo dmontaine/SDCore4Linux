@@ -3,7 +3,7 @@
 # sandbox-segtrust.py - W.11 F9 (security-model evaluation, 24 Oct 2026): what another process writes into the shared segment does not decide what a
 #                       session loads, runs or is allowed.  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-segtrust.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-segtrust.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run (including every null case: the segment is not there, an offset does not point where it should, a write did not land).

@@ -3,7 +3,7 @@
 # sandbox-guide.py - the SD BASIC dialect guide (agent-pack/guide/sd-basic-guide.md) COMPILED AND RUN on a private SD.  S.69 row 1.
 #                    No install, no sudo, no model.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-guide.py <dir> [--build] [--guide FILE] [--match REGEX]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-guide.py <dir> [--build] [--guide FILE] [--match REGEX]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (needs a `make`d bin/sd).  With --build it is built first from THIS tree (it must be
 # empty or absent).  Exit 0 every block held, 1 one did not, 2 it could not run.  SDBOX_KEYSET=n picks the pair of shared memory keys;

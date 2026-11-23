@@ -5,8 +5,8 @@
 # directory (owner sdsys)").  Before 981a36a, create.account group left voc/%0, voc/%1, $hold.dic/%0 and $hold.dic/%1 in the group sdusers,
 # which every SD user belongs to; the fix is for NEW accounts, this is for the ones already made.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-groupfiles.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-groupfiles.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-groupfiles.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-groupfiles.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-groupfiles.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no chown (a stub table plays the file system's owners).  Exit 0 every row

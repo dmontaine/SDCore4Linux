@@ -3,7 +3,7 @@
 # test-install-nocase.sh - installsdcore.sh's "kept accounts are made case insensitive" block,
 #                          run the way the installer runs it.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-nocase.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-nocase.sh
 #
 # FREE CHECK: no sudo, no install, no sd.  Exit 0 all rows pass, 1 a row failed, 2 it could not run.
 #

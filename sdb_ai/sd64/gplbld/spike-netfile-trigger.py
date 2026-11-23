@@ -7,7 +7,7 @@
 # sandbox-netspike.py - S.65 stage 1 SPIKE: can remote files be served by a catalogued BASIC trigger subroutine, with no C change?
 #                       No install, no sudo.  AN EXPERIMENT, NOT A REGRESSION SUITE: it is not in regress.sh or regress-map.txt.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netspike.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netspike.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Only one private SD can exist on

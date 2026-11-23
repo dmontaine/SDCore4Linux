@@ -3,7 +3,7 @@
 # sandbox-tool-bulk.py - TOOL.BULK, the bulk update of the records of one data file ($tool_bulk, S.75 DV5), driven on a PSEUDO-TERMINAL as ORDINARY sessions on a private SD.
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-bulk.py <dir> [--build] [--only=b1,b2,...] [--mutant=NAME[,NAME...]|all]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-bulk.py <dir> [--build] [--only=b1,b2,...] [--mutant=NAME[,NAME...]|all]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  --only runs some sections (b1 b2 b3 b4 b7 b8 b9 b10; b4 holds B4 to B6).  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and

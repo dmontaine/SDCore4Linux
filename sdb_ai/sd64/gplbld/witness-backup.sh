@@ -8,8 +8,8 @@
 #                     a bare zip name, NO.QUERY, an account that no longer
 #                     exists, another session logged in, and archives that lie).
 #
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-backup.sh
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-backup.sh --commit
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-backup.sh
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-backup.sh --commit
 #
 # ***IT NEEDS sudo, AND ONLY FOR --commit.***  Without it the script prints what
 # it would do and exits 2: a dry run is not a pass.

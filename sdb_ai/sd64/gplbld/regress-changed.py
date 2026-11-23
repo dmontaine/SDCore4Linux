@@ -3,9 +3,9 @@
 # regress-changed.py - which sandbox suites a change needs.  The selector behind  regress.sh --changed.  No install, no sudo,
 #                      read only (it runs `git status` / `git diff` and reads two text files).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py                 files changed since HEAD
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py --since REF     files changed since REF
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py --files A B ... these files (repo paths)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py                 files changed since HEAD
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py --since REF     files changed since REF
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress-changed.py --files A B ... these files (repo paths)
 #
 # stdout: the suites, space separated, in regress.sh's own order (longest first).  stderr: the report - every changed file,
 # the rule of regress-map.txt that took it, and what it selected.  Exit 0 suites chosen (or every change needs none), 2 it

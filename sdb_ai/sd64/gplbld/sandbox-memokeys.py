@@ -2,7 +2,7 @@
 #
 # sandbox-memokeys.py - the IDE editor's own keys (S.88 D2: the memo's edkeys and overwrite mode), on a pseudo-terminal on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-memokeys.py <dir> [--build] --only=keys
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-memokeys.py <dir> [--build] --only=keys
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run.  One section, keys (about 40 s); --only is taken so that the testing hook's rule holds for it as for the other suites.

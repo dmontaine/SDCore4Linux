@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-editgates-units.py - the edit gates voc.edit, bp.edit and dict.edit (S.64), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-editgates-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-editgates-units.py
   python3 .../test-editgates-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 17 Oct 26.

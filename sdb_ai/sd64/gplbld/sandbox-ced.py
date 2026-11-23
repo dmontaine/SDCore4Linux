@@ -2,7 +2,7 @@
 #
 # sandbox-ced.py - the data collection editor, CED and !CED().  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ced.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ced.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty
 # or absent); without it <dir> must already be built, which is how the same script is run against an OLD tree to

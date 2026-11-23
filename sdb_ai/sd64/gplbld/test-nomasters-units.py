@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-nomasters-units.py - S.67's master-file copies are retired (S.96 M6, 2 Nov 2026; the owner: "retire"), and stay retired.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-nomasters-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-nomasters-units.py
   python3 .../test-nomasters-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

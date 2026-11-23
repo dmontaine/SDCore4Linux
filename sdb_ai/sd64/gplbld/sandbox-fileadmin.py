@@ -3,7 +3,7 @@
 # sandbox-fileadmin.py - API requests 70 (fileadmin: a verb run on the server for the login), 71 (fcontrol), 68 and 69 (write ... creating.seqkey) against a REAL `sd -Q`,
 #                        S.73 item 3 (QMNet tiers C and D), 21 Oct 26.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fileadmin.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fileadmin.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #

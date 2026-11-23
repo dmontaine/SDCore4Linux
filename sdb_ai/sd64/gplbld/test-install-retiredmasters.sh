@@ -4,8 +4,8 @@
 # (voc_master, dict_master, master_state, their dictionaries and $master.journal) are removed from the SDSYS directory by their exact names, a link among
 # them is removed as a link and its target kept, nothing else in the directory is touched, and the install goes on whatever happens.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-retiredmasters.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-retiredmasters.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-retiredmasters.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-retiredmasters.sh --selftest
 #   INSTALLER=<copy> bash .../test-install-retiredmasters.sh                       (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo, no root.  The block is cut out between its markers, its directory variable is pointed at a scratch tree, and it runs

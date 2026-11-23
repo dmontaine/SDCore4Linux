@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # test-bakdir-elevate-units.py - sd-elevate's bakdir-set (S.53, SET.BACKUP.DIRECTORY).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-bakdir-elevate-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-bakdir-elevate-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-bakdir-elevate-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-bakdir-elevate-units.py --selftest
 #
 # No sudo, no install, no sd.  It CUTS the two shipped functions out of sd-elevate - the lines
 # between "# BEGIN bakdir_functions" and "# END bakdir_functions" - and runs them with bash on

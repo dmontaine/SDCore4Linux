@@ -2,7 +2,7 @@
 #
 # sandbox-realkeys.py - the keys a REAL terminal sends (S.88 phase 0 and 1: the input layer).  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-realkeys.py <dir> [--build] [--strict]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-realkeys.py <dir> [--build] [--strict]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every
 # row passed (or is pending a later phase, see tuirows.py), 1 a row failed, 2 it could not run.  --strict counts the pending rows as failed: the red run.

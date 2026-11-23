@@ -3,7 +3,7 @@
 # sandbox-req29.py - API request 29 (open an 'account;file' file, the SDNet request of apisrvr's vb.open.sdnet), S.65 follow-up, 18 Oct 26.
 #                    No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-req29.py <dir> [--build] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-req29.py <dir> [--build] [--mutant=NAME]
 #
 # Besides request 29 it holds the rows that need a REAL `sd -Q` spoken to over the wire: sections F (filelock, fileunlock) and G (the text and status of an ON ERROR reply).
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).

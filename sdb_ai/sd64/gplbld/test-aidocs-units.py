@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-aidocs-units.py - the AI line's documentation passages ($tk_aidocs and its place in $tk_ai; S.100), as invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aidocs-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-aidocs-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the BASIC as text, comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY WHICH PASSAGE IS CHOSEN OR THAT A SESSION SEES ONE***: that is
 `sandbox-aidocs.py`.  What a text check is for here: the properties that keep the feature inside its limits are ORDER and ABSENCE - the reader looks at docs/admin only after it has asked the

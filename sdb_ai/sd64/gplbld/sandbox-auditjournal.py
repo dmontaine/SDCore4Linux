@@ -3,7 +3,7 @@
 # sandbox-auditjournal.py - W.11 F4, option B (24 Oct 2026, the owner: "b then c"): every audit record is also in the system journal, stamped by
 #                           journald with the real uid and pid of the process that sent it.  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-auditjournal.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-auditjournal.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run - INCLUDING the null cases: no journalctl, a journal this user cannot read, the audited event that never reached the audit file.

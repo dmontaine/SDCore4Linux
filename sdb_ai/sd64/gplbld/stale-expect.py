@@ -2,7 +2,7 @@
 #
 # stale-expect.py - a suite that still expects wording SD no longer prints (S.186).  No install, no sudo, no sd: git and the files.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/stale-expect.py [--since REF] [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/stale-expect.py [--since REF] [--selftest]
 #
 # START-HISTORY:
 # 9 Nov 26 dm  New (S.186; the owner, 9 Nov: "is there a check that we could add before suites are run to avoid simple failures like spelling").  The

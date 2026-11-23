@@ -3,7 +3,7 @@
 # 17-18 Nov 2026: "restricted to only usernames listed in a text field rather than a gate", "delivered with that access off").  FREE: no install, no
 # sudo, no SD.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-localsdsys-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-localsdsys-units.py [--selftest]
 #
 # WHAT IT HOLDS
 #   K  the kernel's answer: gplsrc/sd_localsdsys.c built with -Wall -Wextra together with gplbld/verify-localsdsys.c and driven as a black box on

@@ -2,8 +2,8 @@
 # test-shmmode-units.py - W.11 F1 (security-model evaluation, 24 Oct 2026): the shared segment and the semaphores are not open to every local user,
 # and the root daemon does not take what it runs from the segment.  FREE CHECK, text only (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-shmmode-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-shmmode-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-shmmode-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-shmmode-units.py --selftest      (mutants)
 #
 #   S1  sysseg.c create_shared_segment(): IPC_CREAT | 0660, never 0666; then IPC_STAT, the group of sdusers, mode 0660, IPC_SET
 #   S2  sdsem.c get_semaphores(): IPC_CREAT | IPC_EXCL | 0660, never 0666; then the same IPC_STAT / group / IPC_SET

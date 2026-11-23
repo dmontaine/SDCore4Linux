@@ -2,8 +2,8 @@
 #
 # test-regress-units.py - regress.sh's verdicts, on STUB suites.  No install, no sudo, no sd, a second or two.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-units.py            the cases
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-units.py --selftest the cases against 20 broken copies
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-units.py            the cases
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-units.py --selftest the cases against 20 broken copies
 #
 # Exit 0 all passed, 1 a case failed.
 #

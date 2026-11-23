@@ -3,7 +3,7 @@
 # sandbox-memoundo.py - the memo's undo and redo (S.88 phase 2, D3): a PROPERTY test of $sl_memo.  No install, no sudo.  WRITTEN 28 Oct 2026, NOT RUN (the owner's testing rule of that day:
 # one complete run after the last phase).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-memoundo.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-memoundo.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not
 # run.

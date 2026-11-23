@@ -4,7 +4,7 @@
 #                    sends for it, under a terminal type that names the OTHER one?  PAL-21 (S.62), the Windows
 #                    port's _input fix of 22 Aug 2026 and the INPUT twin of verify-keys.py.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-input.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-input.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a private SD built from a tree: no sudo, its own IPC keys,
 # never the live system).  With --build the sandbox is built first from THIS tree and <dir> must be empty or

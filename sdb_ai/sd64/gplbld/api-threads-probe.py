@@ -5,7 +5,7 @@ QMClient sheet 456, 15 Oct 2026.  The same checks as part R of sandbox-qmclient.
 (local sessions in a sandbox), but every session is a real TCP login to the
 installed listener with SDConnect, which is what only an owner-run witness can reach.
 
-  SD_PROBE_PASSWORD=... python3 -I /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/api-threads-probe.py \
+  SD_PROBE_PASSWORD=... python3 -I /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/api-threads-probe.py \
       --user <name> --account <name> --file <name> [--threads N]
 
 No sudo of its own.  It needs a Linux user with an SD password (a throwaway made by

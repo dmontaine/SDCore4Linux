@@ -3,7 +3,7 @@
 # test-pack-units.py - the generated knowledge pack (agent-pack/pack) against the tree and the docs it was generated from.
 #                      S.69 rows 1 and 1b, the AI plan (.claude/ai-integration-evaluation.md, sections 5A.2 and 5A.7).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pack-units.py [--selftest] [--docs DIR]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pack-units.py [--selftest] [--docs DIR]
 #
 # No sudo, no install, no sd, no sandbox, no model.  Exit 0 every check held, 1 one did not, 2 the question cannot be
 # answered (the docs checkout is missing).  A pack that cannot be compared is never a pass.
@@ -47,7 +47,7 @@ SD64 = os.path.dirname(HERE)
 PACK_DIR = os.path.join(SD64, "agent-pack")
 GENERATOR = os.path.join(PACK_DIR, "mkpack.py")
 PACK = os.path.join(PACK_DIR, "pack")
-DOCS_DEFAULT = "/home/don/Projects/SDCore4LinuxDocs"
+DOCS_DEFAULT = "/home/don/SDCoreProject/SDCore4LinuxDocs"
 REGEN = "python3 %s --write" % GENERATOR
 
 TIERS = ("core", "reference", "examples")

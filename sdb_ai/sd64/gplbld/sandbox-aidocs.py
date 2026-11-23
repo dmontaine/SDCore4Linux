@@ -3,7 +3,7 @@
 # sandbox-aidocs.py - the AI line's documentation passages (S.100): $tk_aidocs chooses a few sections of SD's own pages, tk_ai shows them in the preview and sends them with the request.
 # Driven on the home screen (an ordinary session, and the administrator's) on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aidocs.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-aidocs.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run.

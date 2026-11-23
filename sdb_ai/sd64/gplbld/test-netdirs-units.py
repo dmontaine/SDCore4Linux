@@ -3,8 +3,8 @@
 # delivered empty"), and key 90 (K_REAL_USER / K$REAL.USER) retired (P-1013, P-1014).  FREE CHECK: no install, no sudo, no sd; the C and the
 # tables are read as text, comments removed where a rule is about code.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-netdirs-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-netdirs-units.py --selftest      (mutants of op_sh.c, config.c, config.h, the table)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-netdirs-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-netdirs-units.py --selftest      (mutants of op_sh.c, config.c, config.h, the table)
 #
 # WHAT IT CHECKS
 #   D1  delivered empty: config.c sets pcfg.netdirs to "" before it reads sd.conf, and the shipped sd.conf has no NETDIRS= line

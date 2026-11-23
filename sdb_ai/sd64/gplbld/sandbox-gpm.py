@@ -2,7 +2,7 @@
 #
 # sandbox-gpm.py - S.94 (31 Oct 2026): the Linux console's mouse through the gpm daemon, with a STAND-IN daemon.  No install, no sudo, no console.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gpm.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gpm.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run.

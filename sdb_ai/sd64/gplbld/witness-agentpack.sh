@@ -3,7 +3,7 @@
 # witness-agentpack.sh - what only a REAL install shows about the AI guide and knowledge pack that installsdcore.sh puts in
 #                        /usr/local/sdsys/agent-pack (S.69 rows 1 and 1b, installer change of 20 Oct 2026).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-agentpack.sh [<repository's sdb_ai/sd64>]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-agentpack.sh [<repository's sdb_ai/sd64>]
 #
 # NO sudo, AND NOT AS A CONVENIENCE.  It must run as an ordinary login that is a member of sdusers: as root every write
 # would succeed or fail for the wrong reason, and as a non-member the refusal would come from the "other" bits, a weaker claim

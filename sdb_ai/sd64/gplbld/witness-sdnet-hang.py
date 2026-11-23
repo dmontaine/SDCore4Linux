@@ -2,8 +2,8 @@
 """witness-sdnet-hang.py - a server that hangs, for S.73 item 2 on a REAL install (3 Nov 2026, track G).  The servers are netfake.py's (beside this file), the ones
 sandbox-netfile.py's timeout section measures in a sandbox; this runs one of them on 127.0.0.1 for an installed SD to dial.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-hang.py silent  [STATEFILE]
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-hang.py ack|first CERT KEY [STATEFILE]
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-hang.py silent  [STATEFILE]
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-hang.py ack|first CERT KEY [STATEFILE]
 
   silent      netfake.SilentListener: accepts the TCP connection and never answers the TLS hello (the hang AT THE HELLO; NETWAIT bounds it, message 11445 / 11470)
   ack         netfake.PartialRecordServer cut='ack': the handshake completes, then the one-byte Ack is sent as HALF a TLS record (MID-RECORD at the start of the session; NETREPLY bounds it,

@@ -3,7 +3,7 @@
 # sandbox-shmmode.py - W.11 F1 (security-model evaluation, 24 Oct 2026): a running SD makes its shared memory segment and its semaphores 0660 and gives
 # them to the group sdusers.  No install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-shmmode.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-shmmode.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row
 # passed, 1 a row failed, 2 it could not run (including: the sandbox's segment is not there, the null case).  The group rows need the group sdusers.

@@ -2,7 +2,7 @@
 #
 # sandbox-net.py - the NET gate and the SDNet server definitions (S.65 slice 1, the owner's request of 17 Oct 2026).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-net.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-net.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named

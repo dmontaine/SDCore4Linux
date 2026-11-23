@@ -4,8 +4,8 @@
 # wants it, in place over an sd.service that does not mention it.  (The first-install copy does it for a machine with no sd.service; this block is for the one that has
 # an older sd.service, whose "sd -start" would fork a daemon with nothing to restart it.)
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-lnxdunit.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-lnxdunit.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-lnxdunit.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-lnxdunit.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-lnxdunit.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function here), no root, no systemd (a function here).  Exit 0 every row passed, 1 a row failed, 2 it could not run.

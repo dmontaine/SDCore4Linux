@@ -4,8 +4,8 @@
 # "for this version the source code will be included in the installer zip so that it does not need to be downloaded during install"), and a release-candidate tag is named as a pre-release
 # (owner, 3 Nov 2026: "put it in the installer, not on the login banner").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-package.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-package.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-package.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-package.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-package.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a refusal to pass on nothing: no block).

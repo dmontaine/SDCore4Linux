@@ -3,7 +3,7 @@
 # sandbox-ide-small.py - the IDE, CED and the debugger at 140 by 42: refused (the debugger: line mode) below it, survived when the
 # window shrinks, and the cursor lock.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-small.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-small.py <dir> [--build]
 #                                                       [--only=a,b,c,d,e,f] [--mutant=NAME] [--keep]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);

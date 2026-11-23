@@ -2,16 +2,16 @@
 #
 # regress.sh - run the sandbox suites, one fresh build each, and say which passed.  No install, no sudo.
 #
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh                     all of them, one after another, about 50 minutes
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --jobs 6            all of them, six at a time
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --snapshot --jobs 6 --free   the same, on a copy of the tree (edit meanwhile)
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --skip ced          all but the pseudo-terminal one
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --only coll,try     just those
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --tree DIR          the suites of the sd64 tree DIR, in that tree
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              the gplbld/test-*.py free checks too, FIRST; a failure stops the run
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh                     all of them, one after another, about 50 minutes
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --jobs 6            all of them, six at a time
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --snapshot --jobs 6 --free   the same, on a copy of the tree (edit meanwhile)
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --skip ced          all but the pseudo-terminal one
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --only coll,try     just those
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --tree DIR          the suites of the sd64 tree DIR, in that tree
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              the gplbld/test-*.py free checks too, FIRST; a failure stops the run
 #                                                                       before the suites, as stale-expect.py does (--keep-going runs them anyway)
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --list              print the suites and stop
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --changed --snapshot --jobs 8   THE RUN TO USE: only the suites the changed
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --list              print the suites and stop
+#   /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --changed --snapshot --jobs 8   THE RUN TO USE: only the suites the changed
 #                                                                       files need (gplbld/regress-map.txt), and the free checks; --since REF for a range
 #
 # Exit 0 every suite passed, 1 a suite failed (or gave no verdict), 2 something could not be run (an unknown suite,

@@ -2,7 +2,7 @@
 #
 # sandbox-ide-alone.py - the verb SED: the IDE started as the editor by itself (S.184 stage 7, 9 Nov 26).  Driven on a pseudo-terminal on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-alone.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-alone.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 # What it holds: no files pane and no Tools menu; a record on the command line opens in the editor; Ctrl-E is the end of the line; a save reaches the disk; a compile's errors come up under

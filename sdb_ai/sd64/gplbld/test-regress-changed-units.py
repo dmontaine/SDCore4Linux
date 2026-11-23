@@ -3,8 +3,8 @@
 # test-regress-changed-units.py - the selector behind  regress.sh --changed  (gplbld/regress-changed.py, gplbld/regress-map.txt).
 #                                 Free: no install, no sudo, no sandbox; it makes a scratch git repository under /tmp.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-changed-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-changed-units.py --selftest     (7 mutants of the selector)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-changed-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-regress-changed-units.py --selftest     (7 mutants of the selector)
 #
 # START-HISTORY:
 # 15 Oct 26 dm  New, with --changed (owner, 14 and 15 Oct 2026: regressions must be targeted).

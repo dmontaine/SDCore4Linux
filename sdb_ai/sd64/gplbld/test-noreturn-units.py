@@ -11,8 +11,8 @@
 #   N4 the null case - fewer than 10 such files or fewer than 100 calls read means the scan read nothing it should.
 # FREE CHECK: the C read as text, comments removed; no build.  It cannot see a call made through a pointer or a macro.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-noreturn-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-noreturn-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-noreturn-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-noreturn-units.py --selftest
 import glob
 import os
 import re

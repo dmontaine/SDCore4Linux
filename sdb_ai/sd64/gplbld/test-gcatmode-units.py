@@ -2,8 +2,8 @@
 # test-gcatmode-units.py - W.11 F2 (security-model evaluation, 24 Oct 2026): a global catalogue object that others or the group sdusers can write is
 # not trusted.  FREE CHECK: no install, no sudo, no sd; the installer function is RUN in bash on scratch files, the kernel check is read as text.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-gcatmode-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-gcatmode-units.py --selftest      (mutants of the installer and of object.c)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-gcatmode-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-gcatmode-units.py --selftest      (mutants of the installer and of object.c)
 #
 # WHAT IT CHECKS
 #   I1  fix_gcat_modes is defined between GCAT-MODE-BEGIN and -END; run in bash (sudo a function that skips chown) on a scratch gcat it clears group and

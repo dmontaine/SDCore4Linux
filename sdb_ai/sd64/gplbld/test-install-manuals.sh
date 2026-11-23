@@ -3,8 +3,8 @@
 # test-install-manuals.sh - the installer's block that puts the documentation PDFs of a release package into the shared account (S.143; owner,
 # 3 Nov 2026: "Yes, installer copies them").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-manuals.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-manuals.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-manuals.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-manuals.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-manuals.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row failed,

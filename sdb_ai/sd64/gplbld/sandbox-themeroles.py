@@ -3,7 +3,7 @@
 # sandbox-themeroles.py - S.88 3.7a: CONFIG() reads SCREENTHEME, the five role styles have a look in every theme, $sl_theme answers 'list' and 'next', and a program that
 # asks for no theme still gets mono.  No install, no sudo.  WRITTEN WITH THE CHANGE AND NOT RUN (the owner's rule of 28 Oct 2026); the first run is the main session's.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-themeroles.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-themeroles.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (SHORT path under /tmp).  With --build it is built first from THIS tree (it must be empty or absent), which compiles every
 # program against the new SL.CODES: a sandbox built from an older tree gives mono in every row and the suite says so.  Exit 0 every row passed, 1 a row failed, 2 it could not

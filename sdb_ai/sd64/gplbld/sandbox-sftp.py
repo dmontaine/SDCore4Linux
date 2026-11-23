@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # sandbox-sftp.py - S.242 stage 3: the file transfer server inside sd (gplsrc/sd_sftp.c, gpl.bp/xfersrv), run for real.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-sftp.py <dir> [--build] [--only=NAME,...] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-sftp.py <dir> [--build] [--only=NAME,...] [--mutant=NAME]
 #
 # No sudo, no install.  <dir> is a sandbox directory (a SHORT path: sftp -D takes the server command as words).  --build makes
 # the sandbox from the tree first; without it <dir> must hold a built one.

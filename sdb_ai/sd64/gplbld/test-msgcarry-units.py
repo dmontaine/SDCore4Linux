@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-msgcarry-units.py - a program shipped in BOTH Linux products never cites a message number that means two things.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-msgcarry-units.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-msgcarry-units.py
     python3 .../test-msgcarry-units.py --selftest
     python3 .../test-msgcarry-units.py --core DIR --solo DIR      (two sdsys directories to read instead)
 
@@ -32,7 +32,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CORE = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
-SOLO = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
+SOLO = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 CITE = re.compile(r"sysmsg\(\s*(\d+)")
 ALLOWED = {
     # 23 Nov 26: the owner, '"String Database" should appear nowhere a user could see it' - 5163 names each product

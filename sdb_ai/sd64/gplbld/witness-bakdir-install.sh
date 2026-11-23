@@ -21,7 +21,7 @@
 # (run the installer first, as the owner, no sudo; it asks questions).  This script
 # does not install and does not uninstall.
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-bakdir-install.sh
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-bakdir-install.sh
 #
 # ***NEEDS sudo.***  Run it from the owner's login (SUDO_USER must name a person, not root).
 # It CHANGES REAL STATE and puts it back: /etc/sd.conf (backed up, restored byte for byte),

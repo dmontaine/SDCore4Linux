@@ -3,8 +3,8 @@
 # test-install-start.sh - where a session starts, chosen at install (owner, 3 Nov 2026: "Can that be a question asked during the install?", then "the
 # home/prompt question"): the installer's START-ASK and START-SET blocks and the deleter's START-SAVE block.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-start.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-start.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-start.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-start.sh --selftest
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd.  Everything happens in a scratch directory, where /home/sd is replaced by a scratch
 # folder.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a block or the installer's set / IFS line missing).

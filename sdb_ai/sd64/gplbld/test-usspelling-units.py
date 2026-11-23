@@ -2,7 +2,7 @@
 #
 # test-usspelling-units.py - what SD prints is in US spelling (S.186; the owner, 9 Nov 2026: "Everything SD prints").  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-usspelling-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-usspelling-units.py [--selftest]
 #
 # START-HISTORY:
 # 9 Nov 26 dm  New (S.186).  The US spelling sweep of 9 Nov changed SD's messages, help, program texts, C strings and the guide; this check keeps a

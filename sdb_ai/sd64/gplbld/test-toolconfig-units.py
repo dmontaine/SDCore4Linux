@@ -2,8 +2,8 @@
 """test-toolconfig-units.py - the configuration page, TOOL.CONFIG (`gpl.bp/tool_config`), and its table of parameters (`sdsys/config.table`), as invariants read off the source (S.75, administrator
 app A6, the view half and, since 26 Oct 26, the write half: the page's E key and the verb SET.CONFIG).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolconfig-units.py [--selftest]
-    SD_DOCS_CHECKOUT=/some/docs/clone python3 .../test-toolconfig-units.py     (the documentation repository to read; the default is /home/don/Projects/SDCore4LinuxDocs)
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolconfig-units.py [--selftest]
+    SD_DOCS_CHECKOUT=/some/docs/clone python3 .../test-toolconfig-units.py     (the documentation repository to read; the default is /home/don/SDCoreProject/SDCore4LinuxDocs)
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC and the table as text.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT THE PAGE SHOWS WHAT SD IS RUNNING WITH***: that is
 `sandbox-tool-config.py` (a private SD, a hand-made sd.conf, and what CONFIG() and the file say compared with the rows).  What a text check is for: (1) THE TABLE IS HELD TO THE C
@@ -27,7 +27,7 @@ SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 SRC = os.path.join(SD64, "gplsrc")
-DOCS07 = os.path.join(os.environ.get("SD_DOCS_CHECKOUT", "/home/don/Projects/SDCore4LinuxDocs"), "Administrator", "markdown", "07-sd-admin-configuration.md")
+DOCS07 = os.path.join(os.environ.get("SD_DOCS_CHECKOUT", "/home/don/SDCoreProject/SDCore4LinuxDocs"), "Administrator", "markdown", "07-sd-admin-configuration.md")
 DOCS07_PARTS = [os.path.join(os.path.dirname(DOCS07), n) for n in ("07a-sd-admin-configuration-changing-from-sd.md",
                                                                    "07b-sd-admin-configuration-api-printing-and-netfiles.md")]
 FILES = {

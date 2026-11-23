@@ -2,7 +2,7 @@
 #
 # sandbox-ipc.py - W.11 F10 (security-model evaluation, 24 Oct 2026): what a phantom takes from the file $ipc.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ipc.py <dir> [--build] [--mutants]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ipc.py <dir> [--build] [--mutants]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run.  --mutants then breaks the sandbox's OWN copy of CPROC, PHANTOM and !IPC_SEAL eight ways, one at a time, runs the rows

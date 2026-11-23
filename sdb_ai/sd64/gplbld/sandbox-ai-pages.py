@@ -3,7 +3,7 @@
 # sandbox-ai-pages.py - the AI line on a PAGE of the toolkit ($tk_aipage; S.97 stage 1), pilot pages tool.voc and tool.files, driven on a pseudo-terminal as an ORDINARY session on a private
 # SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-pages.py <dir> [--build] [--mutant=NAME | --only=off,on,more,admin]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ai-pages.py <dir> [--build] [--mutant=NAME | --only=off,on,more,admin]
 #   --only (22 Nov 26, testing rule 7): off is P0 and P7, on is P1 to P6 (one chain), more is P8, admin is P9; the build and the fixtures always run.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed,

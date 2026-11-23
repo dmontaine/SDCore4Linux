@@ -3,7 +3,7 @@
 # sandbox-shared.py - S.66, the shared account: a group account named shared whose files an account with the shared.read gate opens by
 #                     NAME (no LOGTO, no Q-pointer), through ORDINARY sessions on a private SD.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-shared.py <dir> [--build] [--sections=a,b]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-shared.py <dir> [--build] [--sections=a,b]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Sections: gates, lookup, rights, structure,

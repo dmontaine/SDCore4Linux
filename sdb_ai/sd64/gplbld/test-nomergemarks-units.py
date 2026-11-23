@@ -4,7 +4,7 @@
 # or followed by a space and a name).  2 Nov 2026: the shipped changelog carried a "<<<<<<< ours" line on Dev 1c127f7c - a conflict resolved by
 # hand lost its closing markers but kept its opening one, and no check read the file for it.  Free: no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-nomergemarks-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-nomergemarks-units.py [--selftest]
 #
 # What it reads: `git ls-files` of the repository (the real list, printed as a count), every text file of it (a file with a NUL byte is taken as
 # binary and skipped, and counted).  It refuses the null case: fewer than 1000 files read is "could not run" (exit 2).

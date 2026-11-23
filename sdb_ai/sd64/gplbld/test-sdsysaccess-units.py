@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-sdsysaccess-units.py - the sdsys user's write access to the user accounts, as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysaccess-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysaccess-units.py
   python3 .../test-sdsysaccess-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 2 Nov 26 (S.96 M6).

@@ -4,7 +4,7 @@
 # is kept; installsdcore.sh JOBS-RESTORE gives each saved definition to the helper's job-set again, as root with SUDO_USER taken out, and removes the copy.
 # No sudo, no systemd, no install.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-jobskeep.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-jobskeep.sh [--selftest]
 #
 # THE BLOCKS.  JOBS-SAVE is cut out of the remover with /etc/sdcore/jobs.d pointed at a scratch directory and run with `sudo` a function; JOBS-RESTORE's
 # function is cut out of the installer and run under its own `set -euo pipefail` and IFS with a STUB helper that records its arguments and whether it saw

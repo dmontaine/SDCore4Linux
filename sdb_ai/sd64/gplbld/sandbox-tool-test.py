@@ -2,7 +2,7 @@
 #
 # sandbox-tool-test.py - TOOL.TEST, the test runner of the account ($tool_test, S.75 DV7), driven on a PSEUDO-TERMINAL as ORDINARY sessions on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-test.py <dir> [--build] [--only=list,...,tab] [--mutants | --mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-test.py <dir> [--build] [--only=list,...,tab] [--mutants | --mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Without --build the page is copied
 # from the tree into the built sandbox and compiled there first.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  With --mutant=NAME (or --mutants for all of them) one

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolentries-units.py - TOOL.ENTRIES, the master files page (S.96 M1a-M2), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
   python3 .../test-toolentries-units.py --selftest
   python3 .../test-toolentries-units.py --selftest --from=86      (only the mutants from M_RELOG on: the relog state, 2 Nov 26)
   python3 .../test-toolentries-units.py --selftest --from=125     (only the mutants from M_FIELD1 on: field 1 on one record only, 3 Nov 26; T24b)

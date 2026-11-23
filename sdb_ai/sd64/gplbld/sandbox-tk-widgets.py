@@ -4,7 +4,7 @@
 # (the record picker) and $tk_form (the labelled form).  No install, no sudo.  WRITTEN BLIND (the owner's rule of 28 Oct 2026: no sandbox run until the one complete run); the first run is
 # the main session's, and a row that fails on it is as likely to be a wrong assumption of the row as a fault of the widget - read the probe's lines before believing either.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-widgets.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-widgets.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (SHORT path under /tmp).  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed,
 # 1 a row failed, 2 it could not run.  Remove the directory afterwards.

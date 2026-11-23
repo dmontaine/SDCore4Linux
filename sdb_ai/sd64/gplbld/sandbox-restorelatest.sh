@@ -4,7 +4,7 @@
 #                            from this tree (sandbox-fromtree.py --s50).  No sudo, no install,
 #                            never the live system.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-restorelatest.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-restorelatest.sh
 #
 # Exit 0 every check passed, 1 one failed, 2 it could not run.
 #

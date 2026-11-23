@@ -4,8 +4,8 @@
 # "chown -R sdsys:sdusers" made all of them the sdsys user's, so whoever held that login could have root run its code at the next start.  The installer's ROOTBIN
 # block makes bin root's (and immutable).  FREE CHECK: no install, no sudo, no sd; the sources are read as text.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-rootbin-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-rootbin-units.py --selftest      (mutants of the installer, the remover, the units, the helpers, the kernel and the Makefile)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-rootbin-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-rootbin-units.py --selftest      (mutants of the installer, the remover, the units, the helpers, the kernel and the Makefile)
 #
 # WHAT IT COMPUTES.  THE SET OF FILES ROOT RUNS OR LOADS FROM THE SYSTEM DIRECTORY is read from the sources, not listed here:
 #   units      every Exec* line (ExecStart, ExecStartPre, ExecStartPost, ExecStop, ExecStopPost, ExecReload, ExecCondition) of every .service and .socket in

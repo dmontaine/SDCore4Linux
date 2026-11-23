@@ -2,7 +2,7 @@
 #
 # sandbox-fromtree.py - a private SD built from THIS TREE, no install needed.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fromtree.py <dir> all [--s50]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fromtree.py <dir> all [--s50]
 #   python3 .../sandbox-fromtree.py <dir> start | stop
 #   python3 .../sandbox-fromtree.py <dir> sess <cwd> "<command>" ["<command>" ...]
 #
@@ -119,7 +119,7 @@ def run(env, cmd, cwd=None, timeout=900):
 #   What is copied is printed, so a log says what was under test.  NOT a Solo install: Solo's installer, its one-account register, its ADMIN and its user
 #   units are not here, so a row that tests a planned difference (Switch account, another account, the administrator as sdsys) fails for that reason and is
 #   read as such.
-SOLO_SD64 = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64"
+SOLO_SD64 = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64"
 SOLO_FULLSCREEN = ("ced_edit", "debug", "ide", "spview", "tk_aiwall", "tk_help", "tool_ai", "tool_backups", "tool_config", "tool_gates", "tool_home",
                    "tool_menus", "tool_remote", "tool_sessions")
 SOLO_CALLED = ("voc_refusal", "voc_guard", "viewlist", "pdf", "setviewer", "tool_viewers")
@@ -246,7 +246,7 @@ def main():
         #   (sandbox-qmclient, sandbox-apispin) load the clean-room one, copied here into the sandbox's bin under both names:
         #   SD_CLIENT_LIB names the .so, else the private SDClientLib build.  It is not on GitHub, so a clone may have none; the
         #   copy is then left out and those suites say CANNOT RUN (they test for the file); every other suite needs no client.
-        cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/Projects/SDClientLib/build/sdclilib.so"
+        cl = os.environ.get("SD_CLIENT_LIB") or "/home/don/SDCoreProject/SDClientLib/build/sdclilib.so"
         if os.path.isfile(cl):
             for nm in ("sdclilib.so", "libsdcli.so"):
                 shutil.copy2(cl, os.path.join(sysd, "bin", nm))

@@ -2,8 +2,8 @@
 #
 # test-install-shared.sh - the installer's two pieces for the shared account (S.66): shared_preflight and the creation block.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-shared.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-shared.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-shared.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-shared.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-shared.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd (bin/sd is a stub), no groupadd.  Everything happens in a scratch

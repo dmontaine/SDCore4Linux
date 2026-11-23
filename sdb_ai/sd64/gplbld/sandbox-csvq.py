@@ -3,7 +3,7 @@
 # sandbox-csvq.py - CSV and DELIMITER reports in the query processor: AS file id, and a multivalued item split over lines
 #                   (openQM 4 manual, CSV and DELIMITER; the owner's CSV query-processor task of 17 and 20 Oct 2026).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-csvq.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-csvq.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.

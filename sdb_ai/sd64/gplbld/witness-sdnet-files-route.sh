@@ -4,8 +4,8 @@
 #                                (K6b, 19 Oct 2026; the S.65 finish.  Ports the private steps w1-w9 and w21a-w21d of
 #                                .claude/vmtools/sdnet-witness-steps/round3, which ran on the Debian 13 Clone VM on 18 Oct, and adds what the S.65 finish changed.)
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-files-route.sh [--client ACCOUNT] [--remote NAME] [--port N]
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-files-route.sh --selftest        (no sudo, no sd: the helpers on known texts)
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-files-route.sh [--client ACCOUNT] [--remote NAME] [--port N]
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-files-route.sh --selftest        (no sudo, no sd: the helpers on known texts)
 #
 # ***NEEDS sudo.***  Run it from the owner's login (SUDO_USER must name a person, not root).  It CHANGES REAL STATE on the install and puts it back:
 #   * MAKES an SD account REMOTE (default zzwrem) with its Linux user, and DELETES them at the end (DELETE.ACCOUNT, then userdel -r and its home);

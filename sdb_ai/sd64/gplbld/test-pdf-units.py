@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-pdf-units.py - DOCS.INSTALL and the shared account's pdf directory (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.7), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdf-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pdf-units.py
   python3 .../test-pdf-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

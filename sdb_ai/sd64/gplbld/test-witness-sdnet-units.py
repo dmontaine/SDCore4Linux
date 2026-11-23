@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-witness-sdnet-units.py - are the SDNet witness scripts INSTRUMENTS?  (19 Oct 26, the S.65 finish.)
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-witness-sdnet-units.py            (the free check, about 25 s: static rows, the helpers' mutants, the write-group and groups scripts against their models)
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-witness-sdnet-units.py            (the free check, about 25 s: static rows, the helpers' mutants, the write-group and groups scripts against their models)
   python3 .../test-witness-sdnet-units.py --selftest      (the same, and the write-group and groups models broken one way at a time: about 100 s)
   python3 .../test-witness-sdnet-units.py --full          (also files-route, gaps and the two-machines roles against their models, each broken one way at a time: about 12 minutes before S.72; since then files-route has 26 mutants, 33 since S.72b, run 13 at a time)
   python3 .../test-witness-sdnet-units.py --only=files-route [--selftest]     (one model: writegroup, groups, files-route, gaps or two-machines; --only may be given more than once)
@@ -1466,7 +1466,7 @@ def static_checks():
     for f in SCRIPTS:
         text = read(os.path.join(HERE, f)).decode("utf-8")
         check("S3 %s says ***NEEDS sudo*** and names its command with an absolute path" % f,
-              "***NEEDS sudo" in text and "/home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/%s" % f in text, "header")
+              "***NEEDS sudo" in text and "/home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/%s" % f in text, "header")
         check("S3 %s sources the library and runs --selftest before anything else" % f,
               '--selftest' in text and 'wl_selftest' in text and 'wl_logged' in text and text.index("wl_selftest") < text.index("wl_logged"), "order")
         r = sh(["bash", os.path.join(HERE, f), "--selftest"], timeout=120)

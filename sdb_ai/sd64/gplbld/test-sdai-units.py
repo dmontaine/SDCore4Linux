@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-sdai-units.py - the OS user sdai, which the installer makes and the uninstaller removes (AI integration slice 1, 21 Oct 2026).
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdai-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdai-units.py
   python3 .../test-sdai-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

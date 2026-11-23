@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-gates-units.py - the per-account OS-access gates (S.63), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-gates-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-gates-units.py
   python3 .../test-gates-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 13 Oct 26.  28 Oct 26: B28 pins SED's PATH: (one open, no upcase retry), two mutants.
@@ -33,7 +33,7 @@ SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 GPLSRC = os.path.join(SD64, "gplsrc")
 ROOT = os.path.dirname(os.path.dirname(SD64))
-WINMSG = "/home/don/Projects/SDCore4Windows/sdb_ai/sd64/sdsys/messages"
+WINMSG = "/home/don/SDCoreProject/SDCore4Windows/sdb_ai/sd64/sdsys/messages"
 
 FILES = {
     "op_sh.c": os.path.join(GPLSRC, "op_sh.c"),

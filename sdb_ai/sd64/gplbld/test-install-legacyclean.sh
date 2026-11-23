@@ -5,8 +5,8 @@
 # after ssh-forcecommand --clean-legacy has taken the PAM lines out (a PAM line naming a missing module would fail a login), nothing else under those directories is touched, an empty
 # directory the files leave behind is removed, and the install goes on whatever happens.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-legacyclean.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-legacyclean.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-legacyclean.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-legacyclean.sh --selftest
 #   INSTALLER=<copy> bash .../test-install-legacyclean.sh                       (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo, no root.  The block is cut out between its markers, every absolute path in it is pointed at a scratch tree, and it runs under the installer's own

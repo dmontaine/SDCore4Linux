@@ -9,8 +9,8 @@
 #   A   apisrvr's remote door is still entered only when not(api.peer.local), so an own-address peer goes to the local door
 # FREE CHECK: needs a C compiler (exit 2 without one).  It cannot say a real tunnel is refused: that is a VM row.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ownaddr-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-ownaddr-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ownaddr-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-ownaddr-units.py --selftest
 import os
 import re
 import shutil

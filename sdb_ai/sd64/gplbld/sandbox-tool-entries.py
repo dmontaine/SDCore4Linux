@@ -3,7 +3,7 @@
 # sandbox-tool-entries.py - the master files page (S.96 M1a-M2): TOOL.ENTRIES, the VOC entries, dictionary items and programs of every account by pointer, read only until E10 (E and N edit
 # the record in its own account).  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read,edit,delete,programs,debug,global] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read,edit,delete,programs,debug,global] [--mutant=NAME]
 #
 # --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): `read` is E0-E9 (one chain on one page), `edit` is E10 (a page of its own; it changes the
 # fixture accounts' files, so it runs after `read` when both run), `delete` is E11 (a page of its own, its own records, after `edit`).  The build and the fixtures always run.  A mutant runs only its own group.

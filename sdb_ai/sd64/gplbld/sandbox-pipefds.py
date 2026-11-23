@@ -4,7 +4,7 @@
 # a phantom - gives back a PIPE it was handed on fds 0-2, so a caller that captures "sd -start" or a session through a pipe sees end of file.
 # A file and a terminal are kept.  No install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pipefds.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pipefds.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row
 # passed, 1 a row failed, 2 it could not run (including the null cases: no sdlnxd after a start, no phantom alive while the reader waits).

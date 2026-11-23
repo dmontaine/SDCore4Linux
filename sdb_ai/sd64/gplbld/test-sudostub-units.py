@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-sudostub-units.py - the sandbox harness keeps the HOST'S sudo out of every sandbox session (S.85, 28 Oct 2026), read off the harness as text.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sudostub-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sudostub-units.py [--selftest]
 
 THE DEFECT.  On a host with a real SD install, gpl.bp/remoteapi, remotessh, settings_os (accos.h), acc_os_bakdir and acc_archive run `sudo /usr/local/sbin/sd-elevate ...`; a sandbox page
 reached the REAL helper and sudo-rs asked the sandbox user for a password, so tool-remote and docs could not draw and tool-config and tool-backups failed 4 and 6 rows (26 Oct 2026).

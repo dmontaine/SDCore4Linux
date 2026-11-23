@@ -7,8 +7,8 @@
 #   deletesdcore.sh  API-SAVE    the note written when the configuration is kept and the API listens for other computers; REMOTE.API's drop-in
 #                                removed when the configuration is deleted
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-keepaccess.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-keepaccess.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-keepaccess.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-keepaccess.sh --selftest
 #   INSTALLER=<copy> DELETER=<copy> bash .../test-install-keepaccess.sh      (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function), no systemd (systemctl a stub printing a given Listen).  /home/sd/ and /etc/systemd/system/ in a block

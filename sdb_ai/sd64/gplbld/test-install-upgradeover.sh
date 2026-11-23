@@ -5,7 +5,7 @@
 # the accounts and the configuration (go on, keep accounts, keep configuration, do not restart), and any failure stops the install in words.
 # No install, no sudo, no sd.  Exit 0 every row held, 1 one did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-upgradeover.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-upgradeover.sh [--selftest]
 #
 # THE BLOCK.  installsdcore.sh keeps the function between "# UPGRADE-OVER-BEGIN" and "# UPGRADE-OVER-END".  This cuts it out and runs it under the installer's own
 # `set -euo pipefail` and IFS with a STUB uninstaller that records what it was given on standard input and its arguments.  The wiring (the flag, the call after the

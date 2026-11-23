@@ -3,7 +3,7 @@
 # sandbox-nocase.py - no two record ids can differ only by case.  RELEASE_1.1 5 D2 (PAL-1), the Linux
 # form of the Windows port's verify-twins.ps1.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-nocase.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-nocase.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a private SD built from a tree, no sudo, its own IPC
 # keys: never the live system).  With --build the sandbox is built first from THIS tree; <dir> must
@@ -48,7 +48,7 @@ passed = failed = 0
 # sandbox.  The kernel is the full product's, the same C for everything these rows measure (op_create_dh); Solo
 # has no sandbox tool of its own (LSOLO 40).  The rows are unchanged.
 SOLO = "--solo" in sys.argv
-SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
+SOLO_SDSYS = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 
 
 def say(s=""):

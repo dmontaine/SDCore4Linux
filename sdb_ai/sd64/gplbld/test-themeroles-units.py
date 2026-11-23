@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # test-themeroles-units.py - S.88 3.7a (29 Oct 2026): the role styles, the theme list and the delivered SCREENTHEME.  FREE CHECK, text only (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py --selftest      (mutants)
 #
 #   R1  SL.CODES: 52 different letters, the five roles UVWXY and hotkey.sel (Z) after the scroll bar (B) and before the sixteen user styles; the old list is nowhere in gpl.bp
 #   R2  $sl_theme names the styles in the order of the codes: the roles are warning success readonly busy focus, error is code f, the user styles still come last

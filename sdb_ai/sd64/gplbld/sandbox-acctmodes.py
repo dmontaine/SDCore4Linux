@@ -2,7 +2,7 @@
 #
 # sandbox-acctmodes.py - S.96 M6: the modes the kernel gives a NEW VOC or dictionary in a registered account (dh_creat.c acct_group_modes).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-acctmodes.py <dir> [--build] [--only=SECTIONS] [--mutant=NAME]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-acctmodes.py <dir> [--build] [--only=SECTIONS] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a SHORT path under /tmp).  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row
 # that was asked passed, 1 a row failed, 2 it could not run - and 2 when NO row was asked (every one SKIPPED): a run that measured nothing is not a pass.  The script stops

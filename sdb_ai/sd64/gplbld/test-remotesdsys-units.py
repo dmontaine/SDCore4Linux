@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-remotesdsys-units.py - the REMOTE.SDSYS verb (`gpl.bp/remotesdsys`, S.95 stage 1b, rewritten for S.106) as invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-remotesdsys-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-remotesdsys-units.py [--selftest]
 
 2 Nov 26 dm S.106 (owner: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release"): the verb is ON | OFF and runs
 only `sudo -n /usr/local/sbin/sd-elevate sdsys-ssh`; everything that handled a secret, a code or a recovery code (the COMO refusal, the private directory, the code file, the screen clearing,

@@ -2,7 +2,7 @@
 #
 # sandbox-tk-phase0.py - Phase 0 MEASUREMENTS P3, P4 and P7 of the full-screen toolkit plan (.claude/plan-fullscreen-toolkit.md, section 3).  No install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-phase0.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-phase0.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every probe ran and printed its
 # numbers, 1 a probe did not, 2 it could not run.  THESE ARE MEASUREMENTS, NOT TESTS: no row passes or fails on a number; a probe fails only when it did not reach

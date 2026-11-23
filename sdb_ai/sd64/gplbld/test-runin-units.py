@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-runin-units.py - RUN.IN, the administrator's account-scoped run, as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-runin-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-runin-units.py
   python3 .../test-runin-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.  Written 3 Nov 26 for S.96 (owner, 2 Nov 2026: mechanism C, reserved for
@@ -38,7 +38,7 @@ CPROC = os.path.join(SD64, "sdsys", "gpl.bp", "cproc")
 VOCREC = os.path.join(SD64, "sdsys", "voc_template", "run.in")
 NEWVOC = os.path.join(SD64, "sdsys", "newvoc")
 MESSAGES = os.path.join(SD64, "sdsys", "messages")
-SOLO_MESSAGES = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys/messages"
+SOLO_MESSAGES = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/sdsys/messages"
 REGRESS = os.path.join(HERE, "regress.sh")
 RMAP = os.path.join(HERE, "regress-map.txt")
 

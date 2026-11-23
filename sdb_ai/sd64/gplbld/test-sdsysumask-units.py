@@ -9,8 +9,8 @@
 #   A1  createa keeps the session's umask before !create_account (which sets 002) and gives it back right after
 # FREE CHECK: the BASIC read as text; no install, no sd.  It cannot say a file is made 644 in SDSYS: that is verify-sysperms.py S1 on a real install.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysumask-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysumask-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysumask-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysumask-units.py --selftest
 import os
 import re
 import sys

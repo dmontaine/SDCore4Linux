@@ -3,7 +3,7 @@
 # test-aihelper.py - the in-SD model helper `sd-ai` RUN against the fake provider (S.69 step 2, plan .claude/plan-ai-step2.md, group A).
 # No sd, no sudo, no install, no network but the loopback; needs the openssl command line (throw-away certificates).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aihelper.py [--helper FILE] [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-aihelper.py [--helper FILE] [--selftest]
 #
 # The helper's handler is called in this process on a Unix socketpair, so its caller's uid really comes from SO_PEERCRED, against gplbld/fakemodel.py
 # (TLS, the two wire formats, every failure the plan lists).  The gate group is the test's own primary group for the rows that need a member, and a

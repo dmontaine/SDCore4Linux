@@ -3,7 +3,7 @@
 # sandbox-qm4def.py - two defects the QM4 evaluation noticed (18 Oct 2026), each REPRODUCED in a sandbox before it was fixed, through ORDINARY sessions
 #                     on a private SD.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-qm4def.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-qm4def.py <dir> [--build]
 #
 #   1. A user conversion code ("U" and a name) in OCONV / ICONV called the catalogued subroutine of that name through _oconv / _iconv, which are
 #      $internal: a name beginning with $ (a program only internal code may CALL) was reached by an ordinary program.

@@ -3,7 +3,7 @@
 # sandbox-tk-layout.py - the toolkit's layout service (S.88 L1, `gpl.bp/tk_layout`), the resize a dialogue read (R-a), the cursor lock decided by the window (R-b) and the
 # frame cache's epoch (F1), driven on a PSEUDO-TERMINAL through four fixture programs of the sandbox's own.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-layout.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-layout.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT, under /tmp).  Exit 0 no row
 # failed, 1 a row failed, 2 it could not run.

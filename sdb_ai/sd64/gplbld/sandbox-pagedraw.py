@@ -3,7 +3,7 @@
 # sandbox-pagedraw.py - what a full-screen page of the toolkit WRITES to the terminal for each action, and that what the terminal then shows is what a full repaint
 #                       would show (S.113, owner 3 Nov 2026: "All pages").  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pagedraw.py <dir> [--build] [--only=files,query,home,admin,user] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pagedraw.py <dir> [--build] [--only=files,query,home,admin,user] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Without --build <dir> must already be
 # built, which is how the suite is run against the tree BEFORE the change to show that its rows can fail.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  With --mutant=NAME

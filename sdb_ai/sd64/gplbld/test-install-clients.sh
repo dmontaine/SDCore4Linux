@@ -3,8 +3,8 @@
 # test-install-clients.sh - the installer's block that puts the clean-room client library from the release package into bin (S.262, 19 Nov 2026:
 # the source builds no client library any more; the one SD ships is the clean-room one, binaries only, in the package's clients folder).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-clients.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-clients.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-clients.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-clients.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-clients.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd.  Everything happens in a scratch directory.  Exit 0 every row passed, 1 a row failed,

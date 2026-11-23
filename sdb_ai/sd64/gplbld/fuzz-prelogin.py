@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # fuzz-prelogin.py - a ONE-OFF fuzz of the API server's packet parser before any login (W.11 F5, Opus's decision 1a of 30 Oct 2026: "the fuzz is the cheap evidence").
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/fuzz-prelogin.py <sandbox dir> [--n 1500] [--seed 20261030]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/fuzz-prelogin.py <sandbox dir> [--n 1500] [--seed 20261030]
 #
 # NO sudo, NO install: the sandbox is one built by `sandbox-fromtree.py <dir> all` and running (this tool starts it if it is stopped; SDBOX_KEYSET as for every suite).  It is not a regression
 # suite and is not in regress.sh: run it by hand when the packet reader (apisrvr, the request loop, the client library's wire format) changes.

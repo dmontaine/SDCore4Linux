@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """verify-auditwords.py - every EVENT WORD this install wrote to its audit file is lower case.
 
-    sudo python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py --selftest
+    sudo python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py --selftest
     sudo python3 .../verify-auditwords.py --since '2026-10-08 15:06:45'     (judge from this moment on)
     sudo python3 .../verify-auditwords.py --all                              (judge the whole file)
     sudo python3 .../verify-auditwords.py --file /usr/local/sdsys/audit.1    (a rotated file)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-fileswrite-units.py - the server-side WRITE GROUP of the files-only (SDNet) login, S.65, as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-fileswrite-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-fileswrite-units.py
   python3 .../test-fileswrite-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.

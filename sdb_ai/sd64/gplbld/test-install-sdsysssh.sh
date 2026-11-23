@@ -6,8 +6,8 @@
 # installsdcore.sh: SDSYS-SSH-STATE (the state read back from the helper) and SDSYS-SSH-SUMMARY (the closing line, with the sudo command a server with no screen
 # can use - the reason for the 7 Nov question, kept).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysssh.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysssh.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysssh.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysssh.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-sdsysssh.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function here), no sshd (ssh-forcecommand is a stub that logs its arguments; the state it prints is given per row).

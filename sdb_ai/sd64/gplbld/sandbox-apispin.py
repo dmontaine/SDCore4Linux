@@ -3,7 +3,7 @@
 # sandbox-apispin.py - S.71, 20 Oct 26: an API client that closes its connection (or declares a packet it will never send) must not
 #                      leave the server process running at 100% of a processor.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-apispin.py <dir> [--build] [--only=A,B,C,K,D,E] [--mutants]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-apispin.py <dir> [--build] [--only=A,B,C,K,D,E] [--mutants]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.  --only runs the parts named.  --mutants adds part M, which takes one

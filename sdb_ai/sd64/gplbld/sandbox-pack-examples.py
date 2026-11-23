@@ -2,7 +2,7 @@
 #
 # sandbox-pack-examples.py - the generated knowledge pack (agent-pack/pack) against a RUNNING SD.  S.69 row 1b.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pack-examples.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-pack-examples.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (needs a `make`d bin/sd).  With --build it is built first from THIS tree (it must be
 # empty or absent).  SDBOX_KEYSET=n picks the keys.  Exit 0 every row passed, 1 one failed, 2 it could not run.  Stop the sandbox with

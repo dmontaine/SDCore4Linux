@@ -3,7 +3,7 @@
 # sandbox-l2-home.py - the home screen on the toolkit's layout service (S.88 L2, ~/Documents/Audits/TUI/Opus_TUI_Plan.txt section 12): the same page at 140 by 43, a tile grid
 # that spreads at 180 by 55 and 200 by 60, grown and shrunk, on a PSEUDO-TERMINAL.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-home.py <dir> [--build]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-home.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT, under /tmp).  Exit 0 no row
 # failed, 1 a row failed, 2 it could not run.

@@ -3,8 +3,8 @@
 # sdlnxd is run by sd-lnxd.service, which systemd starts again when it fails; "sd -start -nodaemon" (what sd.service runs) leaves the fork of the daemon to that unit.
 # FREE CHECK, text only (comments removed), no install, no sudo, no systemd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-lnxdunit-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-lnxdunit-units.py --selftest         (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-lnxdunit-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-lnxdunit-units.py --selftest         (mutants)
 #
 #   U  sd-lnxd.service: Type=simple, the daemon with no arguments, Restart=on-failure (NEVER always: "sd -stop" ends the daemon with SIGTERM and it exits 0), a pause, a
 #      start limit, UMask=0022, After= and BindsTo= sd.service, no [Install] section.  sd.service: "sd -start -nodaemon", still oneshot, wants sd-lnxd.service, stops with sd -stop

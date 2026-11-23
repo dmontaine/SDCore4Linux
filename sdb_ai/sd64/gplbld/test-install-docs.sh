@@ -3,8 +3,8 @@
 # test-install-docs.sh - the installer's block that sets up the shared account's documentation (S.75, plan .claude/plan-fullscreen-toolkit.md sections 14.5
 # to 14.7: the file context.help and the pdf directory), and since S.187 its removal of the old list of PDF readers.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-docs.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-docs.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-docs.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-docs.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-docs.sh      (what --selftest uses)
 #
 # START-HISTORY:

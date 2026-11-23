@@ -3,7 +3,7 @@
 # probe-hotkey.py - S.84: how much does ONE online write cost when the index key it touches already holds many ids?  A MEASUREMENT, not a test: it changes no program,
 # prints a table and exits 0 (2 when it cannot run).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/probe-hotkey.py <dir> [--build] [--sizes=10000,50000,100000] [--control=100000]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/probe-hotkey.py <dir> [--build] [--sizes=10000,50000,100000] [--control=100000]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (it must be empty or absent with --build).  Run it with SDBOX_KEYSET=n set, as the suites are.
 #

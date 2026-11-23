@@ -3,7 +3,7 @@
 # fakemodel.py - a fake AI provider for the tests of sd-ai (S.69 step 2, plan .claude/plan-ai-step2.md, group A).  No sd, no sudo, no network but the
 # loopback; the openssl command line makes the throw-away certificates.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/fakemodel.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/fakemodel.py --selftest
 #
 # It is a TLS server on 127.0.0.1 speaking the two wire formats sd-ai speaks, by the path it is asked at:
 #   /v1/messages              the Anthropic Messages API       (header x-api-key, anthropic-version)

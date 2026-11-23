@@ -3,7 +3,7 @@
 # sandbox-auditwriter.py - W.11 F4, option C1 (24 Oct 2026, the owner: "b then c"): the audit trail's writer.  A session hands each audit record to the daemon over a Unix
 #                          datagram socket and the daemon stamps the user and the pid from the credentials the kernel attaches.  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=<n> python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-auditwriter.py <dir> [--build]
+#   SDBOX_KEYSET=<n> python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-auditwriter.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed,
 # 2 it could not run (the daemon did not start, the socket never appeared, the audited event never reached the file).

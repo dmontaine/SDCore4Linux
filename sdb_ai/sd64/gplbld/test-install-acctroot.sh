@@ -4,8 +4,8 @@
 # /home/sd/group_accounts mode 755 (sdsys:sdusers), not 775.  With the group able to write there, any SD user could rename another account's
 # directory and put one of their own under the same name.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-acctroot.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-acctroot.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-acctroot.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-acctroot.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-acctroot.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here), no install, no real chown (a stub logs what it was asked).  Exit 0 every row passed, 1 a row failed,

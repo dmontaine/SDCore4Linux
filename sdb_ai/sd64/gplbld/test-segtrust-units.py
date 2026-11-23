@@ -2,8 +2,8 @@
 # test-segtrust-units.py - W.11 F9 (security-model evaluation, 24 Oct 2026): what a process TRUSTS is not read from the shared segment.  FREE CHECK, text
 # only (comments removed), no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-segtrust-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-segtrust-units.py --selftest      (mutants)
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-segtrust-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-segtrust-units.py --selftest      (mutants)
 #
 # The segment is 0660 sdusers (F1), and every SD user with an operating-system shell is in sdusers, so whatever other processes TAKE from the segment
 # is something such a user can write.  Four things were taken from it (plan: .claude/plan-f9-segment-trust.md):

@@ -2,8 +2,8 @@
 # test-clientunit-units.py - the per-connection server's unit, usr/lib/systemd/system/sdclient@.service, holds the SAFE hardening set and nothing that would stop a session working
 # (W.11 F5, Opus's decision 1b, 30 Oct 2026), read off the file as text.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientunit-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientunit-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientunit-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-clientunit-units.py --selftest
 #
 # FREE CHECK: no install, no sudo, no systemd.  WHY IT EXISTS.  The server runs as root until a session has logged in and dropped to its user, and a session may run `sudo sd-elevate`, write the
 # system directory under /usr/local and an account under /home/sd.  So the unit may narrow what the pre-login reader can reach (kernel tunables, modules and log, the control groups, the clock, the

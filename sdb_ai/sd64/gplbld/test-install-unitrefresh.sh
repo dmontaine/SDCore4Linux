@@ -3,8 +3,8 @@
 # test-install-unitrefresh.sh - the installer's UNITREFRESH block (3 Nov 2026): on an upgrade, which keeps the units it has, the three units SD owns whole
 # (sd.service, sd-lnxd.service, sdclient@.service) are put in place when they differ from this release's; sdclient.socket, which the installer edits in place, is not.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-unitrefresh.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-unitrefresh.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-unitrefresh.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-unitrefresh.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-unitrefresh.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function here), no root, no systemd (a function here).  Exit 0 every row passed, 1 a row failed, 2 it could not run.

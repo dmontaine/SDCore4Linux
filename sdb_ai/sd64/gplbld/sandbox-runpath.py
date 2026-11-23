@@ -3,7 +3,7 @@
 # sandbox-runpath.py - S.48: RUN of a runfile path over 128 characters, RUN
 #                      rather than compiled, in a private sandbox SD.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-runpath.py --dir <empty scratch dir>
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-runpath.py --dir <empty scratch dir>
 #   python3 .../sandbox-runpath.py --dir <dir> --keep      leave the sandbox built
 #
 # NO SUDO, AND NEVER THE LIVE SYSTEM.  Exit 0 every row passed on the new

@@ -2,8 +2,8 @@
 #
 # test-install-restart.sh - installsdcore.sh's LAST STEP leaves SD running (S.58 (2), owner 7 Oct 2026).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restart.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restart.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restart.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restart.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-restart.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd, no systemd.  Exit 0 every row passed, 1 a row failed, 2 it could

@@ -8,8 +8,8 @@
 # other group account.  FREE CHECK: the two sources read as text (the helper's behaviour is test-accelevate-units.py's rows); no install, no sd.  The VM row is
 # `RESTORE.ACCOUNT LATEST shared` and `stat` of the directory.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-restoreshared-units.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-restoreshared-units.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-restoreshared-units.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-restoreshared-units.py --selftest
 #
 #   P1  !acc_os_place sets the group sent to the helper to sdusers for the account called shared whose owner is sdsys, after the register group has chosen the owner and before the
 #       quote test and the call, and only there

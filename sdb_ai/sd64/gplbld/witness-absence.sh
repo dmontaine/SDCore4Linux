@@ -8,15 +8,15 @@
 #                      verify-tier-layer.*, which measured the machinery that
 #                      no longer exists.
 #
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 #
 # ON A MACHINE WHERE ROOT CANNOT SET A LOGINUID (a container; S.197), the bridge below cannot make a sdsys login, so the administrator is
 # reached by a real ssh login as sdsys instead.  That needs remote.sdsys on and the password in a file only root can read:
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit --sdsys-password-file /path/to/file
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit --sdsys-password-file /path/to/file
 #
 # With neither route the run stops, exit 2, and says so; it does not report the rows as failures of the product.
 #

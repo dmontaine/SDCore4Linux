@@ -3,7 +3,7 @@
 # sandbox-home.py - the home screen and where an account starts (S.75, plan .claude/plan-fullscreen-toolkit.md section 13: H1 the screen, H2 the start), on a pseudo-terminal.
 # No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9,leave,cut]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9,leave,cut]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could
 # not run.  ORDINARY sessions are `sd -a<account>` in a fixture account, made with sandbox-gates.py's own functions (the suite stops with exit 2 if its first ordinary session is

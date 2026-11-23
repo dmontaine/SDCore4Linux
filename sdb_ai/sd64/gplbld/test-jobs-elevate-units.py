@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test-jobs-elevate-units.py - sd-elevate's job-set, job-delete and job-list (S.102 stage 2): the DEFINITIONS of the administrator's scheduled jobs, in /etc/sdcore/jobs.d.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobs-elevate-units.py
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobs-elevate-units.py --selftest
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobs-elevate-units.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobs-elevate-units.py --selftest
 
 No sudo, no install, no sd.  It CUTS the functions between "# BEGIN jobs_functions" and "# END jobs_functions" out of sd-elevate and runs them with bash on scratch directories, as
 test-confset-elevate-units.py does for conf-set (the worker's Python is taken out of the same block, so what runs is the shipped text), and it drives the real script with --dry-run for

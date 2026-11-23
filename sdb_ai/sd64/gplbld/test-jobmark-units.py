@@ -4,7 +4,7 @@
 # writes it, a definitions directory and its parent, a definition.  The owner the driver asks for is the test's own uid (the kernel asks for root's).
 # Then the source rules a black box cannot see: the kernel passes its own single_command and owner 0, CPROC's arm, and audit_message's job= suffix.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobmark-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-jobmark-units.py [--selftest]
 #
 # WHAT THIS CANNOT SHOW (the VM witness's): that systemd really puts a job's process in that cgroup and nobody else can (measured 2 Nov 26 on Debian 13 by
 # .claude/vmtools/probe-s102-unit.py and probe-s102-sudo.py), a root-owned definition, and a real job's run.  Exit 0 every row passed (or every mutant

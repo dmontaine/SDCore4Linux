@@ -2,11 +2,11 @@
 #
 # witness-sdnet-two-machines.sh - SDNet between TWO real machines.  (K6e, 19 Oct 2026; the S.65 finish.)  Run it on both: the server first, then the client, then the server again.
 #
-#   SERVER   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-setup [--account NAME] [--port N]
-#   CLIENT   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role client --host ADDRESS --server-hash HEX64 [--server-epoch N] [--pwfile FILE] [--account NAME] [--port N] [--client ACCOUNT]
-#   SERVER   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-check
-#   SERVER   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-teardown
-#   either   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --selftest        (no sudo, no sd: the helpers on known texts)
+#   SERVER   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-setup [--account NAME] [--port N]
+#   CLIENT   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role client --host ADDRESS --server-hash HEX64 [--server-epoch N] [--pwfile FILE] [--account NAME] [--port N] [--client ACCOUNT]
+#   SERVER   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-check
+#   SERVER   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --role server-teardown
+#   either   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-two-machines.sh --selftest        (no sudo, no sd: the helpers on known texts)
 # (On the second machine the path is wherever that machine's checkout is; the script names itself by absolute path in every command it prints, so copy those.)
 #
 # ***NEEDS sudo*** on both machines, from the owner's login (SUDO_USER must name a person).  BOTH machines need a full SD Core for Linux install of the CURRENT build (the plan's

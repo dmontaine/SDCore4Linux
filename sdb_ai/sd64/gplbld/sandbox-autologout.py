@@ -3,7 +3,7 @@
 # sandbox-autologout.py - AUTOLOGOUT ends a session that waits with timeouts, and real input keeps it (S.88 phase 2, S3 of ~/Documents/Audits/TUI/Opus_TUI_Plan.txt).
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-autologout.py <dir> [--build] [--strict]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-autologout.py <dir> [--build] [--strict]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row that counts
 # passed, 1 a row failed, 2 it could not run.  --strict counts a row of a phase that has not landed as FAILED (tuirows.py); that is how the red run on the tree before is made.

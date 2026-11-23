@@ -35,7 +35,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TREE = os.path.dirname(HERE)
-DEFAULT_DOCS = "/home/don/Projects/SDCore4LinuxDocs"
+DEFAULT_DOCS = "/home/don/SDCoreProject/SDCore4LinuxDocs"
 DEFAULT_OUT = os.path.join(HERE, "pack")
 PACK_FORMAT = 1
 TIERS = ("core", "reference", "examples")

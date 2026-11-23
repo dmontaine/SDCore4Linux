@@ -5,8 +5,8 @@
 # took the sdsys user OUT of the groups; the owner reversed it: "sdsys always read/write access to the /home/sd tree".  Its rows are gone with it.  Before that it held the walk
 # join_sdsys_groups of 19 Oct, which is what this default is, minus the question and with the marker.)
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-sdsysgroups.sh        (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd-elevate (a stub script), no groups made or changed, no root.  Everything happens in a scratch

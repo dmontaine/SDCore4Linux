@@ -3,8 +3,8 @@
 # test-install-routereset.sh - an install that finds no kept SD data empties the route groups (S.310, owner 22 Nov 2026, Windows row 393:
 #                              "Yes, reset them, and tell linux").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-routereset.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-routereset.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-routereset.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-routereset.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-routereset.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a missing block is exit 2).

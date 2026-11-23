@@ -2,7 +2,7 @@
 #
 # sandbox-witness-programs.py - do the SD BASIC programs the SDNet witness scripts write into an account COMPILE?  (19 Oct 26, the S.65 finish.)
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-witness-programs.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-witness-programs.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a private SD built from a tree: no sudo, its own IPC keys, never the live system).  With --build the sandbox is built
 # first from THIS tree and <dir> must be empty or absent.  Exit 0 every row passed, 1 a row failed, 2 it could not run.

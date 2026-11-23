@@ -17,8 +17,8 @@ import re
 import shutil
 import subprocess
 
-SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
-SOLO_GPLBLD = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/gplbld"
+SOLO_SDSYS = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
+SOLO_GPLBLD = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/gplbld"
 
 
 def swap(box, programs=(), messages=(), dictdir=False):

@@ -4,8 +4,8 @@
 # existing sdsys user out of the group of every kept group account (sdg_shared, sdg_<name>) and out of every sdu_ group the up-front question had been told to keep.  FREE CHECK: the
 # installer read as text; no install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysappend.py
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysappend.py --selftest
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysappend.py
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysappend.py --selftest
 #
 #   A1  the installer's one command that sets the sdsys user's groups is `sudo usermod -g sdusers -a -G sdusers sdsys`, once
 #   A2  no `usermod` of the installer names sdsys with -G and without -a (nor a `gpasswd -M` that names members, `usermod -G` in any shape that

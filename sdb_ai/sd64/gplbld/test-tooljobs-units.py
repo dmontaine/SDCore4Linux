@@ -2,8 +2,8 @@
 """test-tooljobs-units.py - the scheduled jobs page's administrator half (S.102 stage 4): TOOL.JOBS's Jobs view (`gpl.bp/tool_jobs`) and its verb SET.JOB (`gpl.bp/set_job`), as
 invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tooljobs-units.py
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tooljobs-units.py --selftest [--from=N]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tooljobs-units.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tooljobs-units.py --selftest [--from=N]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the BASIC as text, with comments and (where it says so) quoted strings removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A JOB IS
 SCHEDULED OR THAT THE PAGE SENDS WHAT IT SHOWS***: that is `sandbox-tool-jobs.py --only=admin` (the real set.job against the real sd-elevate's dry run through a shim) and, for root really

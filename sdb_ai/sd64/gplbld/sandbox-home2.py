@@ -3,7 +3,7 @@
 # sandbox-home2.py - the home screen's leftovers (S.75, "home" sitting of 26 Oct 26): SUB-MENUS with a Back tile, the RECENT group, create.account taking the start and pins words, and the
 # standard tile ids - on a pseudo-terminal.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home2.py <dir> [--build] [--only=C,D,B,A] [--mutant=NAME|all]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home2.py <dir> [--build] [--only=C,D,B,A] [--mutant=NAME|all]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row failed, 2
 # it could not run.  It uses sandbox-home.py's setup (the same fixture accounts, ordinary sessions through sandbox-gates.py, the sandbox starting at the terminal) and its session class.

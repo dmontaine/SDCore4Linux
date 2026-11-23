@@ -3,8 +3,8 @@
 # witness-sdnet-writegroup.sh - what only a root run on a real install shows about MODIFY.ACCOUNT files-on / files-off / files-write-on / files-write-off, and the ORPHAN
 #                               (K4b, 19 Oct 2026; the S.65 finish).
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-writegroup.sh [--account NAME]
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-writegroup.sh --selftest        (no sudo, no sd: the helpers on known texts)
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-writegroup.sh [--account NAME]
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-writegroup.sh --selftest        (no sudo, no sd: the helpers on known texts)
 #
 # ***NEEDS sudo.***  Run it from the owner's login (SUDO_USER must name a person, not root).  It CHANGES REAL STATE and puts it back: the membership of ONE person in the two
 # Linux groups sdfiles and sdfileswrite.  The person is the Linux user of the SD account NAME (default: the account that has SUDO_USER's own name); their membership is read first

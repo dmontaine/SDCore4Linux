@@ -4,7 +4,7 @@
 #                  release notes give none (owner: "implement the functionality as much as possible - the method or
 #                  syntax can be different than in openQM").  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-oq2.py <dir> [--build] [--only=items,verbs,capture]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-oq2.py <dir> [--build] [--only=items,verbs,capture]
 #
 # SECTIONS (--only=, 2 Nov 26): items (the CASES programs), verbs (the commands and subroutines), capture (EXECUTE / OS.EXECUTE ... CAPTURING, op_capture()).  Without
 # --only all three run.

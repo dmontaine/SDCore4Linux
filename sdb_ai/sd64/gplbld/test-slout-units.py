@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-slout-units.py - the output pane widget $sl_out (S.88 phase 3.10, widget A), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-slout-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-slout-units.py
   python3 .../test-slout-units.py --selftest
 
 No sudo, no install, no sd, no compiler.  Exit 0 every check passed, 1 a check failed, 2 it could not run.

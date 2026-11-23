@@ -3,7 +3,7 @@
 # sandbox-tool-gates.py - the gate matrix, TOOL.GATES, driven on a PSEUDO-TERMINAL on a private SD (S.75, administrator app A2; plan .claude/plan-fullscreen-toolkit.md section 5).
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-gates.py <dir> [--build] [--mutant=NAME] [--only=NAME[,NAME]]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-gates.py <dir> [--build] [--mutant=NAME] [--only=NAME[,NAME]]
 #
 # --only (2 Nov 26) runs the named sections: cell queue run several route needs tighten filter who mouse refresh group home xfer small allon leave.  The set-up and G0-G1 (opening the page)
 # always run.  The sections up to group were written to run in that order on one page and some read what an earlier one left (G13a reads the gates G9 and G10 turned off, which a fresh

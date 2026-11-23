@@ -3,7 +3,7 @@
 # sandbox-ide-fresh.py - the IDE and home's editor tiles seen as a person meets them for the first time (S.88, Phase 0; defects I1-I5, I8, D1, D2, P2 of
 #                        ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, section 4).  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-fresh.py <dir> [--build] [--strict]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-ide-fresh.py <dir> [--build] [--strict]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row
 # that counts passed, 1 a row failed, 2 it could not run.  Rows are counted by tuirows.py: a row whose fault a LATER phase fixes is PENDING (not failed) until that

@@ -3,7 +3,7 @@
 # sandbox-qmclient.py - QM4 gaps bundle C-1, the QMClient (SD API) functions added 15 Oct 26: SDRevision (sheet 89), SDGetVar
 #                       (195), SDSystem, SDIndices (410), SDTrans and SDRTrans (499).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-qmclient.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-qmclient.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.

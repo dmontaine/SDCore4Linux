@@ -3,8 +3,8 @@
 # test-delete-sdnet.sh - deletesdcore.sh removes /var/lib/sd-net (every user's stored SDNet login) when the accounts OR the configuration are
 # deleted, and keeps it only when BOTH are kept (owner, 19 Oct 2026; SDNet audit K8e).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdnet.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdnet.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdnet.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-delete-sdnet.sh --selftest
 #   DELETER=<a copy of deletesdcore.sh> bash .../test-delete-sdnet.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here), no install, no SD.  The text between "# SDNET-LOGINS-BEGIN" and "# SDNET-LOGINS-END" is cut out of the

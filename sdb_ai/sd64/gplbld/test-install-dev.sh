@@ -2,7 +2,7 @@
 # test-install-dev.sh - the development installer (installsdcore-dev.sh) changes the
 #                       installer's branch to Dev and nothing else, and refuses otherwise.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-dev.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-dev.sh
 #
 # Free check: no sudo, no network, installs nothing.  Uses --check, which prepares and
 # verifies the copy and stops.  Exit 0 every row passed, 1 a row failed.

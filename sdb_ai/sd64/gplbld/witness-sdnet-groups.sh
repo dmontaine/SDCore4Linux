@@ -2,8 +2,8 @@
 #
 # witness-sdnet-groups.sh - what the installer and the uninstaller do to the four route groups, read from the REAL /etc/group.  (K6c v and vii, 19 Oct 2026.)
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh MODE [options]
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh --selftest        (no sudo: the helpers on known texts)
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh MODE [options]
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh --selftest        (no sudo: the helpers on known texts)
 #
 #   MODE  arrange-upgrade   save the state, take an EMPTY sdfileswrite away if there is one (this script's one change), say what to run next
 #         after-upgrade     [--gates-for USER] [--install-log FILE]   compare with the saved state after you ran the installer over that install
@@ -16,16 +16,16 @@
 # and compares.  The only thing it changes is in arrange-upgrade, and only an EMPTY group: groupdel sdfileswrite, to put the machine in the state of an install made before the write group.
 # Items (v) and (vii) of K6c destroy or replace the install, so they are done LAST, after witness-sdnet-files-route.sh, witness-sdnet-writegroup.sh and witness-sdnet-gaps.sh.
 #
-# THE TWO SEQUENCES   (THIS below is /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh; the script prints the commands in full, copy those)
+# THE TWO SEQUENCES   (THIS below is /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-groups.sh; the script prints the commands in full, copy those)
 #   (v) an installer over an install that has sdfiles but no sdfileswrite (the 18 Oct install was a fresh one after a DELETE cycle, so the creation of an empty sdfileswrite on
 #       an UPGRADE was never seen):
 #         sudo bash THIS arrange-upgrade
-#         bash /home/don/Projects/SDCore4Linux/installsdcore-dev.sh        (as you always do, no sudo, keeping the accounts; capture it with `script`, NOT tee: an installer
+#         bash /home/don/SDCoreProject/SDCore4Linux/installsdcore-dev.sh        (as you always do, no sudo, keeping the accounts; capture it with `script`, NOT tee: an installer
 #                                                                           piped through tee leaves its password prompt visible)
 #         sudo bash THIS after-upgrade --install-log FILE [--gates-for YOU]   (--gates-for YOU if you gave your own account the write group by hand; the installer no longer asks to open the gates, 26 Oct 26)
 #   (vii) a DELETE cycle, read from the group file afterwards, for the branch that removes the accounts and for the branch that keeps them (two cycles, two installs):
 #         sudo bash THIS before-delete
-#         bash /home/don/Projects/SDCore4Linux/deletesdcore.sh               (answer DELETE to remove the accounts, or the keep word to keep them)
+#         bash /home/don/SDCoreProject/SDCore4Linux/deletesdcore.sh               (answer DELETE to remove the accounts, or the keep word to keep them)
 #         sudo bash THIS after-delete --accounts delete|keep --delete-log FILE
 #
 # WHAT EACH ROW NEEDS: the saved state of the SAME four groups (a missing or half-written state file is "cannot run", never a pass), the wording the installer or remover prints
@@ -114,7 +114,7 @@ arrange-upgrade)
   if wl_group_exists sdfiles; then pass "A2 sdfiles exists (there is an install with the files route to upgrade)"; else fail "A2 sdfiles does not exist"; fi
   say ""
   say "  NEXT, by you, not by this script (no sudo; keep the accounts):"
-  say "      bash /home/don/Projects/SDCore4Linux/installsdcore-dev.sh"
+  say "      bash /home/don/SDCoreProject/SDCore4Linux/installsdcore-dev.sh"
   say "  then:  sudo bash $SELF after-upgrade --install-log FILE${GATES_FOR:+ --gates-for $GATES_FOR}"
   wl_summary; exit $?
   ;;
@@ -160,7 +160,7 @@ before-delete)
   save_state delete-before
   say ""
   say "  NEXT, by you, not by this script:"
-  say "      bash /home/don/Projects/SDCore4Linux/deletesdcore.sh      (answer DELETE to remove the accounts, or the keep word to keep them)"
+  say "      bash /home/don/SDCoreProject/SDCore4Linux/deletesdcore.sh      (answer DELETE to remove the accounts, or the keep word to keep them)"
   say "  then:  sudo bash $SELF after-delete --accounts delete|keep --delete-log FILE"
   exit 0
   ;;

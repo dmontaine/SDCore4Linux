@@ -2,7 +2,7 @@
 # test-nocaseowner-units.py - upgrade_nocase reads the flag of a file outside the account under the walk's OWN identity (S.296, found by the VM
 # witness of 22 Nov 2026), read off the source as text.  Free: no install, no sudo, no sd.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-nocaseowner-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-nocaseowner-units.py [--selftest]
 #
 # WHY.  The install runs upgrade_nocase as root and walks each account as its OWNER (!euid_set).  dh_open asks access() whether a file may be
 # written, which answers for the REAL user (root), and then opens it read-write as the EFFECTIVE user (the owner), who cannot write SDSYS's files:

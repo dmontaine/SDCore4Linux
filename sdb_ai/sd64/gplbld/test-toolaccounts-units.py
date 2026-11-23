@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-toolaccounts-units.py - the accounts page, TOOL.ACCOUNTS (`gpl.bp/tool_accounts`), as invariants read off the source (S.75, administrator app A3).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolaccounts-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolaccounts-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT AN ACCOUNT IS MADE OR REMOVED***: creating and deleting an
 account make and remove Linux users and groups, which a sandbox cannot do (`sd-elevate`, root), so those are the witness on a real install (the Debian 13 Clone VM).  What a text check is for: the
@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
-DOCS = "/home/don/Projects/SDCore4LinuxDocs/Administrator/markdown/01-accounts-and-security-6-modify-account.md"   # 17 Nov 26 (S.62): the part of the split page 01 that holds tool.accounts
+DOCS = "/home/don/SDCoreProject/SDCore4LinuxDocs/Administrator/markdown/01-accounts-and-security-6-modify-account.md"   # 17 Nov 26 (S.62): the part of the split page 01 that holds tool.accounts
 FILES = {
     "page": os.path.join(GPL, "tool_accounts"),
     "voc": os.path.join(SDSYS, "voc_template", "tool.accounts"),

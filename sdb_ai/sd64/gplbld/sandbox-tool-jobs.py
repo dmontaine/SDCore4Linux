@@ -3,7 +3,7 @@
 # sandbox-tool-jobs.py - the scheduled jobs page, TOOL.JOBS, and its verb SET.BATCH, on a private SD (S.102 stage 1: the batch gate's list, account jobs only).
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-jobs.py <dir> [--build] [--only=account|admin|account,admin] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-jobs.py <dir> [--build] [--only=account|admin|account,admin] [--mutant=NAME]
 #
 # SECTIONS (--only=): account (J0-J6, stage 1: the batch gate's list, about 1 minute) and admin (K0-K12, stage 4: the administrator's scheduled jobs, SET.JOB and the Jobs view).
 # Without --only both run; a mutant runs its own section only.

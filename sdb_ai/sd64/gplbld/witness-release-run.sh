@@ -65,7 +65,7 @@
 #           (witness-qmclient-mk.bp and -cl.bp); 13m the client library from four threads over TCP
 #           (api-threads-probe.py, python3 -I).  Their rows are Q0-Q15 and M0-M7.  The BASIC half of the local oracle
 #           ran in a sandbox; the C_ lines and the probe have not run anywhere.  The owner runs them with the rest:
-#             sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#             sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
 #           (needs sudo, as the whole script does; the dry run, without --commit, needs none and runs neither section).
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
 #     updates every account's VOC as each install does.
@@ -75,8 +75,8 @@
 #   session is refused outright and is measured as such (section 8's T4,
 #   13b's A4.0).  witness-absence.sh carries the absence half of the model.
 #
-#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#   bash      /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+#   sudo bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 # Exit 0 every check passed, 1 a check failed (or was not reached), 2 it could

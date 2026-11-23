@@ -2,8 +2,8 @@
 #
 # test-install-sourcegone.sh - installsdcore.sh compiles the last program and then leaves no source in the installed tree (S.198, 10 Nov 2026).
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sourcegone.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sourcegone.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sourcegone.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sourcegone.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-sourcegone.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo, no install, no sd.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a missing block is exit 2, never a pass).

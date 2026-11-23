@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-net-units.py - the NET gate and the SDNet server definitions (S.65 slice 1), as invariants read off the source.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-net-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-net-units.py
   python3 .../test-net-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 17 Oct 26.

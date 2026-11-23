@@ -5,7 +5,7 @@
 # names are made lower case.  RELEASE_1.1 5 D2 and PAL-1 stage 3a (the Linux form of the Windows port's
 # verify-nocaseupgrade.ps1).
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-upgradenocase.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-upgradenocase.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (a private SD built from a tree, no sudo, its own IPC keys:
 # never the live system).  With --build the sandbox is built first from THIS tree; <dir> must then be empty
@@ -52,7 +52,7 @@ USER = getpass.getuser()
 # 11060-11065, no owner switching: one user) inside this full-product sandbox.  The kernel is the full
 # product's, which is the same C for everything the walk does; a Solo kernel sandbox does not exist (LSOLO 40).
 SOLO = "--solo" in sys.argv
-SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
+SOLO_SDSYS = "/home/don/SDCoreProject/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 A, G, U, O = "zzacct" + RUN, "zzgrp" + RUN, "zzusr" + RUN, "zzoth" + RUN
 V = "zzvoc" + RUN        # a USER account (the invoking user's) whose VOC cannot be opened: reported, and the walk goes on
 FIX, RD = "zzfix" + RUN, "zzrd" + RUN

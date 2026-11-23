@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """netfake.py - a FAKE SD API SERVER for the SDNet login rows (S.65 slice 2b).  Shared by sandbox-net.py.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/netfake.py --selftest
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/netfake.py --mutants       (S.72b: eight mutants of the request 34 wall, each run through --selftest on a private copy)
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/netfake.py --selftest
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/netfake.py --mutants       (S.72b: eight mutants of the request 34 wall, each run through --selftest on a private copy)
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 

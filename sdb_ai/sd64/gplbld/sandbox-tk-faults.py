@@ -2,7 +2,7 @@
 #
 # sandbox-tk-faults.py - the known faults and loose ends of the toolkit's pages (task faults, 26 Oct 2026).  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-faults.py <dir> [--build] [--sections=e,w,t,g,m] [--mutants | --mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-faults.py <dir> [--build] [--sections=e,w,t,g,m] [--mutants | --mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT, under /tmp).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutants every runtime mutant is made in turn on the SANDBOX'S OWN COPY of a program (never on the tree), and only the section its rows are in is run; exit 0

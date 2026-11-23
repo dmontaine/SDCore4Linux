@@ -3,7 +3,7 @@
 # sandbox-termsafe.py - terminal safety, data safety and the screen library's set / focus / frame behaviour (S.88, Phase 0 of ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, rows
 # S1 S2 S3 S4 D3 F1 F2 F3 of the defect register).  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-termsafe.py <dir> [--build] [--strict] [--slow]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-termsafe.py <dir> [--build] [--strict] [--slow]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row that counts
 # passed, 1 a row failed, 2 it could not run.  --strict counts a row of a phase that has not landed as FAILED (that is how the red run on the old tree is made); without it such a

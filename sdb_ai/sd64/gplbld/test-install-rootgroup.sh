@@ -3,8 +3,8 @@
 # test-install-rootgroup.sh - the installer's ROOT-SDUSERS block (S.158, 7 Nov 2026; owner: "Yes, remove at the end"): root joins sdusers for the install's own
 # root-run SD sessions and is taken out again once the last of them has run.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootgroup.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootgroup.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootgroup.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootgroup.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-rootgroup.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function), getent and gpasswd stubs (MEMBERS is the group's member list; GP_RC makes gpasswd fail).  Exit 0 every row passed,

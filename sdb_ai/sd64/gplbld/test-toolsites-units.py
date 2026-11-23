@@ -3,7 +3,7 @@
 # test-toolsites-units.py - every place a full-screen page (gpl.bp/tool_*) writes or deletes a record or EXECUTEs a sentence is on a list, with the
 # reason it is safe.  No install, no sudo, no sd: the programs are read as text.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolsites-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolsites-units.py [--selftest]
 #
 # START-HISTORY:
 # 9 Nov 26 dm  New (S.186, Fable's review of the TUI: "a free check over every write site in tool_*" and "every bare execute in tool_* is on a named

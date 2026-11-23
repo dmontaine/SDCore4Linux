@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # test-relayfilter-units.py - S.272 (19 Nov 2026): the TLS relay's seccomp filter, RUN, not read.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-relayfilter-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-relayfilter-units.py [--selftest]
 #
 # WHY.  On Ubuntu 24.04 (OpenSSL 3.0.13) every API connection was refused "TLS relay ended before the session started": the relay
 # called setsockopt() in the TLS 1.3 handshake and the filter killed it (kernel audit type 1326, syscall 54, SIGSYS).  The fix answers

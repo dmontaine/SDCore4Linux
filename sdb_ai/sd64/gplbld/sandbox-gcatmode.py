@@ -3,7 +3,7 @@
 # sandbox-gcatmode.py - W.11 F2 (security-model evaluation, 24 Oct 2026): the kernel does not load a global catalogue object that others or the
 # group sdusers can write.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gcatmode.py <dir> [--build]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gcatmode.py <dir> [--build]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent).  Exit 0 every row
 # passed, 1 a row failed, 2 it could not run.  It needs the group sdusers to exist and the person running it to be in it (the rule is about that

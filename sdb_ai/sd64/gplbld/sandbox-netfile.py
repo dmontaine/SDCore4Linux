@@ -3,7 +3,7 @@
 # sandbox-netfile.py - the BASIC client class gpl.bp/sdclient: the login from STORED DERIVED KEYS (connect.keys) and the FILE requests, run
 #                      against the Python fake API server (gplbld/netfake.py).  S.65 slice 3a.  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netfile.py <dir> [--build] [--sections=a,b]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-netfile.py <dir> [--build] [--sections=a,b]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named parts

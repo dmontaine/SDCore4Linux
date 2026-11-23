@@ -3,7 +3,7 @@
 # test-install-gplbpout.sh - S.240: the installer gives the compiled programs (gpl.bp.out) to sdsys:sdusers, files 0644 and folders 0755,
 # once, after the last compile.  Free: no sudo (a function here), no install.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-gplbpout.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-gplbpout.sh [--selftest]
 #   INSTALLER=<a copy of installsdcore.sh> bash .../test-install-gplbpout.sh      (what --selftest uses)
 #
 #   G1  the block, run under the installer's own set and IFS on a scratch gpl.bp.out (files 0664, a folder 0775), leaves files 0644 and folders

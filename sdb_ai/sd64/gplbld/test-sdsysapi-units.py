@@ -2,7 +2,7 @@
 #
 # test-sdsysapi-units.py - S.256, remote administration through the API (remote.sdsys api).  Free: no install, no sudo, no SD.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysapi-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-sdsysapi-units.py [--selftest]
 #
 # START-HISTORY:
 # 18 Nov 26 dm  S.267: the mutant of the local arm's login test follows its new indentation (it sits inside the not-listed branch).

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-semlock-units.py - a removed semaphore set ends a process; sd -stop ends what outlives SIGTERM (8 Nov 26, S.177).
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-semlock-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-semlock-units.py
   python3 .../test-semlock-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.

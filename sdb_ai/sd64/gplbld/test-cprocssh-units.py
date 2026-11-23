@@ -6,7 +6,7 @@
 # It cannot say the arm grants or refuses at run time: sandbox-gates.py rows 0c, 0c' and 0d drive it as the sandbox user (the login test patched true), and
 # witness-absence.sh M12 does it on a real install.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-cprocssh-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-cprocssh-units.py [--selftest]
 # Free: no install, no sudo.  Exit 0 all rows pass (or every mutant killed), 1 a row failed (a mutant survived), 2 it could not run.
 
 import os

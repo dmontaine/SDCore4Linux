@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test-tuidesign-units.py - the TUI design specification (sdb_ai/sd64/tui-design.md, S.88 p7A, 2 Nov 2026) held against the tree, as text.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tuidesign-units.py
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tuidesign-units.py --selftest [--from=N]     (mutants; the first of this sitting is M_P7A)
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tuidesign-units.py
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tuidesign-units.py --selftest [--from=N]     (mutants; the first of this sitting is M_P7A)
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.
 

@@ -4,8 +4,8 @@
 # mouse daemon, in a call of its own whose failure is a warning (owner, 3 Nov 2026: "the decision was the the installer installs gpm, not mentions
 # it"; 7 Nov 2026, after an install in a container stopped on it: "a gpm installation failure doesn't kill the install").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-packages.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-packages.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-packages.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-packages.sh --selftest
 #   INSTALLER=<copy of the installer> bash .../test-install-packages.sh                     (what --selftest uses)
 #
 # FREE CHECK: no install, no sudo (a function here), no apt-get (a stub that logs its arguments; it fails the required call when RC_REQ is not 0 and

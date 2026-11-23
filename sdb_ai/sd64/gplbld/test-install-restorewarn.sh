@@ -6,7 +6,7 @@
 # can not be missed."; 22 Nov 2026: "use the same wording and format that windows is using").  No sudo, no install, no systemd.  Exit 0 every row held, 1 one
 # did not, 2 it could not run.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restorewarn.sh [--selftest]
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-restorewarn.sh [--selftest]
 #
 # S.299 IS THE DEFECT THIS CHECK MISSED: it matched that a command was printed, and the commands printed were refused when typed.  So the F rows compare the
 # printed box whole, T2 is the CLOSED list of every item a script can print (a new item fails it until it is added here, with the line typed on an SD), and T3
@@ -21,7 +21,7 @@ THIS="$HERE/$(basename "${BASH_SOURCE[0]}")"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 INSTALLER="${INSTALLER:-$ROOT/installsdcore.sh}"
 REMOVER="${REMOVER:-$ROOT/deletesdcore.sh}"
-ISS="${ISS:-/home/don/Projects/SDCore4Windows/sdb_ai/sd64/gplbld/sd.iss}"
+ISS="${ISS:-/home/don/SDCoreProject/SDCore4Windows/sdb_ai/sd64/gplbld/sd.iss}"
 SYS="$HERE/../sdsys"
 passed=0; failed=0
 row() {   # row "name" ok(0|1) ["detail"]

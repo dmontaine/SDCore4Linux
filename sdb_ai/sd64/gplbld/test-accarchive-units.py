@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-accarchive-units.py - gplbld/sd-accarchive, the archive step of S.50.
 
-  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-accarchive-units.py
+  python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-accarchive-units.py
   python3 .../test-accarchive-units.py --selftest     each mutant must go red
 
 No sudo, no install, no sd.  Exit 0 every row passed, 1 a row failed, 2 it

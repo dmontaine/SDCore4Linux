@@ -4,8 +4,8 @@
 # bin/pcode, with the directory bin and everything in it - root:root with no group or other write, and makes bin immutable (chattr +i) so that the sdsys user,
 # who owns the system directory, cannot rename bin away and put a bin of its own in its place.
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootbin.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootbin.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootbin.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-rootbin.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-rootbin.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (a function here), no install, no root.  Exit 0 every row passed, 1 a row failed, 2 it could not run (no block, or a scenario that did nothing).

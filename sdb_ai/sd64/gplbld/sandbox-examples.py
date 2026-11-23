@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """sandbox-examples.py - the example programs: LOAD.EXAMPLES gives an account its own examples.bp, compiled, and an ordinary account uses it.
 
-    SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,self,reach,run,remove]
+    SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-examples.py <dir> [--build] [--only=load,self,reach,run,remove]
 
 19 Nov 2026 (the owner: "wouldnt it be easier to just have the user load the examples rather than do it for every account.  most accounts will not
 need the examples"; of bp.edit, "respect the gate"): nothing loads every account; the administrator's no-name form is SDSYS alone, a list loads the

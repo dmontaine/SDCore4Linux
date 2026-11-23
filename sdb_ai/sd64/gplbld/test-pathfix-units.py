@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # test-pathfix-units.py - S.159 (7 Nov 2026): the seven C defects of the Kimi review of Dev fae12324, held against the REAL routines.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pathfix-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-pathfix-units.py [--selftest]
 #
 # The routines are CUT OUT of the shipped sources by their signatures (delete_path, fullpath_n, make_path of op_dio2.c; sdrealpath of
 # linuxlb.c; audit_rotate_file of audit_rot.c), compiled with -fsanitize=address into one harness with stubs for

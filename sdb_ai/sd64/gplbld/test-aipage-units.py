@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-aipage-units.py - the AI line on a PAGE of the toolkit ($tk_aipage, S.97 stage 1), as invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aipage-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-aipage-units.py [--selftest]
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the BASIC of the library programs and of the pages that have the line (the pilot pages tool.voc and tool.files of stage 1; tool.catalog, tool.mygates,
 tool.dict, tool.test, tool.query and tool.bulk since stage 2, 1 Nov 26) as text, comments removed.  ***IT RUNS NOTHING, SO IT CANNOT

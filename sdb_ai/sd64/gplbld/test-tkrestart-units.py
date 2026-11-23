@@ -2,7 +2,7 @@
 # test-tkrestart-units.py - the restart box and the root helper's sd-restart (S.301; SD Core for Windows' row 382), read off the source as text,
 # and the helper's verb through its own --dry-run.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-tkrestart-units.py [--selftest]
+#   python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-tkrestart-units.py [--selftest]
 #
 #   No sudo.  It restarts nothing: the helper is run with --dry-run only, as whoever runs this.
 #

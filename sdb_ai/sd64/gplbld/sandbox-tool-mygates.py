@@ -3,7 +3,7 @@
 # sandbox-tool-mygates.py - TOOL.GATES for an ACCOUNT HOLDER: the read-only "what my account may do and why" page ($tool_mygates, S.75 A2, the user audience of plan section 12),
 # driven on a PSEUDO-TERMINAL as ORDINARY sessions on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-mygates.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-mygates.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """test-examples-units.py - the example programs (examples.bp in every account, 17 Nov 2026) as invariants read off the source.  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-examples-units.py [--selftest]
+    python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-examples-units.py [--selftest]
 
 The owner, 17 Nov 2026: "there should be a examples.bp file available to all users that contains those programs and a set of training programs typical
 for a Computer Science 101 course"; asked how every account reaches it, "A copy in every account".  What it holds:
   X1  THE GUIDE AND THE FILES ARE ONE TEXT: each of the five TUI programs (hello, menus, notes, browse, stock) is byte for byte the first code block of its
-      chapter of the SD Text User Interface - Programmer's Guide in the docs checkout /home/don/Projects/SDCore4LinuxDocs (exit 2 when it is missing)
+      chapter of the SD Text User Interface - Programmer's Guide in the docs checkout /home/don/SDCoreProject/SDCore4LinuxDocs (exit 2 when it is missing)
   X2  every shipped file has a name LOAD.EXAMPLES takes, begins "* <name> -", and each training program (cs..) is "program <name>" ... "end"
   X3  no shipped program writes a doubled quote inside a string (SD BASIC has no '' escape: test-sqescape-units.py's rule, for gpl.bp)
   19 Nov 2026, the owner: "wouldnt it be easier to just have the user load the examples rather than do it for every account.  most accounts will not
@@ -36,7 +36,7 @@ SD64 = os.path.normpath(os.path.join(HERE, ".."))
 ROOT = os.path.normpath(os.path.join(SD64, "..", ".."))
 SDSYS = os.path.join(SD64, "sdsys")
 EX = os.path.join(SDSYS, "examples")
-GUIDE = "/home/don/Projects/SDCore4LinuxDocs/TUIGuide/markdown"
+GUIDE = "/home/don/SDCoreProject/SDCore4LinuxDocs/TUIGuide/markdown"
 PAGES = [("hello", "02-a-bare-page"), ("menus", "03-menus-and-the-finder"), ("notes", "04-a-form-and-a-confirm-box"),
          ("browse", "05-panes-and-pickers"), ("stock", "05b-a-form-in-the-body")]
 

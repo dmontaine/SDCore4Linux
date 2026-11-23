@@ -3,8 +3,8 @@
 # test-install-opengates.sh - the installer's question about the installing user's access gates, and the function that opens them
 # (owner, 19 Oct 2026: "installer asks once; y opens all gates for the installing user's account, default No").
 #
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-opengates.sh
-#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-opengates.sh --selftest
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-opengates.sh
+#   bash /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-opengates.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-opengates.sh      (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd (bin/sd is a stub), no groupadd.  Everything happens in a scratch

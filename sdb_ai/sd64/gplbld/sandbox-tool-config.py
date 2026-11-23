@@ -3,7 +3,7 @@
 # sandbox-tool-config.py - the configuration page, TOOL.CONFIG, driven on a PSEUDO-TERMINAL on a private SD (S.75, administrator app A6: the view half and, since 26 Oct 26, the write half; plan
 # .claude/plan-fullscreen-toolkit.md section 5).  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-config.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/SDCoreProject/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-config.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
