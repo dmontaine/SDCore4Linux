@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 22 Nov 26 dm  S.308: OPENSEQ's read-write choice and DELETESEQ's write check ask the EFFECTIVE user (faccessat AT_EACCESS), the one the
+ *               open or the remove is made as; access() answered for the real user, so after an identity switch OPENSEQ of a file the
+ *               effective user may only read failed instead of opening it read-only.
  * 02 Nov 26 dm  S.88 A3: OPENSEQ ... CREATING makes the file AFTER the SD lock on its name is taken, so a CREATING that ends in its LOCKED clause (or
  *               waits for the lock) leaves no empty file behind; the lock-conflict branch marks the closed handle invalid (no second close at the exit).
  * 30 Oct 26 dm  S.88 A1: the OPENSEQ file,record form looks at the raw record name for a symbolic link before resolving it (so CREATING of a link to nothing
@@ -76,6 +79,8 @@
 #include "dh_int.h"
 #include "header.h" /* HDR_INTERNAL: the edit gates (17 Oct 26, S.64) */
 #include <poll.h>
+#include <fcntl.h>      /* 22 Nov 26 - S.308: AT_FDCWD, AT_EACCESS for faccessat() */
+#include <unistd.h>
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() and k_deadlock() never return, but the analyzer cannot see
@@ -272,7 +277,7 @@ void op_delseq() {
 
   /* Check if we have write access */
 
-  if (access(file_name, 2)) {
+  if (faccessat(AT_FDCWD, file_name, W_OK, AT_EACCESS)) {     /* S.308: the effective user, who makes the remove() */
     process.status = ER_RDONLY;
     goto exit_op_delseq;
   }
@@ -681,7 +686,7 @@ Private void openseq(bool map_name) {
 
       /* Check if we have write access */
 
-      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {
+      if ((op_flags & P_READONLY) || faccessat(AT_FDCWD, fullpathname, W_OK, AT_EACCESS) || edit_blocked) {     /* S.308: the effective user */
         read_only = TRUE;
       }
 

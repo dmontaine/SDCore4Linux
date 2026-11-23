@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 22 Nov 26 dm  S.308 (owner: "fix"): whether a subfile is opened for update is asked of the EFFECTIVE user (faccessat AT_EACCESS), the one
+ *               the open is made as.  access() answered for the REAL user: after an identity switch (root running SD, !euid_set to an
+ *               account's owner) a file the owner may only read was opened read-write and the open failed (S.296's VM witness).
  * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of the file table entry of a directory file (DHF_NOCASE set on a case-blind file system) is gone.
  * 07 Oct 26 dm  PAL-1 stage 3a: the trigger name is lowered when the file is
  *           opened, and that copy is loaded (the Windows port's 14 Sep 26).
@@ -34,6 +37,9 @@
 #include "sd.h"
 #include "dh_int.h"
 #include "header.h"
+
+#include <fcntl.h>      /* 22 Nov 26 - S.308: AT_FDCWD, AT_EACCESS for faccessat() */
+#include <unistd.h>
 
 /* ====================================================================== */
 
@@ -118,7 +124,7 @@ DH_FILE* dh_open(char path[]) {
      k_error("Overflowed directory/filename path length in dh_open()!");
      goto exit_dh_open;
   }
-  if (access(pathname, 2))
+  if (faccessat(AT_FDCWD, pathname, W_OK, AT_EACCESS))     /* S.308: the user the open is made as, not the real one */
     read_only = TRUE;
 
   fu = dio_open(pathname, (read_only) ? DIO_READ : DIO_UPDATE);
@@ -178,7 +184,7 @@ DH_FILE* dh_open(char path[]) {
      k_error("Overflowed directory/filename path length in dh_open()!");
      goto exit_dh_open;
   }
-  if (access(pathname, 2))
+  if (faccessat(AT_FDCWD, pathname, W_OK, AT_EACCESS))     /* S.308: as above */
     read_only = TRUE;
 
   ofu = dio_open(pathname, (read_only) ? DIO_READ : DIO_UPDATE);
