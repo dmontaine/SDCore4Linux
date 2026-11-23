@@ -1,6 +1,6 @@
 * ACC_OS_AKPATH
 * Set a restored hashed file's relocated index path.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 01 Oct 26 dm Written for S.50 (per-OS helper; agreed with SD Core for Windows

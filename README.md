@@ -1,6 +1,6 @@
 # SD Core for Linux
 
-SD, the multivalue String Database, for Linux — one of four SD Core versions
+SD Core for Linux, a multivalue database — one of four SD Core versions
 (Linux and Windows, each multi-user and single-user) that behave the same.
 
 SD is a multivalue database in the Pr1me Information tradition, descended from

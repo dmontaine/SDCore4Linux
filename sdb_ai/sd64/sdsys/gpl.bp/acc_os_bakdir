@@ -1,6 +1,6 @@
 * ACC_OS_BAKDIR
 * The saved backup directory, SD Core for Linux's half (SET.BACKUP.DIRECTORY).
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.

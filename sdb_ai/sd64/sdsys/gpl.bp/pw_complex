@@ -1,6 +1,6 @@
 * PW_COMPLEX(pw)
 * Return @true if pw meets SD's password rule.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 19 Sep 26 dm  Written on the owner's ruling of 19 Sep 2026: SD requires a

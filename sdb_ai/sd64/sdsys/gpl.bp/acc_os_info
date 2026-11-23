@@ -1,6 +1,6 @@
 * ACC_OS_INFO
 * What the operating system knows about an SD account, as manifest lines.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 17 Nov 26 dm S.62 P-4906: a group lookup of the USER arm that could not be made (STATUS() of !is_grp_member) stops the manifest with 11021

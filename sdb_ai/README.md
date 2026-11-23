@@ -1,6 +1,6 @@
 # SD Core for Linux — source tree
 
-The source of SD Core for Linux, the multivalue String Database. It is the
+The source of SD Core for Linux, a multivalue database. It is the
 version the other SD Core versions (Windows, and the single-user Solo editions)
 follow. The repository's top-level `README.md` describes the product and how to
 install it.

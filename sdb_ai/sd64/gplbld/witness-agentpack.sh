@@ -57,8 +57,9 @@ fi
 # 3
 pst=$(sed -n '/"rev_stamp"/{s/^[^:]*: *"\([^"]*\)".*/\1/p;q}' "$AP/pack/manifest.json" 2>/dev/null)
 # 18 Nov 26 (S.62 VM witness): the running system no longer holds gpl.bp's source (S.144), so the installed stamp is the one the
-# installed binary prints on its success line "String Database (sd) Version <stamp> 64 Bit"; anything else leaves it '?'.
-ist=$("$SYSD/bin/sd" --version 2>/dev/null | sed -n 's/^String Database (sd) Version \([^ ]*\) .*/\1/p' | head -1)
+# installed binary prints on its success line "SD Core for Linux Version <stamp>" ("String Database (sd) Version <stamp> 64 Bit" before 23 Nov
+# 26); anything else leaves it '?'.
+ist=$("$SYSD/bin/sd" --version 2>/dev/null | sed -n -e 's/^SD Core for Linux Version \([^ ]*\).*/\1/p' -e 's/^String Database (sd) Version \([^ ]*\) .*/\1/p' | head -1)
 if [ -n "$pst" ] && [ "$pst" = "$ist" ]; then pass "3 the manifest's rev_stamp '$pst' is the installed binary's"; else fail "3 manifest rev_stamp '${pst:-?}' vs installed binary '${ist:-?}'"; fi
 # 4
 if [ -d "$AP" ]; then

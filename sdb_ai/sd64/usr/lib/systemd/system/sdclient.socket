@@ -1,5 +1,5 @@
 [Unit]
-Description=String Database (SD)  Per-Connection client Server
+Description=SD Core for Linux  Per-Connection client Server
 
 [Socket]
 SocketGroup=sdusers

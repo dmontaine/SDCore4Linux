@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 23 Nov 26 dm The sign-on banner says "SD Core for Linux, version LC2.0-0" ("String Database" is shown nowhere; owner 22 Nov).
 * 20 Nov 26 dm Windows 364: update.accounts all refused (10172) before any VOC is touched; 5200 is said here, after that test, not by cproc.
 * 18 Nov 26 dm S.268: the umask follows the account at sign-on - 022 in SDSYS, whose group is every SD user; 002 elsewhere, as before.
 * 2 Nov 26 dm  S.102: batch.permitted's comment names SET.BATCH and TOOL.JOBS, the new way to change batch.jobs.  No code changed.
@@ -342,7 +343,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   distinguish it FROM.
 * 14 Nov 26 dm - The owner, 14 Nov 26: the port's banner says "for Windows" and ours said only "SD Core"; it names the platform, "SD Core for Linux" here
 *   (Solo: "SD Core Solo for Linux", Windows: "SD Core for Windows" and "SD Core Solo for Windows").
-      display "SD Core for Linux, the Essential Multivalue String Database, version " : SD.REV.STAMP
+* 23 Nov 26 dm - The owner, 22 Nov: '"String Database" should appear nowhere a user could see it': the banner is the name and the version.
+      display "SD Core for Linux, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
       display

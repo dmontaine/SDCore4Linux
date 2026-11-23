@@ -1,6 +1,6 @@
 * ACC_ARCHIVE
 * The archive step of BACKUP.ACCOUNT / RESTORE.ACCOUNT, SD Core for Linux.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.

@@ -18,6 +18,7 @@
 #               after K.  QMC_MUTANT=<name> recompiles the sandbox's apisrvr (or the fixture) with one deliberate fault.
 # 18 Oct 26 dm  Part U: SDChecksum (encryption layer 2 / D5, the QMChecksum equivalent) against SD's own CHECKSUM() on the same strings,
 #               with the algorithm written out again here, and with no connection at all.
+# 23 Nov 26 dm  A1, A2: the client's revision is the clean-room library's own stamp (S.262), not this build's (LC2.0-0 since 23 Nov).
 # END-HISTORY
 #
 # THE INSTRUMENT.  A LOCAL API session: the sandbox's own sdclilib.so is loaded with ctypes, SD_CONFIG names the sandbox, and
@@ -474,13 +475,16 @@ def main():
     try:
         say("\n--- A. SDRevision ---------------------------------------------------------------------------------------------")
         r0 = call("SDRevision")
-        row("A1: before a connection SDRevision is the client's revision alone (SD_REV_STAMP of revstamp.h)", r0 == rev, s(r0) + " vs " + s(rev))
+        # 23 Nov 26: the client is the clean-room library (S.262), one binary for two products on each OS, so its own revision is 2.0-0
+        #   (the owner: the number all four share), not this build's LC2.0-0; the server half (A2, A3) is still this build's.
+        row("A1: before a connection SDRevision is the client's revision alone: the library's own 2.0-0",
+            r0 == b"2.0-0", s(r0))
         ok = lib.SDConnectLocal(b"zzaa")
         row("A0: a local API session connects to the fixture account", ok == 1, "connect %r, error %s" % (ok, s(ctypes.string_at(lib.SDError()))))   # SDError's text is the library's own, not freed
         if ok != 1:
             q3.bail("no API session; nothing below can run")
         r1 = call("SDRevision")
-        row("A2: connected it is client, a value mark, server: both this build's revision", r1 == rev + VM + rev, s(r1))
+        row("A2: connected it is client, a value mark, server: the client part is A1's, the server part this build's revision", r1 == r0 + VM + rev, s(r1))
         sy = call("SDSystem", 1012)
         row("A3: SDSystem(1012) is the server revision, the same text", sy == rev, s(sy))
 

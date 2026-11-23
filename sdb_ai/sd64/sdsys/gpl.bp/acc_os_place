@@ -1,6 +1,6 @@
 * ACC_OS_PLACE
 * Put a staged, restored account tree in place and give it to its owner.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 26 Oct 26 dm The shared account is restored to sdsys:sdusers (the group of its directory), not to its register group sdg_shared.

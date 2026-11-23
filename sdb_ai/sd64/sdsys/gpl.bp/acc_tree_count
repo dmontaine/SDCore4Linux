@@ -1,6 +1,6 @@
 * ACC_TREE_COUNT
 * Count a directory tree the way the archive stores it, SD Core for Linux.
-* Copyright (c) String Database
+* Copyright (c) Donald Montaine
 *
 * START-HISTORY:
 * 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core

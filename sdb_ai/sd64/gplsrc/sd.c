@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 23 Nov 26 dm  --version says "SD Core for Linux Version LC2.0-0" and the syslog start-up line "SD Core for Linux command line:" (the
+ *               owner, 22-23 Nov: "Fix the --version for Core, String Database is not this version", '"String Database" should appear
+ *               nowhere a user could see it', then: no "64 Bit", as no 32-bit version exists, and no "(sd)").
  * 18 Nov 26 dm  S.267: main() calls sdsys_local_detect() after xfer_detect(); an ssh login asking for "sd-sdsys" is handed to /usr/local/bin/sd-sdsys.
  * 17 Nov 26 dm  S.62 P-1227, P-1229: -CLEANUP and -U are for root or the sdsys OS user (check_admin_or_sdsys()); -INTERNAL refuses an
  *               account other than SDSYS (SD Core for Windows since 13 and 15 Aug 26; high security wins a conflict that predates 13 Oct).
@@ -162,7 +165,7 @@ int main(int argc, char *argv[]) {
   #define msgsz 256
   char msg[msgsz];
   openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-  syslog (LOG_INFO, "String Database (sd) command line:");
+  syslog (LOG_INFO, "SD Core for Linux command line:");
   strcpy(msg,"sd ");
   for (arg = 1; (arg < argc); arg++) {
     if ((strlen(msg)+ strlen(argv[arg]) + 2) < msgsz){
@@ -559,7 +562,7 @@ Private bool comlin(int argc, char *argv[]) {
             goto help;
           } else if (!stricmp(argv[arg], "--VERSION")) {
 /* rev 0.9.1 Mar 25 return to single rev track */            
-            printf("String Database (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+            printf("SD Core for Linux Version %s\n", SD_REV_STAMP);   /* 23 Nov 26 (owner): the product's name and version only */
 /* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
    without running anything privileged, because the ONE thing it changes is a
    privilege check.  Anything that reports a version - a bug report, a

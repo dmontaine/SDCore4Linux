@@ -3,14 +3,18 @@ Next release - in progress
 
 23 Nov 26  THE VERSION IS LC2.0-0.
 
-             What        - SD Core for Linux reports its version as LC2.0-0 wherever it shows one: the sign-on banner,
-                           the home screen's date line, the $release VOC record and SYSTEM(1012). The release package
-                           and its Changes document are named with it (SDCore-LC2.0-0, sd-core-for-linux-lc2.0-0-changes).
+             What        - SD Core for Linux reports its version as LC2.0-0 wherever it shows one, with its name: the
+                           sign-on banner says "SD Core for Linux, version LC2.0-0", sd --version "SD Core for Linux
+                           Version LC2.0-0", and the home screen's date line, the $release VOC record and
+                           SYSTEM(1012) give LC2.0-0. Messages 5009 and 5163, the API units' descriptions and the
+                           start-up line in the system log name the product where they used an older name. The
+                           release package, its Changes document and its git tag are named LC2.0-0.
              Why         - the owner (22 Nov 2026): the four products are told apart by their version as well as their
                            name - WC2.0-0 SD Core for Windows, WS2.0-0 SD Core Solo for Windows, LC2.0-0 SD Core for
-                           Linux, LS2.0-0 SD Core Solo for Linux.
-             Does NOT    - Change what the release contains; the git tag stays v2.0-0. The client library keeps its
-                           own revision stamp, which is the library's and the same for every product.
+                           Linux, LS2.0-0 SD Core Solo for Linux - and a user should see the product's name and no
+                           other.
+             Does NOT    - Change what the release contains. The client library keeps its own revision stamp, which
+                           is the library's and the same for every product.
 
 23 Nov 26  A FRESH INSTALL NO LONGER INHERITS ssh OR API ACCESS FROM AN EARLIER ONE.
 
@@ -1146,8 +1150,7 @@ Next release - in progress
 
 14 Nov 26  THE SIGN-ON BANNER NAMES THE PLATFORM, AND THE HOME SCREEN SAYS WHAT IS RUNNING.
 
-             What        - the line printed at sign-on read "SD Core, the Essential Multivalue String Database, version LC2.0-0";
-                           it now reads "SD Core for Linux, ...".  The home screen showed only who is signed on and the date;
+             What        - the line printed at sign-on named only "SD Core"; it now names "SD Core for Linux".  The home screen showed only who is signed on and the date;
                            the date line now ends with the product and its version, for example
                            "Friday 13 Nov 2026  -  21:30  -  SD Core for Linux LC2.0-0".  SD Core for Windows, SD Core Solo for
                            Linux and SD Core Solo for Windows say the same with their own names.
@@ -13815,7 +13818,7 @@ SD: what changed, why it mattered, and what it does not do.
 
            The sign-on line now reads
 
-               SD Core, the Essential Multivalue String Database, version L1.0-0
+               SD Core, version L1.0-0
 
            and "sd --version" answers L1.0-0 to match.  It used to say 1.0-2,
            which is not this project's number at all - it is the release of the
@@ -14995,7 +14998,7 @@ Version 0.6.3
 
    
 
-         Update MESSAGES file, change references from SCARLETDME  to String Database (sd)
+         Update MESSAGES file, change references from SCARLETDME to SD
 
 
          Remove hold over users in $LOGINS
@@ -15066,7 +15069,7 @@ Prior to 1/19/2024
 
 ------------------
 
-SD, the String Database is based on code originally released under the
+SD is based on code originally released under the
 
 GPL license in 2007 as a GPL release of the OpenQM database. Later
 

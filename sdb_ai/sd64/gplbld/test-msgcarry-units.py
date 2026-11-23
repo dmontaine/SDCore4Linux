@@ -35,6 +35,10 @@ CORE = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 SOLO = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 CITE = re.compile(r"sysmsg\(\s*(\d+)")
 ALLOWED = {
+    # 23 Nov 26: the owner, '"String Database" should appear nowhere a user could see it' - 5163 names each product
+    ("apisrvr", "5163"): "Directory is not an SD Core for Linux / SD Core Solo for Linux account: the product's own name",
+    ("login", "5163"): "Directory is not an SD Core for Linux / SD Core Solo for Linux account: the product's own name",
+    ("setacc", "5163"): "Directory is not an SD Core for Linux / SD Core Solo for Linux account: the product's own name",
     ("login", "10002"): "SDSYS is entered by sudo in Core; Solo has no sdsys and says type admin",
     ("login", "10172"): "update.accounts all: Core says log in as sdsys, Solo says the installer runs it",
     ("backupa", "13006"): "the syntax line: Solo has one account, so no names",
