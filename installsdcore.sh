@@ -742,7 +742,7 @@ if [ -n "$installer_dir" ] && [ -d "$installer_dir/source/sdb_ai/sd64" ] && [ ! 
         exit 1
     fi
     pkg_source="$installer_dir/source"
-    # 3 Nov 26 (owner: "put it in the installer, not on the login banner"): a package made from a release-candidate tag (v2.0-rc1) says so at the start and at the end of the install; the version
+    # 3 Nov 26 (owner: "put it in the installer, not on the login banner"): a package made from a release-candidate tag (LC2.0-0-rc1) says so at the start and at the end of the install; the version
     #            stamp (LC2.0-0) is the same in a candidate and in the release, so the build that was tested is the build that ships.
     case "$pkg_branch" in *-rc[0-9]*) pkg_pre="$pkg_branch" ;; esac
 fi

@@ -154,11 +154,11 @@ OUT=$(run "")
 row "P8c no installer_dir (the script was not run from a file): not package mode, exit 0" "$(ok "$([ "$(rc_of "$OUT")" = 0 ] && printf '%s' "$OUT" | grep -q '^SRC= COMMIT= BRANCH= PRE=$' && echo yes)")" "$OUT"
 
 echo "--- P9: a release candidate is named"
-for br in v2.0-rc1 v2.0-rc12; do
+for br in LC2.0-0-rc1 v2.0-rc1 v2.0-rc12; do
   mkpkg "$P" "$br"; OUT=$(run "$P")
   row "P9 the branch $br names a pre-release (PRE=$br)" "$(ok "$([ "$(rc_of "$OUT")" = 0 ] && printf '%s' "$OUT" | grep -q "PRE=$br\$" && echo yes)")" "$OUT"
 done
-for br in main Dev v2.0 v2.0-0 rc1 v2.0-release; do
+for br in main Dev LC2.0-0 v2.0 v2.0-0 rc1 v2.0-release; do
   mkpkg "$P" "$br"; OUT=$(run "$P")
   row "P9 the branch $br is not a pre-release (PRE empty)" "$(ok "$([ "$(rc_of "$OUT")" = 0 ] && printf '%s' "$OUT" | grep -q "BRANCH=$br PRE=\$" && echo yes)")" "$OUT"
 done

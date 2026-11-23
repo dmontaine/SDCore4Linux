@@ -46,7 +46,7 @@ cannot() { echo "test-mkrelease-clients: CANNOT RUN - $*"; exit 2; }
 [ -f "$MK" ] || cannot "no $MK"
 [ -f "$INST" ] || cannot "no $INST"
 for c in zip unzip sha256sum cmp git; do command -v "$c" >/dev/null || cannot "$c is not installed"; done
-VERSION=$(sed -n 's/^#define SD_REV_STAMP[[:space:]]*"\(L[0-9.-]*\)".*/\1/p' "$REPO/sdb_ai/sd64/gplsrc/revstamp.h" | head -1)
+VERSION=$(sed -n 's/^#define SD_REV_STAMP[[:space:]]*"\(LC[0-9.-]*\)".*/\1/p' "$REPO/sdb_ai/sd64/gplsrc/revstamp.h" | head -1)
 [ -n "$VERSION" ] || cannot "no SD_REV_STAMP in gplsrc/revstamp.h"
 REF=$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null) || cannot "$REPO is not a git repository"
 git -C "$DOCS" rev-parse --git-dir >/dev/null 2>&1 || cannot "no documentation repository at $DOCS (DOCS_REPO=...)"

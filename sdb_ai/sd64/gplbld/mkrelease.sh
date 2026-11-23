@@ -9,6 +9,7 @@
 # 12 Nov 26 dm - S.151: --clients-openssl4 DIR, the Linux client libraries built against OpenSSL 4 (Ubuntu 26.10), to clients/Linux64-openssl4; --clients
 #            is the OpenSSL 3 build (Debian 13, Ubuntu 26.04).  Owner: "Both, one per OpenSSL".
 # 12 Nov 26 dm - S.151: --clients-bindings DIR (clients/bindings: the header and the language bindings).
+# 23 Nov 26 dm - the owner, 22 Nov (T2030), "Own numbers": the release tag is LC2.0-0 (not v2.0-0), so REF may be an LC tag.
 # 23 Nov 26 dm - the owner, 22 Nov (T1900): the release is LC2.0-0, so VERSION is LC...; lcver lowers every letter (tr 'L' 'l' would make lC2.0-0).
 # 22 Nov 26 dm - S.302, owner: "pull the 32 bit dlls from the release" (they are kept, in the private store): no clients/Windows32, and a clients folder that holds one is refused.
 #
@@ -16,7 +17,7 @@
 #            [--clients-bindings DIR] [--force]
 #
 #   VERSION        the release, as named in the Changes document: LC2.0-0 (the owner, 22 Nov 2026: WC / WS / LC / LS)
-#   --ref REF      main or a v* tag of THIS repository (default: main).  Only what is committed
+#   --ref REF      main or a release tag of THIS repository, LC2.0-0 (or an older v tag) (default: main).  Only what is committed
 #                  there goes in; the working tree is not read.  Nothing is fetched, pushed, merged or tagged.
 #   --docs-ref REF the same for the documentation repository (default: the same name as REF, which must exist there)
 #   --readme FILE  README.txt for the package (the owner reads it before anything is distributed; this script does not write one)
@@ -28,8 +29,8 @@
 #                  Each clients folder must exist and hold at least one file, and no folder; none is listed in SHA256SUMS.
 #   --books DIR   the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
 #   --force        replace an existing staging folder and zip of this version
-#   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
-#   --label LABEL  names a release candidate: SDCore-LC2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
+#   --allow-dev    build from a branch other than main or a release tag (a TEST package for the VM install; never distribute it)
+#   --label LABEL  names a release candidate: SDCore-LC2.0-0-rc1.zip, from the tag LC2.0-0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
 #
 # MAKES, beside the repositories:  Project_Staging/SDCore-VERSION/  and  Project_Zips/SDCore-VERSION.zip
 #
@@ -111,8 +112,8 @@ for c in zip unzip sha256sum tar; do command -v "$c" >/dev/null || die "$c is no
 commit=$(git -C "$REPO" rev-parse --verify -q "${ref}^{commit}") || die "no such ref in $REPO: $ref"
 # a release is made from main (after Dev is merged into it) or from its tag, never from Dev (owner, 3 Nov 2026); --allow-dev makes a TEST package, named so
 case "$ref" in
-    main|v[0-9]*) ;;
-    *) [ "$allow_dev" -eq 1 ] || die "a release package is made from main or a v* tag, not from $ref (merge Dev into main on the owner's word first; --allow-dev makes a test package that must not be distributed)" ;;
+    main|LC[0-9]*|v[0-9]*) ;;            # LC2.0-0 from this release on (the owner, 22 Nov 2026: "Own numbers"); v1.1-3 and older are v tags
+    *) [ "$allow_dev" -eq 1 ] || die "a release package is made from main or a release tag (LC2.0-0, or an older v tag), not from $ref (merge Dev into main on the owner's word first; --allow-dev makes a test package that must not be distributed)" ;;
 esac
 [ -n "$docs_ref" ] || docs_ref="$ref"
 docs_commit=$(git -C "$DOCS" rev-parse --verify -q "${docs_ref}^{commit}") || die "no such ref in $DOCS: $docs_ref (--docs-ref)"
